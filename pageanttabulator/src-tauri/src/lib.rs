@@ -20,11 +20,16 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             // Initialize SQLite DB
-            let _conn = db::schema::init_db(app.handle()).expect("Failed to initialize database");
+            let conn = db::schema::init_db(app.handle()).expect("Failed to initialize database");
             
+            // Create shared app state for axum
+            let app_state = db::AppState {
+                db: std::sync::Arc::new(std::sync::Mutex::new(conn)),
+            };
+
             // Spawn the axum server in a background Tokio task
-            tauri::async_runtime::spawn(async {
-                server::start_server().await;
+            tauri::async_runtime::spawn(async move {
+                server::start_server(app_state).await;
             });
             
             Ok(())

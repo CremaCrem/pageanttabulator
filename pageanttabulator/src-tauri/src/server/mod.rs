@@ -1,11 +1,35 @@
-use axum::{routing::get, Router};
+pub mod event_routes;
+pub mod candidate_routes;
+pub mod judge_routes;
+pub mod score_routes;
+pub mod round_routes;
+pub mod admin_routes;
+
+use axum::{routing::{get, post, patch, delete}, Router};
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
 use tower_http::cors::CorsLayer;
+use crate::db::AppState;
 
-pub async fn start_server() {
+pub async fn start_server(app_state: AppState) {
     let app = Router::new()
         .route("/api/health", get(|| async { r#"{"status":"ok"}"# }))
+        .route("/api/event", get(event_routes::get_event).post(event_routes::update_event))
+        .route("/api/candidates", get(candidate_routes::get_candidates).post(candidate_routes::add_candidate))
+        .route("/api/candidates/:id", patch(candidate_routes::update_candidate))
+        .route("/api/candidates/:id/disqualify", patch(candidate_routes::disqualify_candidate))
+        .route("/api/judges", get(judge_routes::get_judges))
+        .route("/api/judges/session", post(judge_routes::claim_session))
+        .route("/api/judges/session/:judgeId", delete(judge_routes::reset_session))
+        .route("/api/judges/status", get(judge_routes::get_judge_status))
+        .route("/api/scores", post(score_routes::submit_score))
+        .route("/api/scores/summary", get(score_routes::get_score_summary))
+        .route("/api/rounds", get(round_routes::get_rounds))
+        .route("/api/rounds/open", post(round_routes::open_round))
+        .route("/api/rounds/lock", post(round_routes::lock_round))
+        .route("/api/admin/verify-pin", post(admin_routes::verify_pin))
+        .route("/api/results/compute", post(admin_routes::compute_results))
+        .with_state(app_state)
         .layer(CorsLayer::permissive());
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 3000));

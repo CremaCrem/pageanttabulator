@@ -1,4 +1,69 @@
-// Placeholder for actual scoring logic
-pub fn compute_segment_score() -> f64 {
-    0.0
+use crate::server::score_routes::CriterionEntry;
+
+pub fn get_criterion_weight(segment_id: &str, criterion_id: &str) -> f64 {
+    match (segment_id, criterion_id) {
+        // Production Number
+        ("production_number", "stage_presence") => 0.40,
+        ("production_number", "energy") => 0.30,
+        ("production_number", "audience_engagement") => 0.20,
+        ("production_number", "overall_appeal") => 0.10,
+
+        // School Uniform
+        ("school_uniform", "neatness") => 0.25,
+        ("school_uniform", "confidence_bearing") => 0.25,
+        ("school_uniform", "advocacy") => 0.25,
+        ("school_uniform", "overall_impact") => 0.25,
+
+        // Professional Attire
+        ("professional_attire", "elegance_professionalism") => 0.35,
+        ("professional_attire", "suitability") => 0.25,
+        ("professional_attire", "confidence_stage") => 0.20,
+        ("professional_attire", "overall_impact") => 0.20,
+
+        // Modern Barong / Filipiniana
+        ("modern_barong", "elegance_poise") => 0.35,
+        ("modern_barong", "suitability_creativity") => 0.25,
+        ("modern_barong", "confidence_stage") => 0.20,
+        ("modern_barong", "overall_impact") => 0.20,
+
+        // Preliminary Q&A & Final Q&A
+        ("preliminary_qa", "content_substance") | ("final_qa", "content_substance") => 0.40,
+        ("preliminary_qa", "clarity_organization") | ("final_qa", "clarity_organization") => 0.25,
+        ("preliminary_qa", "confidence_delivery") | ("final_qa", "confidence_delivery") => 0.20,
+        ("preliminary_qa", "relevance") | ("final_qa", "relevance") => 0.15,
+
+        _ => 0.0,
+    }
+}
+
+pub fn compute_segment_score(segment_id: &str, entries: &[CriterionEntry]) -> f64 {
+    let mut total_score = 0.0;
+    for entry in entries {
+        let weight = get_criterion_weight(segment_id, &entry.criterion_id);
+        total_score += (entry.score as f64) * weight;
+    }
+    total_score
+}
+
+pub fn compute_avg_segment_score(judge_scores: &[f64]) -> f64 {
+    if judge_scores.is_empty() {
+        return 0.0;
+    }
+    let sum: f64 = judge_scores.iter().sum();
+    sum / (judge_scores.len() as f64)
+}
+
+pub fn compute_preliminary_score(
+    production: f64,
+    school_uniform: f64,
+    professional: f64,
+    modern_barong: f64,
+) -> f64 {
+    // Note: preliminary QA is not part of the 25% weight breakdown explicitly in the docs formula,
+    // so it follows the docs logic 6.3 exactly:
+    (production * 0.25) + (school_uniform * 0.25) + (professional * 0.25) + (modern_barong * 0.25)
+}
+
+pub fn compute_final_score(prelim: f64, final_qa: f64) -> f64 {
+    (prelim * 0.50) + (final_qa * 0.50)
 }
