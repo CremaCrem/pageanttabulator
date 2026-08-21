@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AdminShell } from './components/layout/AdminShell';
 import { JudgeShell } from './components/layout/JudgeShell';

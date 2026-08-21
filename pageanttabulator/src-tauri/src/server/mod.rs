@@ -4,6 +4,7 @@ pub mod judge_routes;
 pub mod score_routes;
 pub mod round_routes;
 pub mod admin_routes;
+pub mod ws;
 
 use axum::{routing::{get, post, patch, delete}, Router};
 use std::net::SocketAddr;
@@ -29,6 +30,7 @@ pub async fn start_server(app_state: AppState) {
         .route("/api/rounds/lock", post(round_routes::lock_round))
         .route("/api/admin/verify-pin", post(admin_routes::verify_pin))
         .route("/api/results/compute", post(admin_routes::compute_results))
+        .route("/ws", get(ws::ws_handler))
         .with_state(app_state)
         .layer(CorsLayer::permissive());
 

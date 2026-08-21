@@ -30,4 +30,5 @@ local-ip-address = "0.6.13"
 tokio-tungstenite = "0.30.0"
 chrono = "0.4.45"
 uuid = { version = "1.24.1", features = ["v4"] }
+futures-util = "0.3.34"
 

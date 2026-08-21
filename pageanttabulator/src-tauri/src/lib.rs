@@ -22,9 +22,13 @@ pub fn run() {
             // Initialize SQLite DB
             let conn = db::schema::init_db(app.handle()).expect("Failed to initialize database");
             
+            // Create a broadcast channel for WebSockets
+            let (ws_sender, _) = tokio::sync::broadcast::channel(100);
+
             // Create shared app state for axum
             let app_state = db::AppState {
                 db: std::sync::Arc::new(std::sync::Mutex::new(conn)),
+                ws_sender: std::sync::Arc::new(ws_sender),
             };
 
             // Spawn the axum server in a background Tokio task
