@@ -2,7 +2,6 @@ use axum::{extract::State, Json};
 use crate::db::{self, AppState};
 use serde_json::{json, Value};
 use serde::Deserialize;
-use uuid::Uuid;
 
 #[derive(Deserialize)]
 pub struct VerifyPinPayload {
@@ -32,7 +31,7 @@ pub async fn compute_results(
     State(state): State<AppState>,
     Json(payload): Json<ComputeResultsPayload>,
 ) -> Json<Value> {
-    let conn = state.db.lock().unwrap();
+    let _conn = state.db.lock().unwrap();
     
     // In a real complete app, this would fetch all raw scores,
     // apply compute.rs averages, and then ranking.rs.

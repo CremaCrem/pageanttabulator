@@ -1,11 +1,18 @@
 use rusqlite::Connection;
+use std::path::Path;
 use tauri::Manager;
 
 pub fn init_db(app_handle: &tauri::AppHandle) -> Result<Connection, rusqlite::Error> {
     let app_dir = app_handle.path().app_data_dir().expect("failed to get app data dir");
     std::fs::create_dir_all(&app_dir).expect("failed to create app data dir");
-    
     let db_path = app_dir.join("pageant_data.db");
+    init_db_with_path(&db_path)
+}
+
+pub fn init_db_with_path(db_path: &Path) -> Result<Connection, rusqlite::Error> {
+    if let Some(parent) = db_path.parent() {
+        std::fs::create_dir_all(parent).ok();
+    }
     let conn = Connection::open(db_path)?;
     
     // Event configuration (one row)
