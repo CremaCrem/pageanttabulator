@@ -1,12 +1,174 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { PageWrapper } from '../../components/layout/PageWrapper';
+import { fetchApi } from '../../api/client';
+import { ICandidate, Gender } from '../../types';
 
 export const CandidatesPage: React.FC = () => {
+  const [candidates, setCandidates] = useState<ICandidate[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [adding, setAdding] = useState(false);
+  
+  const [newCandidate, setNewCandidate] = useState({
+    candidateNumber: '',
+    fullName: '',
+    department: '',
+    gender: Gender.Female,
+  });
+
+  const loadCandidates = async () => {
+    setLoading(true);
+    try {
+      const data = await fetchApi('/api/candidates');
+      setCandidates(data.sort((a: any, b: any) => a.candidateNumber.localeCompare(b.candidateNumber)));
+    } catch (err: any) {
+      setError('Failed to load candidates.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadCandidates();
+  }, []);
+
+  const handleAdd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAdding(true);
+    setError('');
+    
+    try {
+      await fetchApi('/api/candidates', {
+        method: 'POST',
+        body: JSON.stringify({
+          candidateNumber: newCandidate.candidateNumber,
+          fullName: newCandidate.fullName,
+          department: newCandidate.department,
+          gender: newCandidate.gender,
+          isEligible: true
+        })
+      });
+      setNewCandidate({ candidateNumber: '', fullName: '', department: '', gender: Gender.Female });
+      await loadCandidates();
+    } catch (err: any) {
+      setError(err.message || 'Failed to add candidate');
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  const handleDisqualify = async (id: string, currentlyEligible: boolean) => {
+    if (!confirm(`Are you sure you want to mark this candidate as ${currentlyEligible ? 'disqualified' : 'eligible'}?`)) return;
+    
+    try {
+      await fetchApi(`/api/candidates/${id}/disqualify`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          isEligible: !currentlyEligible,
+          disqualificationNote: currentlyEligible ? 'Admin disqualified' : null
+        })
+      });
+      await loadCandidates();
+    } catch (err: any) {
+      setError(err.message || 'Failed to update candidate status');
+    }
+  };
+
   return (
     <PageWrapper>
-      <h1 className="text-heading-1 mb-6 text-primary-900">Candidates</h1>
-      <div className="bg-white p-6 rounded-lg shadow-card">
-        <p className="text-neutral-700">Manage candidate roster here.</p>
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-heading-1 text-primary-900">Candidates</h1>
+          <p className="text-neutral-500">Manage the official roster</p>
+        </div>
+      </div>
+
+      {error && (
+        <div className="mb-6 p-4 bg-error-50 text-error-700 rounded-lg text-sm border border-error-100">
+          {error}
+        </div>
+      )}
+
+      {/* Add Candidate Form */}
+      <div className="bg-white p-6 rounded-xl shadow-panel mb-8 border border-neutral-100">
+        <h2 className="text-lg font-bold text-neutral-800 mb-4">Add New Candidate</h2>
+        <form onSubmit={handleAdd} className="flex flex-wrap gap-4 items-end">
+          <div className="flex-1 min-w-[120px]">
+            <label className="block text-xs font-semibold text-neutral-600 mb-1">Number</label>
+            <input type="text" required value={newCandidate.candidateNumber} onChange={e => setNewCandidate({...newCandidate, candidateNumber: e.target.value})} className="w-full p-2 border border-neutral-300 rounded focus:border-primary-500 outline-none" placeholder="e.g. 01" />
+          </div>
+          <div className="flex-[3] min-w-[200px]">
+            <label className="block text-xs font-semibold text-neutral-600 mb-1">Full Name</label>
+            <input type="text" required value={newCandidate.fullName} onChange={e => setNewCandidate({...newCandidate, fullName: e.target.value})} className="w-full p-2 border border-neutral-300 rounded focus:border-primary-500 outline-none" placeholder="Juan dela Cruz" />
+          </div>
+          <div className="flex-[2] min-w-[150px]">
+            <label className="block text-xs font-semibold text-neutral-600 mb-1">Department/College</label>
+            <input type="text" required value={newCandidate.department} onChange={e => setNewCandidate({...newCandidate, department: e.target.value})} className="w-full p-2 border border-neutral-300 rounded focus:border-primary-500 outline-none" placeholder="CAS" />
+          </div>
+          <div className="flex-1 min-w-[120px]">
+            <label className="block text-xs font-semibold text-neutral-600 mb-1">Category</label>
+            <select value={newCandidate.gender} onChange={e => setNewCandidate({...newCandidate, gender: e.target.value as Gender})} className="w-full p-2 border border-neutral-300 rounded focus:border-primary-500 outline-none bg-white">
+              <option value={Gender.Female}>Female (Ms.)</option>
+              <option value={Gender.Male}>Male (Mr.)</option>
+            </select>
+          </div>
+          <button type="submit" disabled={adding} className="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded shadow transition-colors disabled:opacity-50 h-[42px]">
+            {adding ? 'Adding...' : 'Add'}
+          </button>
+        </form>
+      </div>
+
+      {/* Roster Table */}
+      <div className="bg-white rounded-xl shadow-panel overflow-hidden border border-neutral-100">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-neutral-50 text-neutral-600 text-sm border-b border-neutral-200">
+                <th className="p-4 font-semibold">No.</th>
+                <th className="p-4 font-semibold">Name</th>
+                <th className="p-4 font-semibold">Department</th>
+                <th className="p-4 font-semibold">Category</th>
+                <th className="p-4 font-semibold">Status</th>
+                <th className="p-4 font-semibold text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-neutral-100">
+              {loading ? (
+                <tr><td colSpan={6} className="p-8 text-center text-neutral-400">Loading...</td></tr>
+              ) : candidates.length === 0 ? (
+                <tr><td colSpan={6} className="p-8 text-center text-neutral-400">No candidates added yet.</td></tr>
+              ) : (
+                candidates.map((candidate) => (
+                  <tr key={candidate.id} className="hover:bg-neutral-50 transition-colors">
+                    <td className="p-4 font-bold text-primary-900">{candidate.candidateNumber}</td>
+                    <td className="p-4 font-medium text-neutral-800">{candidate.fullName}</td>
+                    <td className="p-4 text-neutral-600">{candidate.department}</td>
+                    <td className="p-4 text-neutral-600">
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${candidate.gender === Gender.Female ? 'bg-pink-100 text-pink-700' : 'bg-blue-100 text-blue-700'}`}>
+                        {candidate.gender === Gender.Female ? 'Ms.' : 'Mr.'}
+                      </span>
+                    </td>
+                    <td className="p-4">
+                      {candidate.isEligible ? (
+                        <span className="inline-flex px-2 py-1 bg-success-100 text-success-700 text-xs font-semibold rounded-full">Active</span>
+                      ) : (
+                        <span className="inline-flex px-2 py-1 bg-error-100 text-error-700 text-xs font-semibold rounded-full">Disqualified</span>
+                      )}
+                    </td>
+                    <td className="p-4 text-right space-x-2">
+                      <button 
+                        onClick={() => handleDisqualify(candidate.id, candidate.isEligible)}
+                        className={`text-sm font-medium ${candidate.isEligible ? 'text-error-600 hover:text-error-800' : 'text-success-600 hover:text-success-800'}`}
+                      >
+                        {candidate.isEligible ? 'Disqualify' : 'Reinstate'}
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </PageWrapper>
   );
