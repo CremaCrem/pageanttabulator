@@ -26,9 +26,35 @@ Tauri process (admin laptop)
 
 ---
 
-## 2. REST API Endpoints
+## 2. API Data Mapping & Serialization Contract
 
-All endpoints are prefixed with `/api`. Requests and responses use JSON.
+To eliminate deserialization mismatches (such as HTTP 422 errors due to `camelCase` vs `snake_case`), the following data contract is strictly enforced across the entire architecture:
+
+### The Universal Wire Standard
+- **All JSON payloads** transmitted over HTTP (Request bodies, Response bodies) and WebSockets **MUST use `camelCase`** for all keys.
+- **Frontend (TypeScript):** Uses idiomatic TypeScript `camelCase` property names (e.g., `judgeId`, `candidateNumber`, `isEligible`, `criteriaEntries`).
+- **Backend (Rust):** Uses idiomatic Rust `snake_case` struct field names (e.g., `judge_id`, `candidate_number`, `is_eligible`, `criteria_entries`).
+- **Database (SQLite):** Uses standard SQL `snake_case` column names (e.g., `judge_id`, `candidate_id`, `is_eligible`).
+
+### Mandatory Backend Serde Rule
+Every single Rust struct or enum used for HTTP request payloads, HTTP response bodies, or WebSocket messages **MUST include Serde mapping attributes**:
+
+```rust
+// ✅ MANDATORY for all API request & response DTOs:
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ClaimSessionPayload {
+    pub judge_id: String, // Translates to/from "judgeId" in JSON
+}
+```
+
+> ⚠️ **Rule:** Never define an API payload or response struct in Rust without `#[serde(rename_all = "camelCase")]`. Failing to include this attribute will cause Serde to expect `snake_case` on the wire, resulting in HTTP 422 `Unprocessable Entity` errors when the frontend sends `camelCase`.
+
+---
+
+## 3. REST API Endpoints
+
+All endpoints are prefixed with `/api`. Requests and responses use JSON with `camelCase` keys.
 
 ### Event Configuration
 

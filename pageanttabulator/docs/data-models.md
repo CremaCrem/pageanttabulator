@@ -6,6 +6,21 @@
 
 ---
 
+## 0. Data Mapping & Casing Architecture
+
+To guarantee type safety and prevent JSON deserialization mismatches across the full stack:
+
+| Layer | Language / Storage | Casing Convention | Example |
+| :--- | :--- | :--- | :--- |
+| **Frontend UI** | TypeScript / React | `camelCase` | `judgeId`, `candidateNumber`, `isEligible` |
+| **Wire Protocol** | JSON (REST & WS) | `camelCase` | `{"judgeId": "J1", "isEligible": true}` |
+| **Backend Memory** | Rust Structs | `snake_case` + Serde mapping | `pub judge_id: String` with `#[serde(rename_all = "camelCase")]` |
+| **Database** | SQLite Table Columns | `snake_case` | `judge_id TEXT`, `candidate_number TEXT` |
+
+> 📌 **Serde Mapping Contract:** All Rust data structures exposed to HTTP/WS must include `#[serde(rename_all = "camelCase")]` so Serde seamlessly translates between TypeScript's `camelCase` and Rust's `snake_case` without manual mapping code.
+
+---
+
 ## 1. Enums
 
 ```typescript

@@ -40,6 +40,7 @@ You are building a **mission-critical scoring application used at a live event w
 | Admin PIN is required for all irreversible actions | Prevent accidental destruction |
 | Special awards scoring is independent from main competition | Never combine them |
 | The app must work with **zero internet** on event day | Venue reliability cannot be assumed |
+| All JSON network payloads must be `camelCase` with Rust `#[serde(rename_all = "camelCase")]` | Prevent 422 deserialization crashes |
 
 ---
 
@@ -57,6 +58,7 @@ You are building a **mission-critical scoring application used at a live event w
 - **WebSocket:** `tokio-tungstenite` via axum's WebSocket upgrade — for real-time event broadcasts.
 - **Database:** SQLite via `rusqlite`. Schema is defined in `src-tauri/src/db/schema.rs`.
 - **Scoring Engine:** All formulas in `src-tauri/src/scoring/compute.rs`. This is the **single source of truth** for all score computation.
+- **Serialization:** **MANDATORY** `#[serde(rename_all = "camelCase")]` on ALL Rust request/response DTOs communicating with the frontend.
 - **No separate server process.** The server is part of the Tauri binary. It starts and stops with the app.
 
 ### Storage Laws
@@ -65,10 +67,11 @@ You are building a **mission-critical scoring application used at a live event w
 - All score data, candidate data, event config, and results live in **SQLite only**.
 - React Context / component state is ephemeral UI state only — it is populated by API calls, not the primary store.
 
-### API Communication
+### API Communication & Data Mapping
 - All data operations go through the REST API (`/api/*`) — not via Tauri IPC commands (except for file export dialogs).
 - The admin Tauri shell uses the **same API** as the judge browsers — no special backdoor paths for the admin.
 - WebSocket (`/ws`) is for real-time event notifications only — not for data transfer.
+- **Wire Casing Standard:** The network contract is strictly `camelCase`. Every endpoint input/output struct in Rust must be decorated with `#[serde(rename_all = "camelCase")]`. Never accept or emit raw unmapped `snake_case` JSON keys.
 
 ---
 
