@@ -1,7 +1,8 @@
-import { useMemo } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AdminShell } from './components/layout/AdminShell';
 import { JudgeShell } from './components/layout/JudgeShell';
+
+import { isTauri } from '@tauri-apps/api/core';
 
 // Admin Pages
 import { SetupPage } from './pages/admin/SetupPage';
@@ -20,17 +21,9 @@ import { ProjectionPage } from './pages/shared/ProjectionPage';
 
 import './App.css';
 
-declare global {
-  interface Window {
-    __TAURI__?: boolean;
-  }
-}
-
 function App() {
   // Detect if running inside the Tauri shell
-  const isAdminMode = useMemo(() => {
-    return Boolean(window.__TAURI__);
-  }, []);
+  const isAdminMode = isTauri();
 
   return (
     <BrowserRouter>

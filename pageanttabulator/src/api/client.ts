@@ -1,11 +1,13 @@
 // src/api/client.ts
+import { isTauri } from '@tauri-apps/api/core';
+
 export const getApiBaseUrl = () => {
   // If we are in Tauri dev mode, point to the Rust dev server
-  if (import.meta.env.DEV && window.__TAURI__) {
+  if (isTauri()) {
     return 'http://localhost:3000';
   }
   // If we are in a regular browser (dev mode), point to Rust dev server
-  if (import.meta.env.DEV && !window.__TAURI__) {
+  if (import.meta.env.DEV && !isTauri()) {
     // Determine the host (could be localhost or IP)
     const host = window.location.hostname;
     return `http://${host}:3000`;
