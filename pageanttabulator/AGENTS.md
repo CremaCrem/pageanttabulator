@@ -56,7 +56,7 @@ This is a **mission-critical system used at a live event with real students**. T
 
 | Priority | Rule |
 |---|---|
-| 1 | **Accuracy** — every formula must exactly match `docs/scoring-logic.md` |
+| 1 | **Accuracy** — every formula must exactly match `docs/scoped/scoring-logic.md` |
 | 2 | **Data integrity** — SQLite on the server is the only source of truth |
 | 3 | **Resilience** — survive browser crashes, network blips, and admin restarts without data loss |
 | 4 | **Clarity** — readable, traceable code over clever abstractions |
@@ -67,7 +67,7 @@ This is a **mission-critical system used at a live event with real students**. T
 
 | Rule | Why |
 |---|---|
-| Scoring formulas **must exactly match** `docs/scoring-logic.md` | Legal/official accuracy |
+| Scoring formulas **must exactly match** `docs/scoped/scoring-logic.md` | Legal/official accuracy |
 | All score computation happens **in Rust** (`src-tauri/src/scoring/`) | Cannot trust browser math |
 | SQLite is the **only** authoritative data store | Multi-device, crash-safe |
 | Server must listen on `0.0.0.0`, never `127.0.0.1` | Judges connect over WiFi |
@@ -181,7 +181,7 @@ docs/             Reference documentation (see Section 13)
 
 ## 7. Scoring Computation Summary
 
-> Full formulas with worked examples: `docs/scoring-logic.md` — always verify against it.
+> Full formulas with worked examples: `docs/scoped/scoring-logic.md` — always verify against it.
 
 ```
 Segment Score (per judge, per candidate, per segment):
@@ -223,7 +223,7 @@ Special awards:    Fully independent — never combined with main scores
 
 ## 9. Design Laws
 
-> Full token reference: `docs/design-system.md`.
+> Full token reference: `docs/scoped/design-system.md`.
 
 | Token | Value |
 |---|---|
@@ -277,11 +277,11 @@ Update the corresponding doc **in the same change** as your code:
 
 | Change type | Doc to update |
 |---|---|
-| New page, route, Rust module, or folder restructure | `docs/architecture.md` |
-| New or modified API endpoint or WebSocket event | `docs/network-server.md` |
-| Any formula or weight change (**requires explicit approval**) | `docs/scoring-logic.md` |
-| New component or design token | `docs/design-system.md` |
-| TypeScript type change or SQLite schema change | `docs/data-models.md` |
+| New page, route, Rust module, or folder restructure | `docs/scoped/architecture.md` |
+| New or modified API endpoint or WebSocket event | `docs/scoped/network-server.md` |
+| Any formula or weight change (**requires explicit approval**) | `docs/scoped/scoring-logic.md` |
+| New component or design token | `docs/scoped/design-system.md` |
+| TypeScript type change or SQLite schema change | `docs/scoped/data-models.md` |
 
 **Never delete documentation — append and version instead.**
 
@@ -293,12 +293,12 @@ Read these when working in the relevant area:
 
 | Document | When to read |
 |---|---|
-| [`docs/architecture.md`](./docs/architecture.md) | Adding pages, routes, Rust modules, or changing data flow |
-| [`docs/network-server.md`](./docs/network-server.md) | Adding/modifying API endpoints or WebSocket events |
-| [`docs/data-models.md`](./docs/data-models.md) | Changing TypeScript types or SQLite schema |
-| [`docs/scoring-logic.md`](./docs/scoring-logic.md) | Any math, weights, criteria, or ranking logic |
-| [`docs/design-system.md`](./docs/design-system.md) | UI components, colors, typography, Tailwind config |
-| [`docs/pageant-rules.md`](./docs/pageant-rules.md) | Ground truth for all official pageant mechanics |
+| [`docs/scoped/architecture.md`](./docs/scoped/architecture.md) | Adding pages, routes, Rust modules, or changing data flow |
+| [`docs/scoped/network-server.md`](./docs/scoped/network-server.md) | Adding/modifying API endpoints or WebSocket events |
+| [`docs/scoped/data-models.md`](./docs/scoped/data-models.md) | Changing TypeScript types or SQLite schema |
+| [`docs/scoped/scoring-logic.md`](./docs/scoped/scoring-logic.md) | Any math, weights, criteria, or ranking logic |
+| [`docs/scoped/design-system.md`](./docs/scoped/design-system.md) | UI components, colors, typography, Tailwind config |
+| [`docs/reference/pageant-rules.md`](./docs/reference/pageant-rules.md) | Ground truth for all official pageant mechanics |
 | [`docs/ai-constitution.md`](./docs/ai-constitution.md) | Legacy full constitution — superseded by this file for agent use |
 
 ---
