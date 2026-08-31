@@ -303,6 +303,16 @@ Read these when working in the relevant area:
 
 ---
 
+## 14. Git Conventions
+
+- **Single-line & Concise:** Whenever committing changes, always write a single-line, concise commit message.
+- **Conventional Commits:** Follow conventional commit style (e.g., `feat: ...`, `fix: ...`, `refactor: ...`, `docs: ...`, `chore: ...`). Example: `fix: resolve session token bug`.
+- **No Multi-line Bodies:** Do not include multi-line message bodies or detailed lists in commit messages unless explicitly requested.
+- **Direct Application:** Do not ask for confirmation on the commit style each time — apply it automatically.
+
+---
+
 *AGENTS.md v1.0 — August 31, 2026*
 *Supersedes `docs/ai-constitution.md` as the primary agent-facing behavioral contract.*
 *Event: IDSC 18th Founding Anniversary — Mr. & Ms. IDSC 2026 · September 10, 2026*
+
