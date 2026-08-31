@@ -3,11 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { PageWrapper } from '../../components/layout/PageWrapper';
 import { useAppContext } from '../../context/AppContext';
 import { fetchApi } from '../../api/client';
-import { ICandidate, ISubmitScoreRequest, UserRole } from '../../types';
+import { ICandidate, ISubmitScoreRequest, UserRole, IRoundState, RoundStatus } from '../../types';
 import { SEGMENTS } from '../../utils/constants';
 
 export const ScoringPage: React.FC = () => {
-  const { state } = useAppContext();
+  const { state, dispatch } = useAppContext();
   const navigate = useNavigate();
   
   const [candidates, setCandidates] = useState<ICandidate[]>([]);
@@ -44,16 +44,48 @@ export const ScoringPage: React.FC = () => {
     loadCandidates();
   }, []);
 
-  // Reset local form state when segment changes
+  // Fetch active round on mount if not already set
+  useEffect(() => {
+    const loadActiveRound = async () => {
+      try {
+        const rounds: IRoundState[] = await fetchApi('/api/rounds');
+        dispatch({ type: 'SET_ROUND_STATES', payload: rounds });
+        const openRound = rounds.find(r => r.status === RoundStatus.Open);
+        if (openRound && state.activeSegmentId !== openRound.segmentId) {
+          dispatch({ type: 'SET_ACTIVE_SEGMENT', payload: openRound.segmentId });
+        }
+      } catch (err) {
+        console.error("Failed to load rounds on judge startup", err);
+      }
+    };
+    loadActiveRound();
+  }, [dispatch]);
+
+  // Reset local form state and fetch existing scores when segment changes
   useEffect(() => {
     setScores({});
-    setCompletedCandidates(new Set());
     setError('');
     // optionally select first candidate again
     if (candidates.length > 0) {
       setSelectedCandidateId(candidates[0].id);
     }
-  }, [state.activeSegmentId, candidates]);
+    
+    // Fetch already submitted scores to populate checkmarks
+    const fetchSubmittedScores = async () => {
+      if (!state.activeSegmentId || !state.session?.judgeId) return;
+      try {
+        const scores: any[] = await fetchApi(`/api/scores/judge/${state.session.judgeId}`);
+        const segmentScores = scores.filter(s => s.segmentId === state.activeSegmentId);
+        const completed = new Set<string>();
+        segmentScores.forEach(s => completed.add(s.candidateId));
+        setCompletedCandidates(completed);
+      } catch (err) {
+        console.error("Failed to load existing scores", err);
+      }
+    };
+    
+    fetchSubmittedScores();
+  }, [state.activeSegmentId, state.session?.judgeId, candidates]);
 
   const activeSegment = state.activeSegmentId ? SEGMENTS[state.activeSegmentId] : null;
 

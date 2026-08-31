@@ -4,6 +4,7 @@ use serde_json::{json, Value};
 use serde::Deserialize;
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct VerifyPinPayload {
     pub pin: String,
 }

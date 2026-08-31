@@ -19,7 +19,7 @@ The server runs as a Tokio async task spawned at startup. It shuts down when the
 Tauri process (admin laptop)
 ├── Main thread       → Tauri window + admin UI
 └── Tokio runtime     → axum server (HTTP + WebSocket)
-    ├── Static files  → serves React build to browsers
+    ├── Static files  → serves React build from ../dist (with SPA index.html fallback)
     ├── /api/*        → REST routes
     └── /ws           → WebSocket upgrade
 ```
@@ -77,9 +77,17 @@ All endpoints are prefixed with `/api`. Requests and responses use JSON with `ca
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/api/judges` | Get all configured judge slots |
-| `POST` | `/api/judges/session` | Judge claims a slot (sets judgeId in session) |
+| `POST` | `/api/judges/session` | Judge claims a slot. Returns a `sessionToken`. |
+| `POST` | `/api/judges/session/verify` | Verifies a stored `sessionToken` for auto-reconnect. |
 | `DELETE` | `/api/judges/session/:judgeId` | Admin forcibly resets a judge session |
 | `GET` | `/api/judges/status` | Get submission progress per judge per segment |
+
+#### Judge Session Resiliency Architecture
+To survive browser refreshes and accidental tab closures, judge sessions use a combination of SQLite persistence and browser `localStorage`:
+1. When claiming a seat (`POST /api/judges/session`), the server generates a unique `sessionToken`, saves it in SQLite (`judges` table), and returns it to the client.
+2. The browser saves this token in `localStorage`.
+3. If the judge refreshes or reopens the browser, the frontend calls `POST /api/judges/session/verify` with the token. If valid, the judge is seamlessly reconnected to their session without returning to the selection screen.
+4. If an imposter attempts to claim an already active `judgeId` without the token, the backend rejects the request. The admin must use "Force Logout" (`DELETE`) to invalidate the token and free the seat.
 
 ### Scores
 
@@ -107,6 +115,31 @@ All endpoints are prefixed with `/api`. Requests and responses use JSON with `ca
 | `POST` | `/api/results/compute` | Trigger final score computation (admin only) |
 | `GET` | `/api/awards` | Get all special award assignments |
 | `POST` | `/api/awards` | Set a special award winner (admin only) |
+
+### System & Network Info
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/network-info` | Returns the host's active LAN IPv4 address, server port, and pre-formatted judge/projector URLs |
+
+#### `GET /api/network-info` Response
+```json
+{
+  "localIp": "192.168.1.45",
+  "port": 3000,
+  "serverUrl": "http://192.168.1.45:3000",
+  "judgeUrl": "http://192.168.1.45:3000/judge",
+  "projectionUrl": "http://192.168.1.45:3000/projection"
+}
+}
+```
+
+#### Network Interface Resolution Architecture
+The backend resolves the active host IP using a **UDP Socket Routing Probe** rather than naive interface enumeration.
+1. The server creates a dummy UDP socket and attempts to `connect()` to an external IP (e.g., `8.8.8.8:80`).
+2. Because UDP is connectionless, no packets are transmitted. However, the OS kernel evaluates its routing table to determine which local network interface (e.g., Wi-Fi `en0`) would be used to route that traffic.
+3. The server reads the socket's local address, obtaining the exact IP assigned by the venue router.
+This guarantees the system ignores inactive virtual bridges (like Docker, WSL, or macOS Thunderbolt bridges) that often confuse naive interface discovery.
 
 ### Admin Auth
 

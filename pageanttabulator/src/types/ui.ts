@@ -11,6 +11,7 @@ export interface UIState {
 
 export type UIAction =
   | { type: 'SET_SESSION';         payload: ISession | null }
+  | { type: 'CLEAR_SESSION' }
   | { type: 'SET_EVENT_CONFIG';    payload: IEventConfig }
   | { type: 'SET_SERVER_READY';    payload: boolean }
   | { type: 'SET_ROUND_STATES';    payload: IRoundState[] }

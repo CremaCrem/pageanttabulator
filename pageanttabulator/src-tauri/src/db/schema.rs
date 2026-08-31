@@ -50,13 +50,17 @@ pub fn init_db_with_path(db_path: &Path) -> Result<Connection, rusqlite::Error> 
     // Judge slots
     conn.execute(
         "CREATE TABLE IF NOT EXISTS judges (
-            id          TEXT PRIMARY KEY,
-            name        TEXT,
-            is_active   INTEGER NOT NULL DEFAULT 0,
-            last_seen   TEXT
+            id            TEXT PRIMARY KEY,
+            name          TEXT,
+            is_active     INTEGER NOT NULL DEFAULT 0,
+            session_token TEXT,
+            last_seen     TEXT
         )",
         [],
     )?;
+    
+    // Quick migration for existing databases
+    let _ = conn.execute("ALTER TABLE judges ADD COLUMN session_token TEXT", []);
 
     // Segment/round state
     conn.execute(

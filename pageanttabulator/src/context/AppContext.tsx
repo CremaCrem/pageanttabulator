@@ -18,6 +18,10 @@ function uiReducer(state: UIState, action: UIAction): UIState {
   switch (action.type) {
     case 'SET_SESSION':
       return { ...state, session: action.payload };
+    case 'CLEAR_SESSION':
+      localStorage.removeItem('judgeSessionToken');
+      localStorage.removeItem('judgeId');
+      return { ...state, session: null, activeSegmentId: null };
     case 'SET_EVENT_CONFIG':
       return { ...state, eventConfig: action.payload };
     case 'SET_SERVER_READY':
@@ -35,6 +39,14 @@ function uiReducer(state: UIState, action: UIAction): UIState {
         case 'SEGMENT_LOCKED':
           if (state.activeSegmentId === wsMsg.segmentId) {
             return { ...state, activeSegmentId: null };
+          }
+          return state;
+        case 'SESSION_REVOKED':
+          // If the revoked session is ours, log out immediately
+          if (state.session?.judgeId === wsMsg.judgeId) {
+            localStorage.removeItem('judgeSessionToken');
+            localStorage.removeItem('judgeId');
+            return { ...state, session: null, activeSegmentId: null };
           }
           return state;
         // Other events (like SCORE_SUBMITTED) might update specific pieces of state

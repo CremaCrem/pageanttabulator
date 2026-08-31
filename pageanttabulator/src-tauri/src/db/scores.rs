@@ -63,3 +63,9 @@ pub fn get_by_segment(conn: &Connection, segment_id: &str) -> Result<Vec<Score>>
     }
     Ok(scores)
 }
+
+pub fn count_by_judge(conn: &Connection, judge_id: &str) -> Result<i32> {
+    let mut stmt = conn.prepare("SELECT COUNT(*) FROM scores WHERE judge_id = ?1")?;
+    let count: i32 = stmt.query_row(params![judge_id], |row| row.get(0))?;
+    Ok(count)
+}

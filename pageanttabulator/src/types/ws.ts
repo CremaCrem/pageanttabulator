@@ -13,6 +13,7 @@ export type WSServerMessage =
   | { type: 'SCORE_SUBMITTED';     judgeId: string; candidateId: string; segmentId: SegmentId }
   | { type: 'JUDGE_CONNECTED';     judgeId: string }
   | { type: 'JUDGE_DISCONNECTED';  judgeId: string }
+  | { type: 'SESSION_REVOKED';     judgeId: string }
   | { type: 'RANKINGS_UPDATED';    category: Gender; topCandidates: ICandidateResult[] }
   | { type: 'TOP5_ANNOUNCED';      male: ICandidateResult[]; female: ICandidateResult[] }
   | { type: 'FINAL_RESULTS_READY'; winners: ICandidateResult[] }

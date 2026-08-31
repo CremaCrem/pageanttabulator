@@ -108,10 +108,11 @@ export interface ICandidate {
 // src/types/judge.ts
 
 export interface IJudge {
-  id:        string;   // "J1" through "J10"
-  name?:     string;   // Optional real name (admin can fill this in)
-  isActive:  boolean;  // True when a browser has claimed this slot
-  lastSeen?: string;   // ISO timestamp of last WebSocket ping
+  id:           string;   // "J1" through "J10"
+  name?:        string;   // Optional real name (admin can fill this in)
+  isActive:     boolean;  // True when a browser has claimed this slot
+  sessionToken?: string;  // Unique token used for localStorage auto-reconnect
+  lastSeen?:    string;   // ISO timestamp of last WebSocket ping
 }
 ```
 
@@ -196,9 +197,10 @@ export interface ISpecialAward {
 // src/types/session.ts
 
 export interface ISession {
-  role:      UserRole;
-  judgeId?:  string;   // Set only when role === UserRole.Judge
-  startedAt: string;
+  role:         UserRole;
+  judgeId?:     string;   // Set only when role === UserRole.Judge
+  sessionToken?: string;  // Unique token used for localStorage auto-reconnect
+  startedAt:    string;
 }
 ```
 
@@ -233,6 +235,7 @@ export type WSServerMessage =
   | { type: 'SCORE_SUBMITTED';     judgeId: string; candidateId: string; segmentId: SegmentId }
   | { type: 'JUDGE_CONNECTED';     judgeId: string }
   | { type: 'JUDGE_DISCONNECTED';  judgeId: string }
+  | { type: 'SESSION_REVOKED';     judgeId: string }
   | { type: 'RANKINGS_UPDATED';    category: Gender; topCandidates: ICandidateResult[] }
   | { type: 'TOP5_ANNOUNCED';      male: ICandidateResult[]; female: ICandidateResult[] }
   | { type: 'FINAL_RESULTS_READY'; winners: ICandidateResult[] }
@@ -272,6 +275,24 @@ export interface ISubmitScoreResponse {
 // POST /api/judges/session — request body
 export interface IClaimJudgeSessionRequest {
   judgeId: string;
+  deviceToken?: string; // If provided, attempts to re-claim an existing active session
+}
+
+// POST /api/judges/session — response
+export interface IClaimJudgeSessionResponse {
+  status: string;
+  sessionToken: string; // Used for auto-reconnect via localStorage
+}
+
+// POST /api/judges/session/verify — request body
+export interface IVerifySessionRequest {
+  judgeId: string;
+  sessionToken: string;
+}
+
+// POST /api/judges/session/verify — response
+export interface IVerifySessionResponse {
+  valid: boolean;
 }
 
 // POST /api/rounds/open — request body

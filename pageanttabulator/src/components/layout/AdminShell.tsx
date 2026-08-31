@@ -1,10 +1,22 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, ClipboardList, UserCheck, FileText, Trophy } from 'lucide-react';
+import { LayoutDashboard, Users, ClipboardList, UserCheck, FileText, Trophy, QrCode, X, Copy } from 'lucide-react';
 import { cn } from '../ui/Button';
+import { useAppContext } from '../../context/AppContext';
+import { fetchApi } from '../../api/client';
+import { QRCodeSVG } from 'qrcode.react';
 
 export const AdminShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
+  const { state } = useAppContext();
+  const [networkInfo, setNetworkInfo] = React.useState<any>(null);
+  const [showQrModal, setShowQrModal] = React.useState(false);
+
+  React.useEffect(() => {
+    fetchApi('/api/network-info')
+      .then(info => setNetworkInfo(info))
+      .catch(err => console.error('Failed to load network info', err));
+  }, []);
 
   const navItems = [
     { label: 'Setup', path: '/', icon: Trophy },
@@ -55,14 +67,65 @@ export const AdminShell: React.FC<{ children: React.ReactNode }> = ({ children }
       <main className="flex-1 flex flex-col min-w-0 overflow-y-auto">
         {/* Header */}
         <header className="h-16 shrink-0 border-b border-neutral-200 bg-white flex items-center px-8 justify-between shadow-sm z-10">
-          <div className="font-medium text-neutral-900">Mr. & Ms. IDSC 2026</div>
-          <div className="text-sm text-neutral-500">Local IP: 192.168.x.x:3000</div>
+          <div className="font-semibold text-neutral-900">
+            {state.eventConfig?.name || 'Pageant Tabulator'}
+            {state.eventConfig?.subtitle && (
+              <span className="text-neutral-400 font-normal ml-2">| {state.eventConfig.subtitle}</span>
+            )}
+          </div>
+          
+          {networkInfo && (
+            <button 
+              onClick={() => setShowQrModal(true)}
+              className="flex items-center space-x-2 bg-primary-100 hover:bg-primary-200 text-primary-900 px-3 py-1.5 rounded-full text-sm font-medium transition-colors"
+            >
+              <div className="w-2 h-2 rounded-full bg-success"></div>
+              <span>LAN: {networkInfo.localIp}:{networkInfo.port}</span>
+              <QrCode className="w-4 h-4 ml-1 opacity-70" />
+            </button>
+          )}
         </header>
         
         <div className="flex-1">
           {children}
         </div>
       </main>
+
+      {/* QR Code Modal */}
+      {showQrModal && networkInfo && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-200">
+          <div className="bg-white rounded-xl shadow-modal p-8 max-w-sm w-full relative">
+            <button 
+              onClick={() => setShowQrModal(false)}
+              className="absolute top-4 right-4 text-neutral-400 hover:text-neutral-900"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            
+            <h2 className="text-heading-3 text-center mb-2">Connect Judges</h2>
+            <p className="text-sm text-neutral-500 text-center mb-6">
+              Scan this QR code with a tablet or phone to access the judge portal.
+            </p>
+            
+            <div className="flex justify-center mb-6 bg-white p-4 rounded-lg border border-neutral-100 shadow-sm">
+              <QRCodeSVG value={networkInfo.judgeUrl} size={200} />
+            </div>
+            
+            <div className="flex items-center justify-between bg-neutral-50 p-3 rounded-lg border border-neutral-200">
+              <div className="text-sm font-medium truncate mr-3">{networkInfo.judgeUrl}</div>
+              <button 
+                onClick={() => {
+                  navigator.clipboard.writeText(networkInfo.judgeUrl);
+                }}
+                className="p-2 hover:bg-neutral-200 rounded-md text-neutral-700 transition-colors"
+                title="Copy URL"
+              >
+                <Copy className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

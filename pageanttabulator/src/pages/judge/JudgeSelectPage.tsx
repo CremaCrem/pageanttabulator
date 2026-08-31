@@ -19,9 +19,39 @@ export const JudgeSelectPage: React.FC = () => {
       return;
     }
 
+    const checkExistingSession = async (): Promise<boolean> => {
+      const storedToken = localStorage.getItem('judgeSessionToken');
+      const storedJudgeId = localStorage.getItem('judgeId');
+      if (storedToken && storedJudgeId) {
+        try {
+          const res = await fetchApi('/api/judges/session/verify', {
+            method: 'POST',
+            body: JSON.stringify({ judgeId: storedJudgeId, sessionToken: storedToken })
+          });
+          if (res.valid) {
+            dispatch({
+              type: 'SET_SESSION',
+              payload: { role: UserRole.Judge, judgeId: storedJudgeId, sessionToken: storedToken, startedAt: new Date().toISOString() }
+            });
+            // We do not navigate here because state.session update will trigger this useEffect again and hit the block above
+            return true;
+          }
+        } catch (e) {
+          console.error("Session verification failed", e);
+          // If invalid, clear it
+          localStorage.removeItem('judgeSessionToken');
+          localStorage.removeItem('judgeId');
+        }
+      }
+      return false;
+    };
+
     const loadData = async () => {
       try {
         setLoading(true);
+        const hasSession = await checkExistingSession();
+        if (hasSession) return; // Skip loading judge selection UI if we are auto-logging in
+        
         // Fetch event config if not present
         if (!state.eventConfig) {
           const config: IEventConfig = await fetchApi('/api/event');
@@ -44,14 +74,21 @@ export const JudgeSelectPage: React.FC = () => {
 
   const handleClaim = async (judgeId: string) => {
     try {
-      await fetchApi('/api/judges/session', {
+      // Pass the existing deviceToken if we have one, to allow re-claiming
+      const existingToken = localStorage.getItem('judgeSessionToken');
+      
+      const res = await fetchApi('/api/judges/session', {
         method: 'POST',
-        body: JSON.stringify({ judgeId })
+        body: JSON.stringify({ judgeId, deviceToken: existingToken || undefined })
       });
+      
+      // Save to localStorage
+      localStorage.setItem('judgeSessionToken', res.sessionToken);
+      localStorage.setItem('judgeId', judgeId);
       
       dispatch({ 
         type: 'SET_SESSION', 
-        payload: { role: UserRole.Judge, judgeId, startedAt: new Date().toISOString() } 
+        payload: { role: UserRole.Judge, judgeId, sessionToken: res.sessionToken, startedAt: new Date().toISOString() } 
       });
       
       navigate('/score');

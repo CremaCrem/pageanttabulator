@@ -1,4 +1,4 @@
-use axum::{extract::State, Json};
+use axum::{extract::{State, Path}, Json};
 use crate::db::{self, AppState};
 use serde_json::{json, Value};
 use serde::{Deserialize, Serialize};
@@ -56,4 +56,16 @@ pub async fn submit_score(
 pub async fn get_score_summary(State(_state): State<AppState>) -> Json<Value> {
     // Stub. In reality we aggregate scores per candidate per segment here.
     Json(json!([]))
+}
+
+pub async fn get_scores_by_judge(
+    State(state): State<AppState>,
+    Path(judge_id): Path<String>,
+) -> Json<Value> {
+    let conn = state.db.lock().unwrap();
+    if let Ok(scores) = db::scores::get_by_judge(&conn, &judge_id) {
+        Json(json!(scores))
+    } else {
+        Json(json!([]))
+    }
 }

@@ -65,6 +65,7 @@ pub async fn update_candidate(
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DisqualifyPayload {
     pub note: Option<String>,
 }

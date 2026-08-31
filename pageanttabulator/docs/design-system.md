@@ -170,17 +170,42 @@ shadow-green: 0 0 12px rgba(27,94,55,0.25);
 └────────────┴─────────────────────────────────────────┘
 ```
 
-### Content Grid
+### Content Grid & Full Canvas Space Utilization
 
 - Main content uses a **12-column grid** with 24px gutters.
 - Dashboard cards use a **responsive 2-col to 4-col** auto-fit grid.
+- **Admin Configuration Pages (e.g., Event Setup, Criteria Setup):**
+  - **No Narrow Isolated Cards:** Avoid constraining main forms to `max-w-2xl` on widescreen desktop monitors, which leaves awkward empty dead space.
+  - **2-Column Bento Standard:**
+    - **Primary Panel (Left ~65%):** Master form controls, organized fieldsets, and primary submit action.
+    - **Live Hub / Summary Panel (Right ~35%):** Live event preview card, quick connection hub with dynamic QR code & copyable judge link, and system readiness metrics.
 - Scoring sheet uses a **split layout**: Candidate info (left 40%) + Criteria form (right 60%).
 
 ---
 
 ## 8. Component Specifications
 
-### 8.1 Sidebar Navigation
+### 8.1 App Shell Header & Dynamic Branding
+
+```
+Height: 64px, fixed, border-bottom 1px solid color-neutral-200, background #FFFFFF
+Layout: flex, justify-between, items-center, px-8
+
+Left — Dynamic Event Brand:
+  - Text: Dynamic value from AppContext (state.eventConfig.name)
+  - Fallback: "PageantTabulator" if uninitialized
+  - Font: Inter 600, 16px, color-neutral-900
+  - Subtitle Badge (optional): Inter 400, 13px, color-neutral-400 (e.g. "Coronation Night")
+
+Right — Interactive LAN Status Pill:
+  - Background: color-primary-100 (#E8F5EE) or neutral-100
+  - Text: color-primary-900 / color-neutral-700, 13px, font-medium
+  - Indicator: 6px circular green dot (status-live)
+  - Value: Active host LAN IP & Port (e.g. "LAN: 192.168.1.45:3000")
+  - Actions: 1-click URL copy button + QR Code modal launcher
+```
+
+### 8.2 Sidebar Navigation
 
 ```
 Background: color-primary-900 (#0D3320)

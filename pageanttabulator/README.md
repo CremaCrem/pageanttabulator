@@ -7,7 +7,7 @@ IDSC 18th Founding Anniversary Celebration · Pageant Day: September 10, 2026 ·
 
 ## What Is This?
 
-PageantTabulator is a purpose-built, offline-capable desktop application for running the live tabulation of the Mr. and Ms. IDSC 2026 pageant. The admin's laptop acts as the hub — running a local HTTP and WebSocket server — while judges connect from their own Windows machines using any browser. No cloud, no accounts, no installation required for judges.
+PageantTabulator is a purpose-built, offline-capable desktop application for running the live tabulation of the Mr. and Ms. IDSC 2026 pageant. The admin's laptop acts as the hub — running a local HTTP and WebSocket server — while judges connect from their own machines using any browser. No cloud, no accounts, no installation required for judges.
 
 ```
            Venue WiFi
@@ -36,11 +36,11 @@ Tauri App     Browser       Browser
 
 ## Documentation
 
-Read documents in this order if you are building on this project:
+> **AI agents:** Read [`AGENTS.md`](./AGENTS.md) first — it is your behavioral contract for every session.
 
 | Document | Purpose |
 |----------|---------|
-| [`docs/ai-constitution.md`](./docs/ai-constitution.md) | **READ FIRST** — Behavioral rules and laws for any AI agent or developer |
+| [`AGENTS.md`](./AGENTS.md) | **Agent contract** — standing rules, commands, conventions, anti-patterns (read every session) |
 | [`docs/architecture.md`](./docs/architecture.md) | System structure, network topology, folder layout, data flow |
 | [`docs/network-server.md`](./docs/network-server.md) | Embedded HTTP/WebSocket server, API endpoints, deployment |
 | [`docs/data-models.md`](./docs/data-models.md) | TypeScript types, DB schema, WebSocket message contracts |
@@ -70,6 +70,9 @@ npm run dev
 
 # Type check
 npx tsc --noEmit
+
+# Rust type check
+cargo check --manifest-path src-tauri/Cargo.toml
 ```
 
 ### Building for Windows (Production)
@@ -94,4 +97,4 @@ See [`docs/network-server.md`](./docs/network-server.md) for the full deployment
 
 ---
 
-*Project Version: 0.1.0 · Last Updated: August 21, 2026*
+*Project Version: 0.1.0 · Last Updated: August 31, 2026*
