@@ -27,7 +27,6 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Install dependencies
-        working-directory: ./pageanttabulator
         run: npm install
 
       - name: Build Tauri app
@@ -35,7 +34,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          projectPath: "./pageanttabulator"
+          projectPath: "./"
           tagName: "v0.1.0" # This would be dynamic in a real setup
           releaseName: "PageantTabulator v0.1.0"
           releaseBody: "Automated build of PageantTabulator"
