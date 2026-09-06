@@ -117,5 +117,18 @@ pub fn init_db_with_path(db_path: &Path) -> Result<Connection, rusqlite::Error> 
         [],
     )?;
 
+    // Past Events Archive
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS past_events (
+            id            TEXT PRIMARY KEY,
+            name          TEXT NOT NULL,
+            subtitle      TEXT,
+            event_date    TEXT,
+            winners_json  TEXT NOT NULL,
+            created_at    TEXT NOT NULL
+        )",
+        [],
+    )?;
+
     Ok(conn)
 }

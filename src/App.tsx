@@ -12,6 +12,7 @@ import { CriteriaPage } from './pages/admin/CriteriaPage';
 import { JudgeStatusPage } from './pages/admin/JudgeStatusPage';
 import { ReportsPage } from './pages/admin/ReportsPage';
 import { ResultsPage } from './pages/admin/ResultsPage';
+import { EventHistoryPage } from './pages/admin/EventHistoryPage';
 
 // Judge Pages
 import { JudgeSelectPage } from './pages/judge/JudgeSelectPage';
@@ -39,6 +40,7 @@ function App() {
             <Route path="/criteria" element={<CriteriaPage />} />
             <Route path="/judges" element={<JudgeStatusPage />} />
             <Route path="/results" element={<ResultsPage />} />
+            <Route path="/history" element={<EventHistoryPage />} />
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/projection" element={<ProjectionPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />

@@ -4,6 +4,7 @@ import { fetchApi } from '../../api/client';
 import { IEventConfig } from '../../types';
 import { useAppContext } from '../../context/AppContext';
 import { QRCodeSVG } from 'qrcode.react';
+import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { Copy, MonitorSmartphone, QrCode } from 'lucide-react';
 
 export const SetupPage: React.FC = () => {
@@ -13,6 +14,14 @@ export const SetupPage: React.FC = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [networkInfo, setNetworkInfo] = useState<any>(null);
+
+  const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean, type: 'save' | 'reset', pin: string }>({
+    isOpen: false,
+    type: 'save',
+    pin: ''
+  });
+  const [actionError, setActionError] = useState('');
+  const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
     fetchApi('/api/network-info')
@@ -80,6 +89,40 @@ export const SetupPage: React.FC = () => {
       setError(err.message || 'Failed to save configuration');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleActionConfirm = async () => {
+    if (!confirmModal.pin) {
+      setActionError('PIN is required');
+      return;
+    }
+    
+    setActionLoading(true);
+    setActionError('');
+    try {
+      if (confirmModal.type === 'save') {
+        const res = await fetchApi('/api/scores/all');
+        const winnersJson = JSON.stringify(res);
+        await fetchApi('/api/event/save-close', {
+          method: 'POST',
+          body: JSON.stringify({ pin: confirmModal.pin, winnersJson })
+        });
+        setSuccess('Event saved to history and closed successfully!');
+      } else {
+        await fetchApi('/api/event/reset', {
+          method: 'POST',
+          body: JSON.stringify({ pin: confirmModal.pin })
+        });
+        setSuccess('Event reset successfully!');
+      }
+      setConfirmModal({ isOpen: false, type: 'save', pin: '' });
+      setTimeout(() => setSuccess(''), 3000);
+      window.location.reload();
+    } catch (err: any) {
+      setActionError(err.message || 'Action failed');
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -257,9 +300,59 @@ export const SetupPage: React.FC = () => {
             )}
           </div>
           
+          {/* Event Actions */}
+          <div className="bg-red-50 p-6 rounded-xl shadow-card border border-red-200">
+            <h3 className="text-sm font-bold text-red-700 uppercase tracking-wider mb-4 flex items-center">
+              Danger Zone
+            </h3>
+            <div className="space-y-4">
+              <button 
+                onClick={() => setConfirmModal({ isOpen: true, type: 'save', pin: '' })}
+                className="w-full py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition-colors"
+              >
+                Save & Close Event
+              </button>
+              <button 
+                onClick={() => setConfirmModal({ isOpen: true, type: 'reset', pin: '' })}
+                className="w-full py-3 bg-white text-red-600 border border-red-200 hover:bg-red-50 font-bold rounded-lg transition-colors"
+              >
+                Emergency Reset
+              </button>
+            </div>
+            <p className="text-xs text-red-500 mt-4 leading-relaxed">
+              These actions modify the database. "Save & Close" archives the event. "Emergency Reset" wipes current scores permanently.
+            </p>
+          </div>
+
         </div>
 
       </div>
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.type === 'save' ? 'Save & Close Event' : 'Emergency Reset'}
+        message={confirmModal.type === 'save' 
+          ? 'This will save the current event scores to history and wipe the active tables. This action cannot be undone.' 
+          : 'WARNING: This will instantly delete all active scores, rounds, and candidates from the database without saving to history. This action cannot be undone.'}
+        onConfirm={handleActionConfirm}
+        onCancel={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+        confirmText={confirmModal.type === 'save' ? 'Confirm Save & Close' : 'CONFIRM RESET'}
+        isDestructive={true}
+        loading={actionLoading}
+      >
+        <div className="mt-4">
+          <label className="block text-sm font-semibold text-neutral-700 mb-2">Enter Admin PIN to confirm</label>
+          <input 
+            type="password"
+            className="w-full p-3 border border-neutral-300 rounded-lg outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500"
+            value={confirmModal.pin}
+            onChange={(e) => setConfirmModal({...confirmModal, pin: e.target.value})}
+            placeholder="****"
+          />
+          {actionError && <p className="text-sm text-red-600 mt-2 font-medium">{actionError}</p>}
+        </div>
+      </ConfirmModal>
+
     </PageWrapper>
   );
 };

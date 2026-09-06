@@ -26,6 +26,7 @@ export const AdminShell: React.FC<{ children: React.ReactNode }> = ({ children }
     { label: 'Judge Status', path: '/judges', icon: UserCheck },
     { label: 'Results', path: '/results', icon: Trophy },
     { label: 'Reports', path: '/reports', icon: FileText },
+    { label: 'History', path: '/history', icon: ClipboardList },
   ];
 
   return (
