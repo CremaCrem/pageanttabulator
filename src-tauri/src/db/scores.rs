@@ -69,3 +69,24 @@ pub fn count_by_judge(conn: &Connection, judge_id: &str) -> Result<i32> {
     let count: i32 = stmt.query_row(params![judge_id], |row| row.get(0))?;
     Ok(count)
 }
+
+pub fn get_all(conn: &Connection) -> Result<Vec<Score>> {
+    let mut stmt = conn.prepare("SELECT * FROM scores")?;
+    let iter = stmt.query_map([], |row| {
+        Ok(Score {
+            id: row.get("id")?,
+            judge_id: row.get("judge_id")?,
+            candidate_id: row.get("candidate_id")?,
+            segment_id: row.get("segment_id")?,
+            criteria_json: row.get("criteria_json")?,
+            computed_score: row.get("computed_score")?,
+            submitted_at: row.get("submitted_at")?,
+        })
+    })?;
+
+    let mut scores = Vec::new();
+    for s in iter {
+        scores.push(s?);
+    }
+    Ok(scores)
+}

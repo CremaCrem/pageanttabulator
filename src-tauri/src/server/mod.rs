@@ -32,6 +32,7 @@ pub async fn start_server(app_state: AppState) {
         .route("/api/judges/status", get(judge_routes::get_judge_status))
         .route("/api/scores", post(score_routes::submit_score))
         .route("/api/scores/summary", get(score_routes::get_score_summary))
+        .route("/api/scores/all", get(score_routes::get_all_scores))
         .route("/api/scores/judge/{judgeId}", get(score_routes::get_scores_by_judge))
         .route("/api/rounds", get(round_routes::get_rounds))
         .route("/api/rounds/open", post(round_routes::open_round))

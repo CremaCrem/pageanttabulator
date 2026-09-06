@@ -69,3 +69,12 @@ pub async fn get_scores_by_judge(
         Json(json!([]))
     }
 }
+
+pub async fn get_all_scores(State(state): State<AppState>) -> Json<Value> {
+    let conn = state.db.lock().unwrap();
+    if let Ok(scores) = db::scores::get_all(&conn) {
+        Json(json!(scores))
+    } else {
+        Json(json!([]))
+    }
+}
