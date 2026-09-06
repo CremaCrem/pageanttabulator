@@ -75,7 +75,7 @@ export enum SpecialAwardId {
 // src/types/event.ts
 
 export interface IEventConfig {
-  id:          number;    // Always 1 — single-row config table
+  id:          string;    // UUID identifying the event
   name:        string;    // "Mr. and Ms. IDSC 2026"
   subtitle:    string;    // "IDSC 18th Founding Anniversary Celebration"
   eventDate:   string;    // ISO date: "2026-09-10"
@@ -90,6 +90,7 @@ export interface IEventConfig {
 // src/types/candidate.ts
 
 export interface ICandidate {
+  eventId:              string;   // Links to IEventConfig.id
   id:                   string;   // "M01", "F01", etc.
   candidateNumber:      string;   // Same as id — official draw-lots number
   fullName:             string;
@@ -146,6 +147,7 @@ export interface ICriterionEntry {
 
 export interface ISegmentScore {
   id:             string;            // UUID (server-assigned)
+  eventId:        string;
   judgeId:        string;
   candidateId:    string;
   segmentId:      SegmentId;
@@ -209,6 +211,7 @@ export interface ISession {
 // src/types/round.ts
 
 export interface IRoundState {
+  eventId:    string;
   segmentId:  SegmentId;
   status:     RoundStatus;
   openedAt?:  string;

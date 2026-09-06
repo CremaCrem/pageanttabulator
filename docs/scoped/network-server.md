@@ -182,6 +182,7 @@ The server broadcasts these events to ALL connected clients unless noted:
 | `TOP5_ANNOUNCED` | `{ maleCandidates[], femaleCandidates[] }` | Prelim locked, Top 5 announced |
 | `FINAL_RESULTS_READY` | `{ winners }` | Final scores computed, winners determined |
 | `SYSTEM_MESSAGE` | `{ level, message }` | Admin broadcast message to all judge screens |
+| `EVENT_RESET`    | `{}` | Admin wiped the current event — clients must clear state |
 
 ### Client → Server Events
 
@@ -201,6 +202,7 @@ The admin PIN is a simple 4–6 digit number set during event setup. It is store
 The PIN is required for:
 - Locking a segment (`POST /api/rounds/lock`)
 - Computing final results (`POST /api/results/compute`)
+- Resetting the entire event (`POST /api/event/reset`) **[NEW]**
 - Forcibly resetting a judge session
 - Disqualifying a candidate
 - Overriding a submitted score

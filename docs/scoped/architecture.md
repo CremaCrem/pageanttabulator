@@ -226,14 +226,17 @@ pageanttabulator/
 | `/candidates` | `CandidatesPage` | Add, edit, manage all candidates |
 | `/criteria` | `CriteriaPage` | Read-only criteria and weights reference |
 | `/judges` | `JudgeStatusPage` | Per-judge scoring progress matrix |
+| `/results` | `ResultsPage` | **[NEW]** Raw scores table and racing bar charts |
 | `/reports` | `ReportsPage` | Final results, winner determination, export |
+| `/history` | `HistoryPage` | **[NEW]** View past events and create new ones |
+| `/diagnostics`| `DiagnosticsPage`| **[NEW]** System health, logs, and connection status |
 
 ### Judge Routes (Browser, served by axum)
 
 | Route | Page | Description |
 |-------|------|-------------|
 | `/` | `JudgeSelectPage` | "Who are you?" — judge identity selection |
-| `/score` | `ScoringPage` | Candidate navigator + scoring form for active segment |
+| `/score` | `ScoringPage` | Candidate navigator + scoring form (Also renders **ThankYouView** when all segments locked, and uses **ErrorBoundary** for crashes) |
 
 ### Shared Routes (Both Tauri and Browser)
 
