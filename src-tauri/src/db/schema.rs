@@ -130,5 +130,18 @@ pub fn init_db_with_path(db_path: &Path) -> Result<Connection, rusqlite::Error> 
         [],
     )?;
 
+    // System Logs
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS system_logs (
+            id          TEXT PRIMARY KEY,
+            level       TEXT NOT NULL,
+            source      TEXT NOT NULL,
+            message     TEXT NOT NULL,
+            details     TEXT,
+            created_at  TEXT NOT NULL
+        )",
+        [],
+    )?;
+
     Ok(conn)
 }

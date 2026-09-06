@@ -5,6 +5,7 @@ pub mod scores;
 pub mod rounds;
 pub mod event;
 pub mod results;
+pub mod logs;
 
 use rusqlite::Connection;
 use std::sync::{Arc, Mutex};
