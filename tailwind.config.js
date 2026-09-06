@@ -22,10 +22,6 @@ export default {
           100: '#FBF5E6',
         },
         parchment: '#F9F6F0',
-        success: '#27AE60',
-        warning: '#F39C12',
-        error: '#E74C3C',
-        info: '#2980B9',
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],

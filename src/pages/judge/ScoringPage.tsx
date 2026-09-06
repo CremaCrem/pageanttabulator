@@ -225,7 +225,7 @@ export const ScoringPage: React.FC = () => {
                   </div>
                 </div>
                 {isDone && (
-                  <svg className="w-5 h-5 text-success-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
                   </svg>
                 )}
@@ -261,12 +261,12 @@ export const ScoringPage: React.FC = () => {
             <div className="max-w-3xl mx-auto">
               
               {isCompleted ? (
-                <div className="p-8 text-center bg-success-50 rounded-xl border border-success-100 mb-8">
-                  <svg className="w-16 h-16 text-success-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="p-8 text-center bg-green-50 rounded-xl border border-green-100 mb-8">
+                  <svg className="w-16 h-16 text-green-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                   </svg>
-                  <h3 className="text-xl font-bold text-success-900 mb-2">Score Submitted Successfully!</h3>
-                  <p className="text-success-700">You have successfully scored {selectedCandidate.fullName} for this segment.</p>
+                  <h3 className="text-xl font-bold text-green-900 mb-2">Score Submitted Successfully!</h3>
+                  <p className="text-green-700">You have successfully scored {selectedCandidate.fullName} for this segment.</p>
                 </div>
               ) : (
                 <>
@@ -277,7 +277,7 @@ export const ScoringPage: React.FC = () => {
                     </div>
                     
                     {error && (
-                      <div className="mb-6 p-4 bg-error-50 text-error-700 rounded-lg text-sm font-medium border border-error-100">
+                      <div className="mb-6 p-4 bg-red-50 text-red-700 rounded-lg text-sm font-medium border border-red-100">
                         {error}
                       </div>
                     )}

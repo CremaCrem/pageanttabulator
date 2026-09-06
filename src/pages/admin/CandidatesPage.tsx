@@ -2,12 +2,18 @@ import React, { useEffect, useState } from 'react';
 import { PageWrapper } from '../../components/layout/PageWrapper';
 import { fetchApi } from '../../api/client';
 import { ICandidate, Gender } from '../../types';
+import { ConfirmModal } from '../../components/ui/ConfirmModal';
 
 export const CandidatesPage: React.FC = () => {
   const [candidates, setCandidates] = useState<ICandidate[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [adding, setAdding] = useState(false);
+  const [confirmConfig, setConfirmConfig] = useState<{isOpen: boolean, candidateId: string | null, currentlyEligible: boolean}>({
+    isOpen: false,
+    candidateId: null,
+    currentlyEligible: true
+  });
   
   const [newCandidate, setNewCandidate] = useState({
     candidateNumber: '',
@@ -57,11 +63,18 @@ export const CandidatesPage: React.FC = () => {
     }
   };
 
-  const handleDisqualify = async (id: string, currentlyEligible: boolean) => {
-    if (!confirm(`Are you sure you want to mark this candidate as ${currentlyEligible ? 'disqualified' : 'eligible'}?`)) return;
+  const handleDisqualifyClick = (id: string, currentlyEligible: boolean) => {
+    setConfirmConfig({ isOpen: true, candidateId: id, currentlyEligible });
+  };
+
+  const handleDisqualifyConfirm = async () => {
+    const { candidateId, currentlyEligible } = confirmConfig;
+    if (!candidateId) return;
+    
+    setConfirmConfig({ ...confirmConfig, isOpen: false });
     
     try {
-      await fetchApi(`/api/candidates/${id}/disqualify`, {
+      await fetchApi(`/api/candidates/${candidateId}/disqualify`, {
         method: 'PATCH',
         body: JSON.stringify({
           isEligible: !currentlyEligible,
@@ -84,7 +97,7 @@ export const CandidatesPage: React.FC = () => {
       </div>
 
       {error && (
-        <div className="mb-6 p-4 bg-error-50 text-error-700 rounded-lg text-sm border border-error-100">
+        <div className="mb-6 p-4 bg-red-50 text-red-700 rounded-lg text-sm border border-red-100">
           {error}
         </div>
       )}
@@ -150,15 +163,15 @@ export const CandidatesPage: React.FC = () => {
                     </td>
                     <td className="p-4">
                       {candidate.isEligible ? (
-                        <span className="inline-flex px-2 py-1 bg-success-100 text-success-700 text-xs font-semibold rounded-full">Active</span>
+                        <span className="inline-flex px-2 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full">Active</span>
                       ) : (
-                        <span className="inline-flex px-2 py-1 bg-error-100 text-error-700 text-xs font-semibold rounded-full">Disqualified</span>
+                        <span className="inline-flex px-2 py-1 bg-red-100 text-red-700 text-xs font-semibold rounded-full">Disqualified</span>
                       )}
                     </td>
                     <td className="p-4 text-right space-x-2">
                       <button 
-                        onClick={() => handleDisqualify(candidate.id, candidate.isEligible)}
-                        className={`text-sm font-medium ${candidate.isEligible ? 'text-error-600 hover:text-error-800' : 'text-success-600 hover:text-success-800'}`}
+                        onClick={() => handleDisqualifyClick(candidate.id, candidate.isEligible)}
+                        className={`text-sm font-medium ${candidate.isEligible ? 'text-red-600 hover:text-red-800' : 'text-green-600 hover:text-green-800'}`}
                       >
                         {candidate.isEligible ? 'Disqualify' : 'Reinstate'}
                       </button>
@@ -170,6 +183,15 @@ export const CandidatesPage: React.FC = () => {
           </table>
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={confirmConfig.isOpen}
+        title={confirmConfig.currentlyEligible ? "Disqualify Candidate" : "Reinstate Candidate"}
+        message={`Are you sure you want to mark this candidate as ${confirmConfig.currentlyEligible ? 'disqualified' : 'eligible'}?`}
+        confirmText="Yes, Proceed"
+        onConfirm={handleDisqualifyConfirm}
+        onCancel={() => setConfirmConfig({ ...confirmConfig, isOpen: false })}
+      />
     </PageWrapper>
   );
 };

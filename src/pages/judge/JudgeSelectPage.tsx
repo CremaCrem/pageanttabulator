@@ -106,7 +106,7 @@ export const JudgeSelectPage: React.FC = () => {
         <p className="text-neutral-500 mb-8">Please select your assigned judge number to begin scoring.</p>
         
         {error && (
-          <div className="mb-6 p-4 bg-error-50 text-error-700 rounded-lg">
+          <div className="mb-6 p-4 bg-red-50 text-red-700 rounded-lg">
             {error}
           </div>
         )}
@@ -125,12 +125,12 @@ export const JudgeSelectPage: React.FC = () => {
                   onClick={() => handleClaim(jId)}
                   className={`p-6 border-2 rounded-xl transition-all font-semibold text-lg
                     ${isClaimed 
-                      ? 'border-warning-300 bg-warning-50 text-warning-700 hover:bg-warning-100 hover:border-warning-400' 
+                      ? 'border-yellow-300 bg-yellow-50 text-yellow-700 hover:bg-yellow-100 hover:border-yellow-400' 
                       : 'border-neutral-200 hover:border-primary-500 hover:bg-primary-50 text-neutral-700 shadow-sm'}
                   `}
                 >
                   <div className="text-xl">Judge {i + 1}</div>
-                  {isClaimed && <div className="text-xs font-normal mt-1 text-warning-600 opacity-80">(Already Active)</div>}
+                  {isClaimed && <div className="text-xs font-normal mt-1 text-yellow-600 opacity-80">(Already Active)</div>}
                 </button>
               );
             })}

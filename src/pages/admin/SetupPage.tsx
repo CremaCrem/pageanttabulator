@@ -102,13 +102,13 @@ export const SetupPage: React.FC = () => {
             <form onSubmit={handleSubmit} className="space-y-6">
               
               {error && (
-                <div className="p-4 bg-error-50 text-error-700 rounded-lg text-sm border border-error-100">
+                <div className="p-4 bg-red-50 text-red-700 rounded-lg text-sm border border-red-100">
                   {error}
                 </div>
               )}
               
               {success && (
-                <div className="p-4 bg-success-50 text-success-700 rounded-lg text-sm border border-success-100">
+                <div className="p-4 bg-green-50 text-green-700 rounded-lg text-sm border border-green-100">
                   {success}
                 </div>
               )}

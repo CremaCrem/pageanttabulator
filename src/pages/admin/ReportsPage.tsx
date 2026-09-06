@@ -1,14 +1,27 @@
 import React, { useState } from 'react';
 import { PageWrapper } from '../../components/layout/PageWrapper';
 import { fetchApi } from '../../api/client';
+import { ConfirmModal } from '../../components/ui/ConfirmModal';
 
 export const ReportsPage: React.FC = () => {
   const [loading, setLoading] = useState<string | null>(null);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
-  const handleCompute = async (round: 'preliminary' | 'final') => {
-    if (!confirm(`Are you sure you want to compute ${round} results? This will lock in rankings.`)) return;
+  const [confirmConfig, setConfirmConfig] = useState<{isOpen: boolean, round: 'preliminary' | 'final' | null}>({
+    isOpen: false,
+    round: null
+  });
+
+  const handleComputeClick = (round: 'preliminary' | 'final') => {
+    setConfirmConfig({ isOpen: true, round });
+  };
+
+  const handleComputeConfirm = async () => {
+    const { round } = confirmConfig;
+    if (!round) return;
+    
+    setConfirmConfig({ ...confirmConfig, isOpen: false });
     
     setLoading(round);
     setError('');
@@ -37,13 +50,13 @@ export const ReportsPage: React.FC = () => {
       </div>
 
       {error && (
-        <div className="mb-6 p-4 bg-error-50 text-error-700 rounded-lg text-sm border border-error-100">
+        <div className="mb-6 p-4 bg-red-50 text-red-700 rounded-lg text-sm border border-red-100">
           {error}
         </div>
       )}
       
       {message && (
-        <div className="mb-6 p-4 bg-success-50 text-success-700 rounded-lg text-sm border border-success-100 font-semibold">
+        <div className="mb-6 p-4 bg-green-50 text-green-700 rounded-lg text-sm border border-green-100 font-semibold">
           {message}
         </div>
       )}
@@ -58,7 +71,7 @@ export const ReportsPage: React.FC = () => {
           </div>
           <div className="flex-1"></div>
           <button 
-            onClick={() => handleCompute('preliminary')}
+            onClick={() => handleComputeClick('preliminary')}
             disabled={loading !== null}
             className="w-full py-3 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 mt-4"
           >
@@ -74,7 +87,7 @@ export const ReportsPage: React.FC = () => {
           </div>
           <div className="flex-1"></div>
           <button 
-            onClick={() => handleCompute('final')}
+            onClick={() => handleComputeClick('final')}
             disabled={loading !== null}
             className="w-full py-3 bg-gold-500 hover:bg-gold-600 text-primary-900 font-bold rounded-lg transition-colors disabled:opacity-50 mt-4"
           >
@@ -100,6 +113,15 @@ export const ReportsPage: React.FC = () => {
         </div>
 
       </div>
+
+      <ConfirmModal
+        isOpen={confirmConfig.isOpen}
+        title="Compute Results"
+        message={`Are you sure you want to compute ${confirmConfig.round} results? This will lock in rankings.`}
+        confirmText="Yes, Compute"
+        onConfirm={handleComputeConfirm}
+        onCancel={() => setConfirmConfig({ ...confirmConfig, isOpen: false })}
+      />
     </PageWrapper>
   );
 };

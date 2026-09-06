@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { PageWrapper } from '../../components/layout/PageWrapper';
 import { fetchApi } from '../../api/client';
 import { IJudge } from '../../types';
+import { ConfirmModal } from '../../components/ui/ConfirmModal';
 
 interface JudgeStatusResponse extends IJudge {
   totalScoresSubmitted: number;
@@ -11,6 +12,11 @@ export const JudgeStatusPage: React.FC = () => {
   const [statuses, setStatuses] = useState<JudgeStatusResponse[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  
+  const [confirmConfig, setConfirmConfig] = useState<{isOpen: boolean, judgeId: string | null}>({
+    isOpen: false,
+    judgeId: null
+  });
 
   const loadStatus = async () => {
     try {
@@ -31,8 +37,15 @@ export const JudgeStatusPage: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const handleResetSession = async (judgeId: string) => {
-    if (!confirm(`Are you sure you want to forcibly logout ${judgeId}? They will need to reconnect.`)) return;
+  const handleResetSessionClick = (judgeId: string) => {
+    setConfirmConfig({ isOpen: true, judgeId });
+  };
+
+  const handleResetSessionConfirm = async () => {
+    const { judgeId } = confirmConfig;
+    if (!judgeId) return;
+    
+    setConfirmConfig({ ...confirmConfig, isOpen: false });
     try {
       await fetchApi(`/api/judges/session/${judgeId}`, { method: 'DELETE' });
       await loadStatus();
@@ -57,7 +70,7 @@ export const JudgeStatusPage: React.FC = () => {
       </div>
 
       {error && (
-        <div className="mb-6 p-4 bg-error-50 text-error-700 rounded-lg text-sm border border-error-100">
+        <div className="mb-6 p-4 bg-red-50 text-red-700 rounded-lg text-sm border border-red-100">
           {error}
         </div>
       )}
@@ -84,8 +97,8 @@ export const JudgeStatusPage: React.FC = () => {
                   <td className="p-4">
                     {judge.isActive ? (
                       <div className="flex items-center space-x-2">
-                        <span className="w-2 h-2 rounded-full bg-success-500 animate-pulse"></span>
-                        <span className="text-sm font-semibold text-success-700">Online</span>
+                        <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                        <span className="text-sm font-semibold text-green-700">Online</span>
                       </div>
                     ) : (
                       <div className="flex items-center space-x-2">
@@ -99,9 +112,9 @@ export const JudgeStatusPage: React.FC = () => {
                   </td>
                   <td className="p-4 text-right">
                     <button 
-                      onClick={() => handleResetSession(judge.id)}
+                      onClick={() => handleResetSessionClick(judge.id)}
                       disabled={!judge.isActive}
-                      className="text-sm font-medium text-error-600 hover:text-error-800 disabled:opacity-30 disabled:hover:text-error-600"
+                      className="text-sm font-medium text-red-600 hover:text-red-800 disabled:opacity-30 disabled:hover:text-red-600"
                     >
                       Force Logout
                     </button>
@@ -112,6 +125,15 @@ export const JudgeStatusPage: React.FC = () => {
           </tbody>
         </table>
       </div>
+
+      <ConfirmModal
+        isOpen={confirmConfig.isOpen}
+        title="Force Logout"
+        message={`Are you sure you want to forcibly logout ${confirmConfig.judgeId}? They will need to reconnect.`}
+        confirmText="Yes, Force Logout"
+        onConfirm={handleResetSessionConfirm}
+        onCancel={() => setConfirmConfig({ ...confirmConfig, isOpen: false })}
+      />
     </PageWrapper>
   );
 };

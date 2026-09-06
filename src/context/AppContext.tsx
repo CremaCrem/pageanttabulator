@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, ReactNode } from 'react';
-import { UIState, UIAction } from '../types';
+import { UIState, UIAction, RoundStatus } from '../types';
 
 interface AppContextType {
   state: UIState;
@@ -34,13 +34,24 @@ function uiReducer(state: UIState, action: UIAction): UIState {
       // Handle real-time updates based on WebSocket events
       const wsMsg = action.payload;
       switch (wsMsg.type) {
-        case 'SEGMENT_OPENED':
-          return { ...state, activeSegmentId: wsMsg.segmentId };
-        case 'SEGMENT_LOCKED':
-          if (state.activeSegmentId === wsMsg.segmentId) {
-            return { ...state, activeSegmentId: null };
+        case 'SEGMENT_OPENED': {
+          const updatedRounds = state.roundStates.map(r => 
+            r.segmentId === wsMsg.segmentId ? { ...r, status: RoundStatus.Open } : r
+          );
+          return { ...state, roundStates: updatedRounds, activeSegmentId: wsMsg.segmentId };
+        }
+        case 'SEGMENT_LOCKED': {
+          const updatedRounds = state.roundStates.map(r => 
+            r.segmentId === wsMsg.segmentId ? { ...r, status: RoundStatus.Locked } : r
+          );
+          let newActive = state.activeSegmentId;
+          if (newActive === wsMsg.segmentId) {
+            // Find another open segment to fallback to
+            const fallback = updatedRounds.find(r => r.status === RoundStatus.Open);
+            newActive = fallback ? fallback.segmentId : null;
           }
-          return state;
+          return { ...state, roundStates: updatedRounds, activeSegmentId: newActive };
+        }
         case 'SESSION_REVOKED':
           // If the revoked session is ours, log out immediately
           if (state.session?.judgeId === wsMsg.judgeId) {

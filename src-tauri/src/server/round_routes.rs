@@ -24,6 +24,14 @@ pub async fn open_round(
     Json(payload): Json<RoundActionPayload>,
 ) -> Json<Value> {
     let conn = state.db.lock().unwrap();
+
+    // Check if any round is already open
+    if let Ok(rounds) = db::rounds::get_all(&conn) {
+        if rounds.iter().any(|r| r.status == "open") {
+            return Json(json!({"error": "Another segment is currently open"}));
+        }
+    }
+
     let r = db::rounds::RoundState {
         segment_id: payload.segment_id.clone(),
         status: "open".to_string(),

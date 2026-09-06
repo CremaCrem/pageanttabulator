@@ -4,6 +4,7 @@ import { fetchApi } from '../../api/client';
 import { IRoundState, SegmentId, RoundStatus } from '../../types';
 import { SEGMENTS } from '../../utils/constants';
 import { useAppContext } from '../../context/AppContext';
+import { ConfirmModal } from '../../components/ui/ConfirmModal';
 
 export const DashboardPage: React.FC = () => {
   const { state, dispatch } = useAppContext();
@@ -14,6 +15,11 @@ export const DashboardPage: React.FC = () => {
   const [pinPrompt, setPinPrompt] = useState<SegmentId | null>(null);
   const [pin, setPin] = useState('');
   const [pinError, setPinError] = useState('');
+  
+  const [confirmConfig, setConfirmConfig] = useState<{isOpen: boolean, segmentId: SegmentId | null}>({
+    isOpen: false,
+    segmentId: null
+  });
 
   const loadRounds = async () => {
     try {
@@ -28,9 +34,15 @@ export const DashboardPage: React.FC = () => {
     loadRounds();
   }, [dispatch]);
 
-  const handleOpenRound = async (segmentId: SegmentId) => {
-    if (!confirm('Are you sure you want to open this segment for scoring?')) return;
+  const handleOpenRoundClick = (segmentId: SegmentId) => {
+    setConfirmConfig({ isOpen: true, segmentId });
+  };
+
+  const handleOpenRoundConfirm = async () => {
+    const { segmentId } = confirmConfig;
+    if (!segmentId) return;
     
+    setConfirmConfig({ ...confirmConfig, isOpen: false });
     setActionLoading(segmentId);
     setError('');
     try {
@@ -89,6 +101,8 @@ export const DashboardPage: React.FC = () => {
     return acc;
   }, {} as Record<SegmentId, IRoundState>);
 
+  const hasOpenSegment = state.roundStates.some(r => r.status === RoundStatus.Open);
+
   return (
     <PageWrapper>
       <div className="flex justify-between items-center mb-6">
@@ -99,7 +113,7 @@ export const DashboardPage: React.FC = () => {
       </div>
 
       {error && (
-        <div className="mb-6 p-4 bg-error-50 text-error-700 rounded-lg text-sm border border-error-100">
+        <div className="mb-6 p-4 bg-red-50 text-red-700 rounded-lg text-sm border border-red-100">
           {error}
         </div>
       )}
@@ -118,8 +132,8 @@ export const DashboardPage: React.FC = () => {
                 </div>
                 <div>
                   {status === RoundStatus.NotStarted && <span className="px-3 py-1 bg-neutral-100 text-neutral-600 rounded-full text-xs font-bold uppercase tracking-wide">Not Started</span>}
-                  {status === RoundStatus.Open && <span className="px-3 py-1 bg-warning-100 text-warning-700 rounded-full text-xs font-bold uppercase tracking-wide animate-pulse">Live / Open</span>}
-                  {status === RoundStatus.Locked && <span className="px-3 py-1 bg-success-100 text-success-700 rounded-full text-xs font-bold uppercase tracking-wide">Completed</span>}
+                  {status === RoundStatus.Open && <span className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-bold uppercase tracking-wide animate-pulse">Live / Open</span>}
+                  {status === RoundStatus.Locked && <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold uppercase tracking-wide">Completed</span>}
                 </div>
               </div>
 
@@ -128,9 +142,14 @@ export const DashboardPage: React.FC = () => {
               <div className="mt-6 pt-4 border-t border-neutral-100">
                 {status === RoundStatus.NotStarted && (
                   <button 
-                    onClick={() => handleOpenRound(segment.id)}
-                    disabled={actionLoading !== null}
-                    className="w-full py-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded transition-colors disabled:opacity-50"
+                    onClick={() => handleOpenRoundClick(segment.id)}
+                    disabled={actionLoading !== null || hasOpenSegment}
+                    className={`w-full py-2 font-semibold rounded transition-colors disabled:opacity-50 ${
+                      hasOpenSegment 
+                        ? 'bg-neutral-200 text-neutral-500 cursor-not-allowed'
+                        : 'bg-primary-600 hover:bg-primary-700 text-white'
+                    }`}
+                    title={hasOpenSegment ? 'Another segment is currently open. Please lock it first.' : ''}
                   >
                     {actionLoading === segment.id ? 'Opening...' : 'Open Segment for Judging'}
                   </button>
@@ -144,19 +163,27 @@ export const DashboardPage: React.FC = () => {
                           type="password" 
                           placeholder="Admin PIN" 
                           value={pin}
+                          autoFocus
                           onChange={e => setPin(e.target.value)}
-                          className="w-full p-2 border border-neutral-300 rounded focus:border-error-500 outline-none"
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') {
+                              handleLockRound(segment.id);
+                            }
+                          }}
+                          className="w-full p-2 border border-neutral-300 rounded focus:border-red-500 outline-none"
                         />
-                        {pinError && <div className="text-xs text-error-600 font-semibold">{pinError}</div>}
+                        {pinError && <div className="text-xs text-red-600 font-semibold">{pinError}</div>}
                         <div className="flex space-x-2">
                           <button 
+                            type="button"
                             onClick={() => handleLockRound(segment.id)}
                             disabled={actionLoading === segment.id}
-                            className="flex-1 py-2 bg-error-600 hover:bg-error-700 text-white font-semibold rounded transition-colors disabled:opacity-50"
+                            className="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded transition-colors disabled:opacity-50"
                           >
                             {actionLoading === segment.id ? 'Locking...' : 'Confirm Lock'}
                           </button>
                           <button 
+                            type="button"
                             onClick={() => { setPinPrompt(null); setPin(''); setPinError(''); }}
                             className="flex-1 py-2 bg-neutral-200 hover:bg-neutral-300 text-neutral-700 font-semibold rounded transition-colors"
                           >
@@ -167,7 +194,7 @@ export const DashboardPage: React.FC = () => {
                     ) : (
                       <button 
                         onClick={() => setPinPrompt(segment.id)}
-                        className="w-full py-2 bg-error-100 hover:bg-error-200 text-error-700 font-semibold rounded transition-colors"
+                        className="w-full py-2 bg-red-100 hover:bg-red-200 text-red-700 font-semibold rounded transition-colors"
                       >
                         Lock Segment (Requires PIN)
                       </button>
@@ -185,6 +212,15 @@ export const DashboardPage: React.FC = () => {
           );
         })}
       </div>
+
+      <ConfirmModal
+        isOpen={confirmConfig.isOpen}
+        title="Open Segment"
+        message="Are you sure you want to open this segment for scoring?"
+        confirmText="Yes, Open Segment"
+        onConfirm={handleOpenRoundConfirm}
+        onCancel={() => setConfirmConfig({ ...confirmConfig, isOpen: false })}
+      />
     </PageWrapper>
   );
 };
