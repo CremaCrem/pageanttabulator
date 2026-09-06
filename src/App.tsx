@@ -15,6 +15,7 @@ import { ReportsPage } from './pages/admin/ReportsPage';
 // Judge Pages
 import { JudgeSelectPage } from './pages/judge/JudgeSelectPage';
 import { ScoringPage } from './pages/judge/ScoringPage';
+import { ErrorBoundary } from './components/layout/ErrorBoundary';
 
 // Shared
 import { ProjectionPage } from './pages/shared/ProjectionPage';
@@ -46,14 +47,18 @@ function App() {
         <Routes>
           <Route path="/projection" element={<ProjectionPage />} />
           <Route path="/" element={
-            <JudgeShell>
-              <JudgeSelectPage />
-            </JudgeShell>
+            <ErrorBoundary>
+              <JudgeShell>
+                <JudgeSelectPage />
+              </JudgeShell>
+            </ErrorBoundary>
           } />
           <Route path="/score" element={
-            <JudgeShell>
-              <ScoringPage />
-            </JudgeShell>
+            <ErrorBoundary>
+              <JudgeShell>
+                <ScoringPage />
+              </JudgeShell>
+            </ErrorBoundary>
           } />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageWrapper } from '../../components/layout/PageWrapper';
 import { useAppContext } from '../../context/AppContext';
@@ -16,6 +16,8 @@ export const ScoringPage: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [completedCandidates, setCompletedCandidates] = useState<Set<string>>(new Set());
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   // Enforce session
   useEffect(() => {
@@ -114,17 +116,36 @@ export const ScoringPage: React.FC = () => {
     if (!activeSegment || !selectedCandidateId || !state.session?.judgeId) return;
     
     // Validate
-    for (const crit of activeSegment.criteria) {
+    let firstInvalidId: string | null = null;
+    let newErrors: Record<string, string> = {};
+
+    activeSegment.criteria.forEach(crit => {
       const val = scores[crit.id];
-      if (val === '' || val === undefined || Number(val) < 1 || Number(val) > 100) {
-        setError(`Please enter a valid score (1-100) for ${crit.label}.`);
-        return;
+      if (val === undefined || val === '') {
+        newErrors[crit.id] = 'Score is required';
+        if (!firstInvalidId) firstInvalidId = crit.id;
+      } else if (Number(val) < 1 || Number(val) > 100) {
+        newErrors[crit.id] = 'Score must be 1-100';
+        if (!firstInvalidId) firstInvalidId = crit.id;
       }
+    });
+
+    if (firstInvalidId) {
+      setFieldErrors(newErrors);
+      setError('Please fix the highlighted errors before submitting.');
+      
+      const el = inputRefs.current[firstInvalidId];
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.focus({ preventScroll: true });
+      }
+      return;
     }
 
     try {
       setSubmitting(true);
       setError('');
+      setFieldErrors({});
       
       const criteriaEntries = activeSegment.criteria.map(c => ({
         criterionId: c.id,
@@ -166,6 +187,28 @@ export const ScoringPage: React.FC = () => {
       setSubmitting(false);
     }
   };
+
+  const isEventFinished = state.roundStates.length === Object.keys(SEGMENTS).length && 
+    state.roundStates.every(r => r.status === RoundStatus.Locked);
+
+  if (isEventFinished) {
+    return (
+      <PageWrapper className="flex items-center justify-center min-h-[calc(100vh-64px)] bg-neutral-100">
+        <div className="text-center p-12 bg-white rounded-xl shadow-panel max-w-lg w-full">
+          <div className="mb-6 mx-auto w-20 h-20 bg-green-50 rounded-full flex items-center justify-center">
+            <svg className="w-10 h-10 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+          <h2 className="text-heading-1 mb-4 text-primary-900">Judging Complete</h2>
+          <p className="text-neutral-500 mb-8">All segments have been locked. Thank you for your participation in the {state.eventConfig?.name}!</p>
+          <div className="p-4 bg-primary-50 rounded-lg text-primary-800 text-sm font-medium">
+            You may now close this window or hand the device back to the organizing team.
+          </div>
+        </div>
+      </PageWrapper>
+    );
+  }
 
   if (!state.activeSegmentId || !activeSegment) {
     return (
@@ -284,19 +327,29 @@ export const ScoringPage: React.FC = () => {
 
                     <div className="space-y-6">
                       {activeSegment.criteria.map(crit => (
-                        <div key={crit.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-neutral-50 rounded-lg border border-neutral-100">
+                        <div key={crit.id} className={`flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-lg border ${
+                          fieldErrors[crit.id] ? 'bg-red-50 border-red-200' : 'bg-neutral-50 border-neutral-100'
+                        }`}>
                           <div className="mb-3 sm:mb-0">
                             <div className="font-semibold text-neutral-800">{crit.label}</div>
                             <div className="text-sm text-neutral-500">Weight: {crit.weight * 100}%</div>
+                            {fieldErrors[crit.id] && (
+                              <div className="text-xs text-red-600 mt-1 font-medium">{fieldErrors[crit.id]}</div>
+                            )}
                           </div>
                           <div className="flex items-center space-x-4">
                             <input
+                              ref={el => { inputRefs.current[crit.id] = el; }}
                               type="number"
                               min="1"
                               max="100"
                               value={scores[crit.id] === undefined ? '' : scores[crit.id]}
                               onChange={(e) => handleScoreChange(crit.id, e.target.value)}
-                              className="w-24 text-center text-lg font-bold p-3 border-2 border-neutral-200 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none transition-all"
+                              className={`w-24 text-center text-lg font-bold p-3 border-2 rounded-lg outline-none transition-all ${
+                                fieldErrors[crit.id] 
+                                  ? 'border-red-400 focus:border-red-600 focus:ring-2 focus:ring-red-200 text-red-900' 
+                                  : 'border-neutral-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-200'
+                              }`}
                               placeholder="0"
                             />
                             <div className="w-16 text-right font-medium text-neutral-400">
