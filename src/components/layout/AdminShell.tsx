@@ -31,9 +31,9 @@ export const AdminShell: React.FC<{ children: React.ReactNode }> = ({ children }
   ];
 
   return (
-    <div className="flex h-screen w-full bg-parchment overflow-hidden">
+    <div className="flex h-screen w-full bg-parchment print:bg-white overflow-hidden">
       {/* Sidebar */}
-      <aside className="w-60 bg-primary-900 text-white flex flex-col shrink-0">
+      <aside className="w-60 bg-primary-900 text-white flex flex-col shrink-0 print:hidden">
         <div className="p-6">
           <h1 className="display-font text-xl font-bold leading-tight">Pageant<br/><span className="text-gold-500">Tabulator</span></h1>
         </div>
@@ -67,9 +67,9 @@ export const AdminShell: React.FC<{ children: React.ReactNode }> = ({ children }
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+      <main className="flex-1 flex flex-col min-w-0 overflow-y-auto print:overflow-visible">
         {/* Header */}
-        <header className="h-16 shrink-0 border-b border-neutral-200 bg-white flex items-center px-8 justify-between shadow-sm z-10">
+        <header className="h-16 shrink-0 border-b border-neutral-200 bg-white flex items-center px-8 justify-between shadow-sm z-10 print:hidden">
           <div className="font-semibold text-neutral-900">
             {state.eventConfig?.name || 'Pageant Tabulator'}
             {state.eventConfig?.subtitle && (

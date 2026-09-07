@@ -100,7 +100,7 @@ Each of the four segments contributes **25%** to the candidate's preliminary rou
 | Relevance to the Question | 15% |
 | **Total** | **100%** |
 
-> **IMPORTANT:** The Preliminary Q&A score is part of the Preliminary Round cumulative score. It is **not** a separate 5th segment with 25% weight — it is included as part of the preliminary scoring package. Check with the event organizer for the exact weight if not specified in the guidelines.
+> **IMPORTANT:** As clarified by the organizing committee, the Preliminary Q&A score is the **sole determinant** for the Preliminary Round cumulative score, which is used to select the Top 5. The other 4 segments (Production, Uniform, Professional, Modern Barong) are evaluated entirely independently and are used *only* for determining the Special Awards ("Best in X"). They do not factor into the Top 5 selection or the Final Score.
 
 ---
 
@@ -148,17 +148,20 @@ AvgSegmentScore(candidate, segment) =
            Number of Judges
 ```
 
-### 6.3 Preliminary Round Score
+### 6.3 Preliminary Round Score (For Top 5 Selection)
 
 ```
-PreliminaryScore(candidate) =
-  ( AvgSegmentScore(candidate, ProductionNumber)   × 0.25 )
-+ ( AvgSegmentScore(candidate, SchoolUniform)       × 0.25 )
-+ ( AvgSegmentScore(candidate, ProfessionalAttire)  × 0.25 )
-+ ( AvgSegmentScore(candidate, ModernBarong)        × 0.25 )
-
-[+ PreliminaryQAScore × segmentWeight if included]
+PreliminaryScore(candidate) = AvgSegmentScore(candidate, PreliminaryQA)
 ```
+> *Note: The Preliminary Score used to select the Top 5 and used in the Championship 50/50 split is derived **exclusively** from the Preliminary Q&A segment.*
+
+### 6.3.1 Special Awards Computation
+
+The four other preliminary segments are computed independently to determine the "Best in X" special awards per category (Male/Female):
+- Best in Production Number = Highest `AvgSegmentScore(candidate, ProductionNumber)`
+- Best in School Uniform = Highest `AvgSegmentScore(candidate, SchoolUniform)`
+- Best in Professional Attire = Highest `AvgSegmentScore(candidate, ProfessionalAttire)`
+- Best in Modern Barong/Filipiniana = Highest `AvgSegmentScore(candidate, ModernBarong)`
 
 ### 6.4 Final Q&A Score
 

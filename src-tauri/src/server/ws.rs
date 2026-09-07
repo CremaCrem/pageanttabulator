@@ -42,14 +42,38 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
 
     let state_clone = state.clone();
 
+    let judge_id_ref = std::sync::Arc::new(std::sync::Mutex::new(None::<String>));
+    let judge_id_clone = judge_id_ref.clone();
+
     // Spawn a task to read messages from this client
     let mut recv_task = tokio::spawn(async move {
         while let Some(Ok(Message::Text(text))) = receiver.next().await {
             if let Ok(msg) = serde_json::from_str::<Value>(&text) {
                 // Here we handle incoming WS events, like IDENTIFY or PING.
-                // Depending on the role, we might log them or update active sessions.
                 if let Some(msg_type) = msg.get("type").and_then(|v| v.as_str()) {
-                    if msg_type == "ERROR" {
+                    if msg_type == "IDENTIFY" {
+                        if let Some(j_id) = msg.get("judgeId").and_then(|v| v.as_str()) {
+                            *judge_id_clone.lock().unwrap() = Some(j_id.to_string());
+                            if let Ok(conn) = state_clone.db.lock() {
+                                let now = chrono::Utc::now().to_rfc3339();
+                                // Just update last_seen, preserve is_active
+                                let _ = conn.execute(
+                                    "UPDATE judges SET last_seen = ?1 WHERE id = ?2",
+                                    rusqlite::params![now, j_id],
+                                );
+                            }
+                        }
+                    } else if msg_type == "PING" {
+                        if let Some(j_id) = judge_id_clone.lock().unwrap().as_ref() {
+                            if let Ok(conn) = state_clone.db.lock() {
+                                let now = chrono::Utc::now().to_rfc3339();
+                                let _ = conn.execute(
+                                    "UPDATE judges SET last_seen = ?1 WHERE id = ?2",
+                                    rusqlite::params![now, j_id],
+                                );
+                            }
+                        }
+                    } else if msg_type == "ERROR" {
                         if let Ok(conn) = state_clone.db.lock() {
                             let _ = crate::db::logs::insert(&conn, &crate::db::logs::SystemLog {
                                 id: uuid::Uuid::new_v4().to_string(),
@@ -72,8 +96,16 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
         _ = (&mut recv_task) => send_task.abort(),
     };
 
-    // Log disconnection
+    // Log disconnection and set last_seen to past
     if let Ok(conn) = state.db.lock() {
+        if let Some(j_id) = judge_id_ref.lock().unwrap().as_ref() {
+            let past = "1970-01-01T00:00:00+00:00";
+            let _ = conn.execute(
+                "UPDATE judges SET last_seen = ?1 WHERE id = ?2",
+                rusqlite::params![past, j_id],
+            );
+        }
+        
         let _ = crate::db::logs::insert(&conn, &crate::db::logs::SystemLog {
             id: uuid::Uuid::new_v4().to_string(),
             level: "warn".to_string(),

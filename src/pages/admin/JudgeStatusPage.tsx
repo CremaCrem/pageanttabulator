@@ -3,12 +3,23 @@ import { PageWrapper } from '../../components/layout/PageWrapper';
 import { fetchApi } from '../../api/client';
 import { IJudge } from '../../types';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
+import { useAppContext } from '../../context/AppContext';
 
 interface JudgeStatusResponse extends IJudge {
   totalScoresSubmitted: number;
 }
 
+const isOnline = (judge: JudgeStatusResponse) => {
+  if (!judge.isActive) return false;
+  if (!judge.lastSeen) return false;
+  const lastSeenDate = new Date(judge.lastSeen);
+  const now = new Date();
+  const diffMs = now.getTime() - lastSeenDate.getTime();
+  return diffMs < 45000; // 45 seconds grace period (PING is every 30s)
+};
+
 export const JudgeStatusPage: React.FC = () => {
+  const { state } = useAppContext();
   const [statuses, setStatuses] = useState<JudgeStatusResponse[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -86,41 +97,45 @@ export const JudgeStatusPage: React.FC = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-neutral-100">
-            {loading && statuses.length === 0 ? (
+            {loading && !state.eventConfig ? (
               <tr><td colSpan={4} className="p-8 text-center text-neutral-400">Loading...</td></tr>
-            ) : statuses.length === 0 ? (
-              <tr><td colSpan={4} className="p-8 text-center text-neutral-400">No judges configured yet.</td></tr>
+            ) : !state.eventConfig ? (
+              <tr><td colSpan={4} className="p-8 text-center text-neutral-400">No event configuration found.</td></tr>
             ) : (
-              statuses.map((judge) => (
-                <tr key={judge.id} className="hover:bg-neutral-50 transition-colors">
-                  <td className="p-4 font-bold text-primary-900">{judge.id}</td>
-                  <td className="p-4">
-                    {judge.isActive ? (
-                      <div className="flex items-center space-x-2">
-                        <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                        <span className="text-sm font-semibold text-green-700">Online</span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center space-x-2">
-                        <span className="w-2 h-2 rounded-full bg-neutral-300"></span>
-                        <span className="text-sm font-semibold text-neutral-500">Offline</span>
-                      </div>
-                    )}
-                  </td>
-                  <td className="p-4 text-center">
-                    <span className="font-bold text-lg text-primary-900">{judge.totalScoresSubmitted}</span>
-                  </td>
-                  <td className="p-4 text-right">
-                    <button 
-                      onClick={() => handleResetSessionClick(judge.id)}
-                      disabled={!judge.isActive}
-                      className="text-sm font-medium text-red-600 hover:text-red-800 disabled:opacity-30 disabled:hover:text-red-600"
-                    >
-                      Force Logout
-                    </button>
-                  </td>
-                </tr>
-              ))
+              Array.from({ length: state.eventConfig.judgeCount || 5 }).map((_, i) => {
+                const jId = `J${i + 1}`;
+                const judge = statuses.find(j => j.id === jId) || { id: jId, isActive: false, totalScoresSubmitted: 0 } as JudgeStatusResponse;
+                return (
+                  <tr key={judge.id} className="hover:bg-neutral-50 transition-colors">
+                    <td className="p-4 font-bold text-primary-900">{judge.id}</td>
+                    <td className="p-4">
+                      {isOnline(judge) ? (
+                        <div className="flex items-center space-x-2">
+                          <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                          <span className="text-sm font-semibold text-green-700">Online</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center space-x-2">
+                          <span className="w-2 h-2 rounded-full bg-neutral-300"></span>
+                          <span className="text-sm font-semibold text-neutral-500">Offline</span>
+                        </div>
+                      )}
+                    </td>
+                    <td className="p-4 text-center">
+                      <span className="font-bold text-lg text-primary-900">{judge.totalScoresSubmitted}</span>
+                    </td>
+                    <td className="p-4 text-right">
+                      <button 
+                        onClick={() => handleResetSessionClick(judge.id)}
+                        disabled={!judge.isActive}
+                        className="text-sm font-medium text-red-600 hover:text-red-800 disabled:opacity-30 disabled:hover:text-red-600"
+                      >
+                        Force Logout
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>

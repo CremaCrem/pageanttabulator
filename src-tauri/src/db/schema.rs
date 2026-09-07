@@ -99,12 +99,12 @@ pub fn init_db_with_path(db_path: &Path) -> Result<Connection, rusqlite::Error> 
             rank                INTEGER,
             is_top5             INTEGER NOT NULL DEFAULT 0,
             computed_at         TEXT NOT NULL,
-            PRIMARY KEY (candidate_id, segment_id)
+            UNIQUE(candidate_id, segment_id)
         )",
         [],
     )?;
 
-    // Special awards
+    // Special Awards
     conn.execute(
         "CREATE TABLE IF NOT EXISTS special_awards (
             award_id          TEXT PRIMARY KEY,

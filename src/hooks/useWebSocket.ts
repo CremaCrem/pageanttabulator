@@ -60,12 +60,25 @@ export function useWebSocket(serverIp: string | null) {
     };
 
     wsRef.current = ws;
+
+    // Start PING interval
+    const pingInterval = setInterval(() => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'PING' }));
+      }
+    }, 30000);
+
+    return () => clearInterval(pingInterval);
   }, [serverIp, state.session, dispatch]);
 
   useEffect(() => {
-    connect();
+    let cleanup: (() => void) | void;
+    if (serverIp) {
+      cleanup = connect();
+    }
     
     return () => {
+      if (cleanup) cleanup();
       if (reconnectTimeoutRef.current) {
         window.clearTimeout(reconnectTimeoutRef.current);
       }

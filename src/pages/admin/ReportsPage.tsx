@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { PageWrapper } from '../../components/layout/PageWrapper';
 import { fetchApi } from '../../api/client';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
+import { PrintReport } from '../../components/admin/PrintReport';
 
 export const ReportsPage: React.FC = () => {
   const [loading, setLoading] = useState<string | null>(null);
@@ -41,8 +42,8 @@ export const ReportsPage: React.FC = () => {
   };
 
   return (
-    <PageWrapper>
-      <div className="flex justify-between items-center mb-6">
+    <PageWrapper className="print:p-0 print:max-w-none print:m-0">
+      <div className="flex justify-between items-center mb-6 print:hidden">
         <div>
           <h1 className="text-heading-1 text-primary-900">Final Reports & Tabulation</h1>
           <p className="text-neutral-500">Compute rankings, view special awards, and generate PDFs</p>
@@ -56,12 +57,12 @@ export const ReportsPage: React.FC = () => {
       )}
       
       {message && (
-        <div className="mb-6 p-4 bg-green-50 text-green-700 rounded-lg text-sm border border-green-100 font-semibold">
+        <div className="mb-6 p-4 bg-green-50 text-green-700 rounded-lg text-sm border border-green-100 font-semibold print:hidden">
           {message}
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 print:hidden">
         
         {/* Preliminary Tabulation */}
         <div className="bg-white p-6 rounded-xl shadow-panel border border-neutral-100 flex flex-col">
@@ -95,23 +96,30 @@ export const ReportsPage: React.FC = () => {
           </button>
         </div>
 
-        {/* Special Awards */}
-        <div className="bg-white p-6 rounded-xl shadow-panel border border-neutral-100 flex flex-col md:col-span-2">
+        {/* Export and Preview */}
+        <div className="bg-white p-6 rounded-xl shadow-panel border border-neutral-100 flex flex-col md:col-span-2 print:hidden">
           <div className="flex justify-between items-center mb-6">
             <div>
               <h3 className="text-lg font-bold text-neutral-800">Export & Print</h3>
               <p className="text-sm text-neutral-500">Download official score sheets for auditors.</p>
             </div>
-            <button className="px-6 py-2 bg-neutral-800 hover:bg-black text-white font-semibold rounded shadow-sm transition-colors">
+            <button 
+              onClick={() => window.print()}
+              className="px-6 py-2 bg-neutral-800 hover:bg-black text-white font-semibold rounded shadow-sm transition-colors"
+            >
               Generate PDF Report
             </button>
           </div>
           
-          <div className="bg-neutral-50 p-8 rounded-lg border-2 border-dashed border-neutral-200 text-center text-neutral-500">
-            Preview of PDF generation will appear here...
+          <div className="bg-neutral-50 p-8 rounded-lg border-2 border-dashed border-neutral-200 overflow-y-auto max-h-[600px]">
+            <PrintReport />
           </div>
         </div>
 
+      </div>
+      
+      <div className="hidden print:block w-full">
+        <PrintReport />
       </div>
 
       <ConfirmModal

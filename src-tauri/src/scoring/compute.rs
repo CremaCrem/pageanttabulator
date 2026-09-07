@@ -54,14 +54,10 @@ pub fn compute_avg_segment_score(judge_scores: &[f64]) -> f64 {
 }
 
 pub fn compute_preliminary_score(
-    production: f64,
-    school_uniform: f64,
-    professional: f64,
-    modern_barong: f64,
+    preliminary_qa: f64,
 ) -> f64 {
-    // Note: preliminary QA is not part of the 25% weight breakdown explicitly in the docs formula,
-    // so it follows the docs logic 6.3 exactly:
-    (production * 0.25) + (school_uniform * 0.25) + (professional * 0.25) + (modern_barong * 0.25)
+    // The Preliminary Score used to select the Top 5 is derived exclusively from the Preliminary Q&A segment.
+    preliminary_qa
 }
 
 pub fn compute_final_score(prelim: f64, final_qa: f64) -> f64 {

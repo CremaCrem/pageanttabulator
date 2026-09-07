@@ -29,7 +29,7 @@ pub struct VerifySessionPayload {
 pub async fn claim_session(
     State(state): State<AppState>,
     Json(payload): Json<ClaimSessionPayload>,
-) -> Json<Value> {
+) -> (axum::http::StatusCode, Json<Value>) {
     let conn = state.db.lock().unwrap();
     
     // Check existing judge
@@ -38,7 +38,7 @@ pub async fn claim_session(
             // If it's active but the client doesn't have the right token, reject
             if let Some(ref current_token) = existing.session_token {
                 if payload.device_token.as_ref() != Some(current_token) {
-                    return Json(json!({"error": "Judge slot is already active on another device."}));
+                    return (axum::http::StatusCode::CONFLICT, Json(json!({"error": "Judge slot is already active on another device."})));
                 }
             }
         }
@@ -56,12 +56,12 @@ pub async fn claim_session(
     };
     
     if let Ok(_) = db::judges::upsert(&conn, &judge) {
-        Json(json!({
+        (axum::http::StatusCode::OK, Json(json!({
             "status": "success",
             "sessionToken": token
-        }))
+        })))
     } else {
-        Json(json!({"error": "Failed to claim session"}))
+        (axum::http::StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": "Failed to claim session"})))
     }
 }
 

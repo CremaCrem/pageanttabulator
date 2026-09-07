@@ -43,6 +43,8 @@ pub async fn start_server(app_state: AppState) {
         .route("/api/rounds/lock", post(round_routes::lock_round))
         .route("/api/admin/verify-pin", post(admin_routes::verify_pin))
         .route("/api/results/compute", post(admin_routes::compute_results))
+        .route("/api/results", get(admin_routes::get_results))
+        .route("/api/results/special-awards", get(admin_routes::get_special_awards))
         .route("/api/logs", get(log_routes::get_logs).delete(log_routes::clear_logs))
         .route("/ws", get(ws::ws_handler))
         .with_state(app_state)
