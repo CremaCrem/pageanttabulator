@@ -126,7 +126,7 @@ export const CriteriaPage: React.FC = () => {
                       </h3>
                       {isFinal && (
                         <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-gold-100 text-gold-600 border border-gold-400/40">
-                          Top 5 Finals
+                          Top 3 Finals
                         </span>
                       )}
                       {isPrelimQA && (
@@ -137,9 +137,9 @@ export const CriteriaPage: React.FC = () => {
                     </div>
                     <p className="text-xs text-neutral-500 mt-1">
                       {isFinal 
-                        ? 'Contributes 50% to overall Championship Score (Top 5 finalists only)'
+                        ? 'Contributes 50% to overall Championship Score (Top 3 finalists only)'
                         : isPrelimQA 
-                          ? 'Used for Top 5 finalist qualification and interview mastery'
+                          ? 'Used for Top 3 finalist qualification and interview mastery'
                           : `Contributes ${(segment.preliminaryWeight * 100).toFixed(0)}% to the cumulative Preliminary Score`
                       }
                     </p>

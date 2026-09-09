@@ -80,8 +80,8 @@ export const ReportsPage: React.FC = () => {
         {/* Preliminary Tabulation */}
         <div className="bg-white p-6 rounded-xl shadow-panel border border-neutral-100 flex flex-col">
           <div className="mb-4">
-            <h3 className="text-lg font-bold text-neutral-800">Preliminary Results (Top 5)</h3>
-            <p className="text-sm text-neutral-500 mt-1">Computes scores from Production, Uniform, Professional, and Barong.</p>
+            <h3 className="text-lg font-bold text-neutral-800">Preliminary Results (Top 3)</h3>
+            <p className="text-sm text-neutral-500 mb-4">Compute Borda ranks and determine the Top 3 candidates.</p>
           </div>
           <div className="flex-1"></div>
           <button 
@@ -89,7 +89,7 @@ export const ReportsPage: React.FC = () => {
             disabled={loading !== null}
             className="w-full py-3 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 mt-4"
           >
-            {loading === 'preliminary' ? 'Computing...' : 'Compute Preliminary & Select Top 5'}
+            {loading === 'preliminary' ? 'Computing...' : 'Compute Preliminary & Select Top 3'}
           </button>
         </div>
 

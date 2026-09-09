@@ -15,6 +15,6 @@ export type WSServerMessage =
   | { type: 'JUDGE_DISCONNECTED';  judgeId: string }
   | { type: 'SESSION_REVOKED';     judgeId: string }
   | { type: 'RANKINGS_UPDATED';    category: Gender; topCandidates: ICandidateResult[] }
-  | { type: 'TOP5_ANNOUNCED';      male: ICandidateResult[]; female: ICandidateResult[] }
+  | { type: 'TOP3_ANNOUNCED';      male: ICandidateResult[]; female: ICandidateResult[] }
   | { type: 'FINAL_RESULTS_READY'; winners: ICandidateResult[] }
   | { type: 'SYSTEM_MESSAGE';      level: 'info' | 'warning'; message: string };
