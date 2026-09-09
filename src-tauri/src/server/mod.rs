@@ -75,6 +75,7 @@ pub async fn start_server(app_state: AppState) {
         .route("/api/admin/verify-pin", post(admin_routes::verify_pin))
         .route("/api/results/compute", post(admin_routes::compute_results))
         .route("/api/results", get(admin_routes::get_results))
+        .route("/api/results/breakdown", get(admin_routes::get_results_breakdown))
         .route(
             "/api/results/special-awards",
             get(admin_routes::get_special_awards),

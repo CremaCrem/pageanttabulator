@@ -1,29 +1,28 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { PageWrapper } from '../../components/layout/PageWrapper';
 import { fetchApi } from '../../api/client';
-import { ICandidate, ISegmentScore } from '../../types';
+import { ICandidate, ICandidateResult, ISegmentBreakdown } from '../../types';
 import { SEGMENTS } from '../../utils/constants';
-import { Modal } from '../../components/ui/Modal';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 export const ResultsPage: React.FC = () => {
   const [candidates, setCandidates] = useState<ICandidate[]>([]);
-  const [scores, setScores] = useState<ISegmentScore[]>([]);
+  const [results, setResults] = useState<ICandidateResult[]>([]);
+  const [breakdown, setBreakdown] = useState<ISegmentBreakdown[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   
-  const [selectedCandidate, setSelectedCandidate] = useState<ICandidate | null>(null);
-
   useEffect(() => {
     const loadData = async () => {
       try {
         setLoading(true);
-        const [candRes, scoreRes] = await Promise.all([
+        const [candRes, resRes, brkRes] = await Promise.all([
           fetchApi('/api/candidates'),
-          fetchApi('/api/scores/all')
+          fetchApi('/api/results'),
+          fetchApi('/api/results/breakdown')
         ]);
         setCandidates(candRes);
-        setScores(scoreRes);
+        setResults(resRes);
+        setBreakdown(brkRes);
       } catch (err: any) {
         setError('Failed to load results data');
       } finally {
@@ -33,215 +32,124 @@ export const ResultsPage: React.FC = () => {
     loadData();
   }, []);
 
-  const chartData = useMemo(() => {
-    return candidates.map(c => {
-      const cScores = scores.filter(s => s.candidateId === c.id);
-      let total = 0;
-      
-      const segmentBreakdown: Record<string, number> = {};
-
-      Object.values(SEGMENTS).forEach(seg => {
-        const segScores = cScores.filter(s => s.segmentId === seg.id);
-        if (segScores.length > 0) {
-          const avg = segScores.reduce((acc, curr) => acc + curr.computedScore, 0) / segScores.length;
-          const weighted = avg * seg.preliminaryWeight;
-          total += weighted;
-          segmentBreakdown[seg.label] = weighted;
-        }
+  const getCandidateData = (gender: 'male' | 'female') => {
+    return candidates
+      .filter(c => c.gender === gender)
+      .map(c => {
+        const result = results.find(r => r.candidateId === c.id);
+        const cBreakdown = breakdown.filter(b => b.candidateId === c.id);
+        return {
+          candidate: c,
+          result,
+          breakdown: cBreakdown
+        };
+      })
+      .sort((a, b) => {
+        // Sort by final rank if available, else preliminary score (rank sum)
+        if (a.result?.rank && b.result?.rank) return a.result.rank - b.result.rank;
+        const aPrelim = a.result?.preliminaryScore || 9999;
+        const bPrelim = b.result?.preliminaryScore || 9999;
+        return aPrelim - bPrelim; // lower rank sum is better
       });
+  };
 
-      return {
-        name: c.candidateNumber + ' ' + c.fullName,
-        total: Number(total.toFixed(2)),
-        ...segmentBreakdown,
-        candidate: c
-      };
-    }).sort((a, b) => b.total - a.total);
-  }, [candidates, scores]);
-
-  const maleChartData = useMemo(() => chartData.filter(d => d.candidate.gender === 'male'), [chartData]);
-  const femaleChartData = useMemo(() => chartData.filter(d => d.candidate.gender === 'female'), [chartData]);
+  const maleData = useMemo(() => getCandidateData('male'), [candidates, results, breakdown]);
+  const femaleData = useMemo(() => getCandidateData('female'), [candidates, results, breakdown]);
 
   if (loading) {
     return <PageWrapper><div className="p-8 text-center text-neutral-500 font-medium">Loading Data...</div></PageWrapper>;
   }
 
+  const renderTable = (title: string, data: any[]) => (
+    <div className="bg-white rounded-xl shadow-panel overflow-hidden border border-neutral-100 mb-8">
+      <div className="p-6 border-b border-neutral-100 bg-neutral-50">
+        <h2 className="text-xl font-bold text-neutral-800">{title}</h2>
+        <p className="text-sm text-neutral-500">Borda Count: Lowest rank sum wins.</p>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="bg-neutral-100/50">
+              <th className="p-4 font-semibold text-neutral-600 border-b whitespace-nowrap">Candidate</th>
+              {Object.values(SEGMENTS).filter(s => s.category !== 'minor_award').map(seg => (
+                <th key={seg.id} className="p-4 font-semibold text-neutral-600 border-b text-center whitespace-nowrap">{seg.label} (Rank)</th>
+              ))}
+              <th className="p-4 font-semibold text-primary-700 border-b text-center whitespace-nowrap bg-primary-50/50">Prelim Rank Sum</th>
+              <th className="p-4 font-semibold text-primary-900 border-b text-center">Placement</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.map((row, i) => (
+              <tr 
+                key={row.candidate.id} 
+                className={`border-b border-neutral-50 hover:bg-gold-50 transition-colors ${row.result?.isTop3 ? 'bg-green-50/30' : (i % 2 === 0 ? 'bg-white' : 'bg-neutral-50/30')}`}
+              >
+                <td className="p-4 font-medium text-neutral-800 whitespace-nowrap">
+                  <span className="text-primary-600 font-bold mr-2">#{row.candidate.candidateNumber}</span>
+                  {row.candidate.fullName}
+                  {row.result?.isTop3 && <span className="ml-2 text-xs bg-green-200 text-green-800 px-2 py-0.5 rounded-full font-bold">Top 3</span>}
+                </td>
+                {Object.values(SEGMENTS).filter(s => s.category !== 'minor_award').map(seg => {
+                  const b = row.breakdown.find((x: any) => x.segmentId === seg.id);
+                  return (
+                    <td key={seg.id} className="p-4 text-center text-neutral-600 whitespace-nowrap">
+                      {b ? (
+                        <div>
+                          <div className="font-bold text-neutral-800">{b.finalRank}</div>
+                          <div className="text-xs text-neutral-400">Sum: {b.rankSum}</div>
+                        </div>
+                      ) : '-'}
+                    </td>
+                  );
+                })}
+                <td className="p-4 text-center font-bold text-primary-700 text-lg bg-primary-50/30">
+                  {row.result?.preliminaryScore !== undefined ? row.result.preliminaryScore.toFixed(2) : '-'}
+                </td>
+                <td className="p-4 text-center font-black text-primary-900 text-xl">
+                  {row.result?.rank ? `#${row.result.rank}` : '-'}
+                </td>
+              </tr>
+            ))}
+            {data.length === 0 && (
+              <tr>
+                <td colSpan={10} className="p-8 text-center text-neutral-400">No candidates found.</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+
   return (
     <PageWrapper>
-      <div className="mb-6">
-        <h1 className="text-heading-1 text-primary-900">Raw Scores & Visualization</h1>
-        <p className="text-neutral-500">Live candidate standing and score breakdown</p>
+      <div className="mb-6 flex justify-between items-center">
+        <div>
+          <h1 className="text-heading-1 text-primary-900">Official Results (Borda Count)</h1>
+          <p className="text-neutral-500">Verified rankings and composite scores based on judge rank sums.</p>
+        </div>
+        <button 
+          onClick={async () => {
+            setLoading(true);
+            try {
+              await fetchApi('/api/results/compute', { method: 'POST', body: JSON.stringify({ round: 'preliminary' }) });
+              await fetchApi('/api/results/compute', { method: 'POST', body: JSON.stringify({ round: 'final' }) });
+              window.location.reload();
+            } catch (err) {
+              setError('Failed to compute results');
+              setLoading(false);
+            }
+          }}
+          className="px-6 py-2 bg-primary-700 hover:bg-primary-800 text-white font-bold rounded-lg shadow"
+        >
+          Recompute All Results
+        </button>
       </div>
       
       {error && <div className="mb-4 p-4 text-red-700 bg-red-50 rounded-lg">{error}</div>}
 
-      {/* Male Bar Chart */}
-      <div className="bg-white p-6 rounded-xl shadow-panel mb-8 border border-neutral-100">
-        <h2 className="text-xl font-bold mb-6 text-neutral-800">Male Overall Standings (Preliminary)</h2>
-        <div className="h-[400px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={maleChartData} margin={{ top: 20, right: 30, left: 20, bottom: 50 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-              <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} tick={{ fontSize: 12, fill: '#4B5563' }} />
-              <YAxis domain={[0, 100]} tick={{ fill: '#4B5563' }} />
-              <Tooltip cursor={{ fill: 'rgba(27, 94, 55, 0.05)' }} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-              <Legend verticalAlign="top" height={36}/>
-              <Bar dataKey="total" name="Total Weighted Score" fill="#C9A84C" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* Female Bar Chart */}
-      <div className="bg-white p-6 rounded-xl shadow-panel mb-8 border border-neutral-100">
-        <h2 className="text-xl font-bold mb-6 text-neutral-800">Female Overall Standings (Preliminary)</h2>
-        <div className="h-[400px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={femaleChartData} margin={{ top: 20, right: 30, left: 20, bottom: 50 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-              <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} tick={{ fontSize: 12, fill: '#4B5563' }} />
-              <YAxis domain={[0, 100]} tick={{ fill: '#4B5563' }} />
-              <Tooltip cursor={{ fill: 'rgba(27, 94, 55, 0.05)' }} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-              <Legend verticalAlign="top" height={36}/>
-              <Bar dataKey="total" name="Total Weighted Score" fill="#2D7E50" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* Male Raw Data Grid */}
-      <div className="bg-white rounded-xl shadow-panel overflow-hidden border border-neutral-100 mb-8">
-        <div className="p-6 border-b border-neutral-100 bg-neutral-50">
-          <h2 className="text-xl font-bold text-neutral-800">Male Raw Scores Table</h2>
-          <p className="text-sm text-neutral-500">Click a candidate to view detailed judge breakdown</p>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-neutral-100/50">
-                <th className="p-4 font-semibold text-neutral-600 border-b whitespace-nowrap">Candidate</th>
-                {Object.values(SEGMENTS).map(seg => (
-                  <th key={seg.id} className="p-4 font-semibold text-neutral-600 border-b text-center whitespace-nowrap">{seg.label} (Avg)</th>
-                ))}
-                <th className="p-4 font-semibold text-neutral-600 border-b text-center">Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {maleChartData.map((row, i) => (
-                <tr 
-                  key={row.candidate.id} 
-                  onClick={() => setSelectedCandidate(row.candidate)}
-                  className={`border-b border-neutral-50 hover:bg-gold-50 cursor-pointer transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-neutral-50/30'}`}
-                >
-                  <td className="p-4 font-medium text-neutral-800 whitespace-nowrap">
-                    <span className="text-primary-600 font-bold mr-2">#{row.candidate.candidateNumber}</span>
-                    {row.candidate.fullName}
-                  </td>
-                  {Object.values(SEGMENTS).map(seg => {
-                    const cScores = scores.filter(s => s.candidateId === row.candidate.id && s.segmentId === seg.id);
-                    const avg = cScores.length > 0 
-                      ? (cScores.reduce((acc, curr) => acc + curr.computedScore, 0) / cScores.length).toFixed(2)
-                      : '-';
-                    return (
-                      <td key={seg.id} className="p-4 text-center text-neutral-600 whitespace-nowrap">
-                        {avg} <span className="text-xs text-neutral-400">({cScores.length})</span>
-                      </td>
-                    );
-                  })}
-                  <td className="p-4 text-center font-bold text-primary-900 text-lg">{row.total}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Female Raw Data Grid */}
-      <div className="bg-white rounded-xl shadow-panel overflow-hidden border border-neutral-100 mb-8">
-        <div className="p-6 border-b border-neutral-100 bg-neutral-50">
-          <h2 className="text-xl font-bold text-neutral-800">Female Raw Scores Table</h2>
-          <p className="text-sm text-neutral-500">Click a candidate to view detailed judge breakdown</p>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-neutral-100/50">
-                <th className="p-4 font-semibold text-neutral-600 border-b whitespace-nowrap">Candidate</th>
-                {Object.values(SEGMENTS).map(seg => (
-                  <th key={seg.id} className="p-4 font-semibold text-neutral-600 border-b text-center whitespace-nowrap">{seg.label} (Avg)</th>
-                ))}
-                <th className="p-4 font-semibold text-neutral-600 border-b text-center">Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {femaleChartData.map((row, i) => (
-                <tr 
-                  key={row.candidate.id} 
-                  onClick={() => setSelectedCandidate(row.candidate)}
-                  className={`border-b border-neutral-50 hover:bg-gold-50 cursor-pointer transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-neutral-50/30'}`}
-                >
-                  <td className="p-4 font-medium text-neutral-800 whitespace-nowrap">
-                    <span className="text-primary-600 font-bold mr-2">#{row.candidate.candidateNumber}</span>
-                    {row.candidate.fullName}
-                  </td>
-                  {Object.values(SEGMENTS).map(seg => {
-                    const cScores = scores.filter(s => s.candidateId === row.candidate.id && s.segmentId === seg.id);
-                    const avg = cScores.length > 0 
-                      ? (cScores.reduce((acc, curr) => acc + curr.computedScore, 0) / cScores.length).toFixed(2)
-                      : '-';
-                    return (
-                      <td key={seg.id} className="p-4 text-center text-neutral-600 whitespace-nowrap">
-                        {avg} <span className="text-xs text-neutral-400">({cScores.length})</span>
-                      </td>
-                    );
-                  })}
-                  <td className="p-4 text-center font-bold text-primary-900 text-lg">{row.total}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <Modal 
-        isOpen={selectedCandidate !== null} 
-        onClose={() => setSelectedCandidate(null)}
-        title={selectedCandidate ? `Detailed Breakdown: ${selectedCandidate.fullName}` : ''}
-      >
-        {selectedCandidate && (
-          <div className="space-y-6">
-            {Object.values(SEGMENTS).map(seg => {
-              const segScores = scores.filter(s => s.candidateId === selectedCandidate.id && s.segmentId === seg.id);
-              if (segScores.length === 0) return null;
-
-              return (
-                <div key={seg.id} className="border border-neutral-200 rounded-lg overflow-hidden">
-                  <div className="bg-primary-900 text-white p-3 font-semibold flex justify-between items-center">
-                    <span>{seg.label}</span>
-                    <span className="text-gold-400 text-sm">Weight: {seg.preliminaryWeight * 100}%</span>
-                  </div>
-                  <table className="w-full text-sm text-left">
-                    <thead className="bg-neutral-100 text-neutral-600">
-                      <tr>
-                        <th className="p-3 border-b">Judge ID</th>
-                        <th className="p-3 border-b text-right">Computed Score</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {segScores.map((s, idx) => (
-                        <tr key={s.id} className={`border-b last:border-0 border-neutral-100 ${idx % 2 === 0 ? 'bg-white' : 'bg-neutral-50/50'}`}>
-                          <td className="p-3 font-medium text-neutral-800">{s.judgeId}</td>
-                          <td className="p-3 text-right font-mono text-neutral-700">{s.computedScore.toFixed(4)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </Modal>
+      {renderTable('Male Standings', maleData)}
+      {renderTable('Female Standings', femaleData)}
 
     </PageWrapper>
   );

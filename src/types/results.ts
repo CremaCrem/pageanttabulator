@@ -1,4 +1,4 @@
-import { Gender, SegmentId } from './enums';
+import { SegmentId } from './enums';
 
 export interface ISegmentAverage {
   segmentId:    SegmentId;
@@ -6,14 +6,21 @@ export interface ISegmentAverage {
   judgeCount:   number;
 }
 
+export interface ISegmentBreakdown {
+  candidateId:   string;
+  segmentId:     string;
+  rankSum:       number;
+  rawScoreSum:   number;
+  finalRank:     number;
+}
+
 export interface ICandidateResult {
   candidateId:       string;
-  gender:            Gender;
-  segmentAverages:   ISegmentAverage[];
-  preliminaryScore:  number;
-  isTop5:            boolean;
-  finalQAScore?:     number;
+  segmentId?:        string;
+  preliminaryScore?: number;
+  finalQaScore?:     number;
   finalScore?:       number;
   rank?:             number;
-  awardTitle?:       string;
+  isTop3:            boolean;
+  computedAt:        string;
 }

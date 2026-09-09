@@ -301,3 +301,70 @@ pub async fn get_special_awards(State(state): State<AppState>) -> Json<Value> {
         Json(json!([]))
     }
 }
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SegmentBreakdown {
+    pub candidate_id: String,
+    pub segment_id: String,
+    pub rank_sum: u32,
+    pub raw_score_sum: f64,
+    pub final_rank: u32,
+}
+
+pub async fn get_results_breakdown(State(state): State<AppState>) -> Json<Value> {
+    let conn = state.db.lock().unwrap();
+    let scores = db::scores::get_all(&conn).unwrap_or_default();
+    
+    let segments = vec![
+        "production_number",
+        "school_uniform",
+        "professional_attire",
+        "modern_barong",
+        "preliminary_qa",
+        "final_qa",
+        "tie_breaking_qa"
+    ];
+    
+    let mut breakdown: Vec<SegmentBreakdown> = Vec::new();
+    
+    for segment in segments {
+        let mut segment_scores_by_judge: std::collections::HashMap<String, Vec<crate::scoring::ranking::JudgeRawScore>> = std::collections::HashMap::new();
+        
+        for score in &scores {
+            if score.segment_id == segment {
+                segment_scores_by_judge
+                    .entry(score.judge_id.clone())
+                    .or_default()
+                    .push(crate::scoring::ranking::JudgeRawScore {
+                        candidate_id: score.candidate_id.clone(),
+                        raw_score: score.computed_score,
+                    });
+            }
+        }
+        
+        if segment_scores_by_judge.is_empty() {
+            continue;
+        }
+        
+        let mut judge_ranks = Vec::new();
+        for (_, judge_raw_scores) in segment_scores_by_judge {
+            let ranks = crate::scoring::ranking::rank_segment_scores(judge_raw_scores);
+            judge_ranks.push(ranks);
+        }
+        
+        let consolidated = crate::scoring::ranking::consolidate_segment_ranks(judge_ranks);
+        
+        for res in consolidated {
+            breakdown.push(SegmentBreakdown {
+                candidate_id: res.candidate_id,
+                segment_id: segment.to_string(),
+                rank_sum: res.rank_sum,
+                raw_score_sum: res.raw_score_sum,
+                final_rank: res.final_rank,
+            });
+        }
+    }
+    
+    Json(json!(breakdown))
+}

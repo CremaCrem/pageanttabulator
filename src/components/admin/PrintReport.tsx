@@ -50,7 +50,7 @@ export const PrintReport: React.FC<{ onLoaded?: () => void }> = ({ onLoaded }) =
       if (a.rank && b.rank) return a.rank - b.rank;
       if (a.rank) return -1;
       if (b.rank) return 1;
-      return (b.preliminaryScore || 0) - (a.preliminaryScore || 0);
+      return (a.preliminaryScore || 0) - (b.preliminaryScore || 0); // lower is better
     });
 
     return (
@@ -76,7 +76,7 @@ export const PrintReport: React.FC<{ onLoaded?: () => void }> = ({ onLoaded }) =
               if (!c) return null;
               
               const isWinner = typeof r.rank === 'number' && r.rank <= 3;
-              const status = isWinner ? (r.rank === 1 ? 'Champion' : `${(r.rank as number) - 1} Runner-Up`) : (r.isTop5 ? 'Top 5' : 'Unplaced');
+              const status = isWinner ? (r.rank === 1 ? 'Champion' : `${(r.rank as number) - 1} Runner-Up`) : (r.isTop3 ? 'Top 3' : 'Unplaced');
               
               return (
                 <tr key={r.candidateId} className={i % 2 === 0 ? 'bg-white' : 'bg-neutral-50'}>
@@ -84,7 +84,7 @@ export const PrintReport: React.FC<{ onLoaded?: () => void }> = ({ onLoaded }) =
                   <td className="p-2 border border-neutral-200">{c.candidateNumber}</td>
                   <td className="p-2 border border-neutral-200 font-semibold">{c.fullName}</td>
                   <td className="p-2 border border-neutral-200 text-right">{r.preliminaryScore?.toFixed(2) || '-'}</td>
-                  <td className="p-2 border border-neutral-200 text-right">{r.finalQAScore?.toFixed(2) || '-'}</td>
+                  <td className="p-2 border border-neutral-200 text-right">{r.finalQaScore?.toFixed(2) || '-'}</td>
                   <td className="p-2 border border-neutral-200 text-right font-bold text-primary-800">{r.finalScore?.toFixed(2) || '-'}</td>
                   <td className="p-2 border border-neutral-200 text-center font-semibold text-gold-600">{status}</td>
                 </tr>

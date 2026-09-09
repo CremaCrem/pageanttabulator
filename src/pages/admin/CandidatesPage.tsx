@@ -162,13 +162,34 @@ export const CandidatesPage: React.FC = () => {
                       </span>
                     </td>
                     <td className="p-4">
-                      {candidate.isEligible ? (
-                        <span className="inline-flex px-2 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full">Active</span>
-                      ) : (
-                        <span className="inline-flex px-2 py-1 bg-red-100 text-red-700 text-xs font-semibold rounded-full">Disqualified</span>
-                      )}
+                      <div className="flex flex-col gap-2">
+                        {candidate.isEligible ? (
+                          <span className="inline-flex px-2 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full w-max">Active</span>
+                        ) : (
+                          <span className="inline-flex px-2 py-1 bg-red-100 text-red-700 text-xs font-semibold rounded-full w-max">Disqualified</span>
+                        )}
+                        {candidate.isInTiebreak && (
+                          <span className="inline-flex px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-semibold rounded-full w-max">In Tie-Break</span>
+                        )}
+                      </div>
                     </td>
                     <td className="p-4 text-right space-x-2">
+                      <button 
+                        onClick={async () => {
+                          try {
+                            await fetchApi(`/api/candidates/${candidate.id}/tiebreak`, {
+                              method: 'PATCH',
+                              body: JSON.stringify({ isInTiebreak: !candidate.isInTiebreak })
+                            });
+                            await loadCandidates();
+                          } catch (err: any) {
+                            setError(err.message || 'Failed to toggle tie-break');
+                          }
+                        }}
+                        className={`text-sm font-medium ${candidate.isInTiebreak ? 'text-neutral-500 hover:text-neutral-700' : 'text-yellow-600 hover:text-yellow-800'}`}
+                      >
+                        {candidate.isInTiebreak ? 'Remove Tie-Break' : 'Set Tie-Break'}
+                      </button>
                       <button 
                         onClick={() => handleDisqualifyClick(candidate.id, candidate.isEligible)}
                         className={`text-sm font-medium ${candidate.isEligible ? 'text-red-600 hover:text-red-800' : 'text-green-600 hover:text-green-800'}`}

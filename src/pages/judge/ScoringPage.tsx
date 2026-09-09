@@ -12,6 +12,7 @@ export const ScoringPage: React.FC = () => {
   
   const [allCandidates, setAllCandidates] = useState<ICandidate[]>([]);
   const [candidates, setCandidates] = useState<ICandidate[]>([]);
+  const [top3Ids, setTop3Ids] = useState<Set<string>>(new Set());
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null);
   const [scores, setScores] = useState<Record<string, number | ''>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -42,12 +43,33 @@ export const ScoringPage: React.FC = () => {
     loadCandidates();
   }, []);
 
+  // Fetch Top 3 results if we are on final_qa
+  useEffect(() => {
+    if (state.activeSegmentId === 'final_qa') {
+      const loadResults = async () => {
+        try {
+          const res: any[] = await fetchApi('/api/results');
+          const top3 = new Set<string>();
+          res.forEach(r => {
+            if (r.isTop3) top3.add(r.candidateId);
+          });
+          setTop3Ids(top3);
+        } catch (err) {
+          console.error("Failed to load results for top 3 filtering", err);
+        }
+      };
+      loadResults();
+    }
+  }, [state.activeSegmentId]);
+
   // Filter candidates based on active segment
   useEffect(() => {
     let eligible = allCandidates.filter(c => c.isEligible);
     
     if (state.activeSegmentId === 'tie_breaking_qa') {
       eligible = eligible.filter(c => c.isInTiebreak);
+    } else if (state.activeSegmentId === 'final_qa') {
+      eligible = eligible.filter(c => top3Ids.has(c.id));
     }
     
     setCandidates(eligible);
@@ -60,7 +82,7 @@ export const ScoringPage: React.FC = () => {
     } else {
       setSelectedCandidateId(null);
     }
-  }, [allCandidates, state.activeSegmentId]);
+  }, [allCandidates, state.activeSegmentId, top3Ids]);
 
   // Fetch active round on mount if not already set
   useEffect(() => {
