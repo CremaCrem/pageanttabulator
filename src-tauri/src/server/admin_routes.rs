@@ -88,10 +88,10 @@ pub async fn compute_results(
 
             // Sort and rank preliminary
             crate::scoring::ranking::rank_candidates(&mut male_results);
-            crate::scoring::ranking::select_top5(&mut male_results);
+            crate::scoring::ranking::select_top3(&mut male_results);
 
             crate::scoring::ranking::rank_candidates(&mut female_results);
-            crate::scoring::ranking::select_top5(&mut female_results);
+            crate::scoring::ranking::select_top3(&mut female_results);
 
             // Save to DB
             for r in male_results.iter().chain(female_results.iter()) {
