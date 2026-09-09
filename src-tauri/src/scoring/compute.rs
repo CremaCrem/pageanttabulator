@@ -32,6 +32,18 @@ pub fn get_criterion_weight(segment_id: &str, criterion_id: &str) -> f64 {
         ("preliminary_qa", "confidence_delivery") | ("final_qa", "confidence_delivery") => 0.20,
         ("preliminary_qa", "relevance") | ("final_qa", "relevance") => 0.15,
 
+        // Best in Advocacy
+        ("best_advocacy", "relevance_alignment") => 0.30,
+        ("best_advocacy", "content_substance") => 0.25,
+        ("best_advocacy", "clarity_organization") => 0.25,
+        ("best_advocacy", "delivery_impact") => 0.20,
+
+        // Best in Ramp
+        ("best_in_ramp", "poise_posture") => 0.30,
+        ("best_in_ramp", "confidence_stage") => 0.30,
+        ("best_in_ramp", "runway_technique") => 0.25,
+        ("best_in_ramp", "overall_impact") => 0.15,
+
         _ => 0.0,
     }
 }

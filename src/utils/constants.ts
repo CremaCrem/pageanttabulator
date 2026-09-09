@@ -78,5 +78,31 @@ export const SEGMENTS: Record<SegmentId, ISegment> = {
       { id: "confidence_delivery", label: "Confidence & Delivery", weight: 0.20 },
       { id: "relevance", label: "Relevance", weight: 0.15 },
     ]
+  },
+  [SegmentId.BestAdvocacy]: {
+    id: SegmentId.BestAdvocacy,
+    category: SegmentCategory.MinorAward,
+    label: "Best in Advocacy",
+    roundStatus: RoundStatus.NotStarted,
+    preliminaryWeight: 0.0,
+    criteria: [
+      { id: "relevance_alignment", label: "Relevance & Alignment", weight: 0.30 },
+      { id: "content_substance", label: "Content & Substance", weight: 0.25 },
+      { id: "clarity_organization", label: "Clarity & Organization", weight: 0.25 },
+      { id: "delivery_impact", label: "Delivery & Impact", weight: 0.20 },
+    ]
+  },
+  [SegmentId.BestInRamp]: {
+    id: SegmentId.BestInRamp,
+    category: SegmentCategory.MinorAward,
+    label: "Best in Ramp",
+    roundStatus: RoundStatus.NotStarted,
+    preliminaryWeight: 0.0,
+    criteria: [
+      { id: "poise_posture", label: "Poise & Posture", weight: 0.30 },
+      { id: "confidence_stage", label: "Confidence & Stage Presence", weight: 0.30 },
+      { id: "runway_technique", label: "Runway Technique", weight: 0.25 },
+      { id: "overall_impact", label: "Overall Impact", weight: 0.15 },
+    ]
   }
 };

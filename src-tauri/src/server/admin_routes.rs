@@ -218,6 +218,65 @@ pub async fn compute_results(
                 "message": "Final rankings computed. Winners are ready."
             }))
         }
+        "minor_awards" => {
+            let candidates = db::candidates::get_all(&conn).unwrap_or_default();
+            let scores = db::scores::get_all(&conn).unwrap_or_default();
+
+            // Group scores by (candidate_id, segment_id) -> Vec<f64>
+            let mut score_map: HashMap<(String, String), Vec<f64>> = HashMap::new();
+            for score in scores {
+                score_map
+                    .entry((score.candidate_id, score.segment_id))
+                    .or_insert_with(Vec::new)
+                    .push(score.computed_score);
+            }
+
+            let get_avg = |c_id: &str, s_id: &str| -> Option<f64> {
+                if let Some(list) = score_map.get(&(c_id.to_string(), s_id.to_string())) {
+                    if !list.is_empty() {
+                        let sum: f64 = list.iter().sum();
+                        return Some(sum / list.len() as f64);
+                    }
+                }
+                None
+            };
+
+            let minor_segments = vec!["best_advocacy", "best_in_ramp"];
+
+            for segment in minor_segments {
+                let mut best_male: Option<(String, f64)> = None;
+                let mut best_female: Option<(String, f64)> = None;
+
+                for c in &candidates {
+                    if let Some(avg) = get_avg(&c.id, segment) {
+                        if c.gender == "male" {
+                            if best_male.is_none() || avg > best_male.as_ref().unwrap().1 {
+                                best_male = Some((c.id.clone(), avg));
+                            }
+                        } else if c.gender == "female" {
+                            if best_female.is_none() || avg > best_female.as_ref().unwrap().1 {
+                                best_female = Some((c.id.clone(), avg));
+                            }
+                        }
+                    }
+                }
+
+                let award = db::special_awards::SpecialAward {
+                    award_id: segment.to_string(),
+                    winner_male_id: best_male.map(|x| x.0),
+                    winner_female_id: best_female.map(|x| x.0),
+                    is_auto_computed: true,
+                    notes: None,
+                    assigned_at: Some(now.clone()),
+                };
+                let _ = db::special_awards::insert_or_update(&conn, &award);
+            }
+
+            Json(json!({
+                "status": "success",
+                "message": "Minor awards computed."
+            }))
+        }
         _ => Json(json!({
             "status": "error",
             "message": "Unknown round type."

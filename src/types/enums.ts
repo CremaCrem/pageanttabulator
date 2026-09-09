@@ -16,6 +16,8 @@ export enum SegmentId {
   ModernBarong       = 'modern_barong',
   PreliminaryQA      = 'preliminary_qa',
   FinalQA            = 'final_qa',
+  BestAdvocacy       = 'best_advocacy',
+  BestInRamp         = 'best_in_ramp',
 }
 
 export enum RoundStatus {
