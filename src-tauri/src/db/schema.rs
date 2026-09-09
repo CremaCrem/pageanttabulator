@@ -44,6 +44,7 @@ pub fn init_db_with_path(db_path: &Path) -> Result<Connection, rusqlite::Error> 
             department            TEXT NOT NULL,
             photo_path            TEXT,
             is_eligible           INTEGER NOT NULL DEFAULT 1,
+            is_in_tiebreak        INTEGER NOT NULL DEFAULT 0,
             disqualification_note TEXT,
             created_at            TEXT NOT NULL
         )",
@@ -110,6 +111,7 @@ pub fn init_db_with_path(db_path: &Path) -> Result<Connection, rusqlite::Error> 
     // Quick migration for existing databases
     let _ = conn.execute("ALTER TABLE judges ADD COLUMN session_token TEXT", []);
     let _ = conn.execute("ALTER TABLE results RENAME COLUMN is_top5 TO is_top3", []);
+    let _ = conn.execute("ALTER TABLE candidates ADD COLUMN is_in_tiebreak INTEGER NOT NULL DEFAULT 0", []);
 
     // Special Awards
     conn.execute(

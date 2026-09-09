@@ -9,6 +9,7 @@ export interface ICandidate {
   department:           string;
   photoPath?:           string;
   isEligible:           boolean;
+  isInTiebreak:         boolean;
   disqualificationNote?: string;
   createdAt:            string;
 }

@@ -45,6 +45,7 @@ pub async fn add_candidate(
         department: payload.department,
         photo_path: payload.photo_path,
         is_eligible: payload.is_eligible.unwrap_or(true),
+        is_in_tiebreak: false,
         disqualification_note: None,
         created_at: now,
     };
@@ -86,4 +87,30 @@ pub async fn disqualify_candidate(
     } else {
         Json(json!({"error": "Failed to disqualify candidate"}))
     }
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ToggleTiebreakPayload {
+    pub is_in_tiebreak: bool,
+}
+
+pub async fn toggle_tiebreak(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Json(payload): Json<ToggleTiebreakPayload>,
+) -> Json<Value> {
+    let conn = state.db.lock().unwrap();
+    
+    // We will just fetch the candidate, update the field, and save it.
+    if let Ok(mut candidates) = db::candidates::get_all(&conn) {
+        if let Some(c) = candidates.iter_mut().find(|c| c.id == id) {
+            c.is_in_tiebreak = payload.is_in_tiebreak;
+            if let Ok(_) = db::candidates::update(&conn, c) {
+                return Json(json!({"status": "success"}));
+            }
+        }
+    }
+    
+    Json(json!({"error": "Failed to update candidate tie-break status"}))
 }

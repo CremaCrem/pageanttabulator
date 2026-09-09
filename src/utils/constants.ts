@@ -104,5 +104,18 @@ export const SEGMENTS: Record<SegmentId, ISegment> = {
       { id: "runway_technique", label: "Runway Technique", weight: 0.25 },
       { id: "overall_impact", label: "Overall Impact", weight: 0.15 },
     ]
+  },
+  [SegmentId.TieBreakingQA]: {
+    id: SegmentId.TieBreakingQA,
+    category: SegmentCategory.Tiebreak,
+    label: "Tie-Breaking Q&A",
+    roundStatus: RoundStatus.NotStarted,
+    preliminaryWeight: 0.0,
+    criteria: [
+      { id: "content_substance", label: "Content & Substance", weight: 0.40 },
+      { id: "clarity_organization", label: "Clarity & Organization", weight: 0.25 },
+      { id: "confidence_delivery", label: "Confidence & Delivery", weight: 0.20 },
+      { id: "relevance", label: "Relevance", weight: 0.15 },
+    ]
   }
 };

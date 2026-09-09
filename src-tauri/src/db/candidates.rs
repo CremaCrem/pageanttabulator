@@ -12,6 +12,7 @@ pub struct Candidate {
     pub department: String,
     pub photo_path: Option<String>,
     pub is_eligible: bool,
+    pub is_in_tiebreak: bool,
     pub disqualification_note: Option<String>,
     pub created_at: String,
 }
@@ -28,6 +29,7 @@ pub fn get_all(conn: &Connection) -> Result<Vec<Candidate>> {
             department: row.get("department")?,
             photo_path: row.get("photo_path")?,
             is_eligible: row.get("is_eligible")?,
+            is_in_tiebreak: row.get("is_in_tiebreak").unwrap_or(false),
             disqualification_note: row.get("disqualification_note")?,
             created_at: row.get("created_at")?,
         })
@@ -43,10 +45,10 @@ pub fn get_all(conn: &Connection) -> Result<Vec<Candidate>> {
 pub fn insert(conn: &Connection, c: &Candidate) -> Result<()> {
     conn.execute(
         "INSERT INTO candidates (
-            id, candidate_number, full_name, nickname, gender, department, photo_path, is_eligible, disqualification_note, created_at
-        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+            id, candidate_number, full_name, nickname, gender, department, photo_path, is_eligible, is_in_tiebreak, disqualification_note, created_at
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
         params![
-            c.id, c.candidate_number, c.full_name, c.nickname, c.gender, c.department, c.photo_path, c.is_eligible, c.disqualification_note, c.created_at
+            c.id, c.candidate_number, c.full_name, c.nickname, c.gender, c.department, c.photo_path, c.is_eligible, c.is_in_tiebreak, c.disqualification_note, c.created_at
         ],
     )?;
     Ok(())
@@ -55,10 +57,10 @@ pub fn insert(conn: &Connection, c: &Candidate) -> Result<()> {
 pub fn update(conn: &Connection, c: &Candidate) -> Result<()> {
     conn.execute(
         "UPDATE candidates SET 
-            candidate_number = ?1, full_name = ?2, nickname = ?3, gender = ?4, department = ?5, photo_path = ?6
-        WHERE id = ?7",
+            candidate_number = ?1, full_name = ?2, nickname = ?3, gender = ?4, department = ?5, photo_path = ?6, is_in_tiebreak = ?7
+        WHERE id = ?8",
         params![
-            c.candidate_number, c.full_name, c.nickname, c.gender, c.department, c.photo_path, c.id
+            c.candidate_number, c.full_name, c.nickname, c.gender, c.department, c.photo_path, c.is_in_tiebreak, c.id
         ],
     )?;
     Ok(())

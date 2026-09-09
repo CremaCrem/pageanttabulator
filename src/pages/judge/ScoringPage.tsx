@@ -10,6 +10,7 @@ export const ScoringPage: React.FC = () => {
   const { state, dispatch } = useAppContext();
   const navigate = useNavigate();
   
+  const [allCandidates, setAllCandidates] = useState<ICandidate[]>([]);
   const [candidates, setCandidates] = useState<ICandidate[]>([]);
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null);
   const [scores, setScores] = useState<Record<string, number | ''>>({});
@@ -31,20 +32,35 @@ export const ScoringPage: React.FC = () => {
     const loadCandidates = async () => {
       try {
         const data: ICandidate[] = await fetchApi('/api/candidates');
-        // Only eligible candidates
-        const eligible = data.filter(c => c.isEligible).sort((a, b) => 
-          a.candidateNumber.localeCompare(b.candidateNumber)
-        );
-        setCandidates(eligible);
-        if (eligible.length > 0 && !selectedCandidateId) {
-          setSelectedCandidateId(eligible[0].id);
-        }
+        // Sort by number
+        const sorted = data.sort((a, b) => a.candidateNumber.localeCompare(b.candidateNumber));
+        setAllCandidates(sorted);
       } catch (err: any) {
         console.error("Failed to load candidates", err);
       }
     };
     loadCandidates();
   }, []);
+
+  // Filter candidates based on active segment
+  useEffect(() => {
+    let eligible = allCandidates.filter(c => c.isEligible);
+    
+    if (state.activeSegmentId === 'tie_breaking_qa') {
+      eligible = eligible.filter(c => c.isInTiebreak);
+    }
+    
+    setCandidates(eligible);
+    
+    // Auto-select first if none selected or current is invalid
+    if (eligible.length > 0) {
+      if (!selectedCandidateId || !eligible.find(c => c.id === selectedCandidateId)) {
+        setSelectedCandidateId(eligible[0].id);
+      }
+    } else {
+      setSelectedCandidateId(null);
+    }
+  }, [allCandidates, state.activeSegmentId]);
 
   // Fetch active round on mount if not already set
   useEffect(() => {

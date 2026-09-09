@@ -26,11 +26,11 @@ pub fn get_criterion_weight(segment_id: &str, criterion_id: &str) -> f64 {
         ("modern_barong", "confidence_stage") => 0.20,
         ("modern_barong", "overall_impact") => 0.20,
 
-        // Preliminary Q&A & Final Q&A
-        ("preliminary_qa", "content_substance") | ("final_qa", "content_substance") => 0.40,
-        ("preliminary_qa", "clarity_organization") | ("final_qa", "clarity_organization") => 0.25,
-        ("preliminary_qa", "confidence_delivery") | ("final_qa", "confidence_delivery") => 0.20,
-        ("preliminary_qa", "relevance") | ("final_qa", "relevance") => 0.15,
+        // Preliminary Q&A, Final Q&A, & Tie-Breaking Q&A
+        ("preliminary_qa", "content_substance") | ("final_qa", "content_substance") | ("tie_breaking_qa", "content_substance") => 0.40,
+        ("preliminary_qa", "clarity_organization") | ("final_qa", "clarity_organization") | ("tie_breaking_qa", "clarity_organization") => 0.25,
+        ("preliminary_qa", "confidence_delivery") | ("final_qa", "confidence_delivery") | ("tie_breaking_qa", "confidence_delivery") => 0.20,
+        ("preliminary_qa", "relevance") | ("final_qa", "relevance") | ("tie_breaking_qa", "relevance") => 0.15,
 
         // Best in Advocacy
         ("best_advocacy", "relevance_alignment") => 0.30,

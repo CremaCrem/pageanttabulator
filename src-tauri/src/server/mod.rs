@@ -47,6 +47,10 @@ pub async fn start_server(app_state: AppState) {
             "/api/candidates/{id}/disqualify",
             patch(candidate_routes::disqualify_candidate),
         )
+        .route(
+            "/api/candidates/{id}/tiebreak",
+            patch(candidate_routes::toggle_tiebreak),
+        )
         .route("/api/judges", get(judge_routes::get_judges))
         .route("/api/judges/session", post(judge_routes::claim_session))
         .route(

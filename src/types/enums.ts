@@ -18,6 +18,7 @@ export enum SegmentId {
   FinalQA            = 'final_qa',
   BestAdvocacy       = 'best_advocacy',
   BestInRamp         = 'best_in_ramp',
+  TieBreakingQA      = 'tie_breaking_qa',
 }
 
 export enum RoundStatus {
