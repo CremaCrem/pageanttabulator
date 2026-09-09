@@ -24,6 +24,13 @@ export enum RoundStatus {
   Locked     = 'locked',
 }
 
+export enum SegmentCategory {
+  Preliminary = 'preliminary',
+  Final       = 'final',
+  MinorAward  = 'minor_award',
+  Tiebreak    = 'tiebreak',
+}
+
 export enum SpecialAwardId {
   BestProductionNumber  = 'best_production_number',
   BestSchoolUniform     = 'best_school_uniform',

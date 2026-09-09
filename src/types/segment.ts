@@ -1,4 +1,4 @@
-import { SegmentId, RoundStatus } from './enums';
+import { SegmentId, RoundStatus, SegmentCategory } from './enums';
 
 export interface ICriterion {
   id:     string;
@@ -8,6 +8,7 @@ export interface ICriterion {
 
 export interface ISegment {
   id:                 SegmentId;
+  category:           SegmentCategory;
   label:              string;
   roundStatus:        RoundStatus;
   preliminaryWeight:  number;
