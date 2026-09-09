@@ -44,6 +44,9 @@ export enum SegmentId {
   ModernBarong       = 'modern_barong',
   PreliminaryQA      = 'preliminary_qa',
   FinalQA            = 'final_qa',
+  TieBreakingQA      = 'tie_breaking_qa',
+  BestInAdvocacy     = 'best_in_advocacy',
+  BestInRamp         = 'best_in_ramp',
 }
 
 export enum RoundStatus {
@@ -130,8 +133,9 @@ export interface ICriterion {
 export interface ISegment {
   id:                 SegmentId;
   label:              string;
+  segmentCategory:    'preliminary' | 'final' | 'special_award' | 'tiebreak';
   roundStatus:        RoundStatus;  // Current status from server
-  preliminaryWeight:  number;       // Weight in preliminary score (e.g., 0.25)
+  preliminaryWeight:  number;       // Weight in preliminary score (e.g., 0.20)
   criteria:           ICriterion[];
 }
 ```
@@ -161,21 +165,22 @@ export interface ISegmentScore {
 ```typescript
 // src/types/results.ts
 
-export interface ISegmentAverage {
+export interface ISegmentRanking {
   segmentId:    SegmentId;
-  avgScore:     number;   // Average across all judges for this segment
-  judgeCount:   number;   // How many judges submitted
+  rankSum:      number;   // Borda count sum of ranks across judges
+  rawScoreSum:  number;   // Used for tie-breaking
+  placement:    number;   // Final placement in this segment (1, 2, 3...)
 }
 
 export interface ICandidateResult {
   candidateId:       string;
   gender:            Gender;
-  segmentAverages:   ISegmentAverage[];
-  preliminaryScore:  number;          // Weighted preliminary total (0–100)
-  isTop5:            boolean;
-  finalQAScore?:     number;          // Set after final round
-  finalScore?:       number;          // Set after championship computation
-  rank?:             number;          // 1, 2, 3 (per category)
+  segmentRankings:   ISegmentRanking[];
+  preliminaryRank:   number;          // Weighted composite rank
+  isTop3:            boolean;
+  finalQARank?:      number;          // Set after final round
+  finalRank?:        number;          // Set after championship computation
+  placement?:        number;          // 1, 2, 3 (per category)
   awardTitle?:       string;          // "Mr. IDSC 2026", "1st Runner-Up", etc.
 }
 ```
@@ -240,7 +245,8 @@ export type WSServerMessage =
   | { type: 'JUDGE_DISCONNECTED';  judgeId: string }
   | { type: 'SESSION_REVOKED';     judgeId: string }
   | { type: 'RANKINGS_UPDATED';    category: Gender; topCandidates: ICandidateResult[] }
-  | { type: 'TOP5_ANNOUNCED';      male: ICandidateResult[]; female: ICandidateResult[] }
+  | { type: 'TOP3_ANNOUNCED';      male: ICandidateResult[]; female: ICandidateResult[] }
+  | { type: 'TIE_BREAK_REQUIRED';  segmentId: SegmentId }
   | { type: 'FINAL_RESULTS_READY'; winners: ICandidateResult[] }
   | { type: 'SYSTEM_MESSAGE';      level: 'info' | 'warning'; message: string };
 ```
@@ -426,7 +432,7 @@ export const SEGMENT_DEFINITIONS = [
   },
 ];
 
-export const TOP_N_PRELIMINARY     = 5;     // Top 5 per category advance to finals
+export const TOP_N_PRELIMINARY     = 3;     // Top 3 per category advance to finals
 export const FINAL_PRELIM_WEIGHT   = 0.50;  // 50% of final score
 export const FINAL_QA_WEIGHT       = 0.50;  // 50% of final score
 export const MIN_SCORE             = 1;

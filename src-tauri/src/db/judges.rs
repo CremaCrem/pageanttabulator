@@ -39,7 +39,12 @@ pub fn upsert(conn: &Connection, j: &Judge) -> Result<()> {
     Ok(())
 }
 
-pub fn set_active(conn: &Connection, id: &str, is_active: bool, last_seen: Option<&str>) -> Result<()> {
+pub fn set_active(
+    conn: &Connection,
+    id: &str,
+    is_active: bool,
+    last_seen: Option<&str>,
+) -> Result<()> {
     conn.execute(
         "UPDATE judges SET is_active = ?1, last_seen = ?2 WHERE id = ?3",
         params![is_active, last_seen, id],
@@ -58,7 +63,7 @@ pub fn get_by_id(conn: &Connection, id: &str) -> Result<Option<Judge>> {
             last_seen: row.get("last_seen")?,
         })
     })?;
-    
+
     if let Some(j) = iter.next() {
         Ok(Some(j?))
     } else {

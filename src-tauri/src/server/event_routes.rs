@@ -1,7 +1,7 @@
-use axum::{extract::State, Json};
 use crate::db::{self, AppState};
-use serde_json::{json, Value};
+use axum::{extract::State, Json};
 use serde::Deserialize;
+use serde_json::{json, Value};
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -28,11 +28,11 @@ pub async fn update_event(
     Json(payload): Json<UpdateEventPayload>,
 ) -> Json<Value> {
     let conn = state.db.lock().unwrap();
-    
+
     // Check if event already exists to preserve pin and created_at if not provided
     let existing = db::event::get(&conn).ok().flatten();
     let now = chrono::Utc::now().to_rfc3339();
-    
+
     let config = db::event::EventConfig {
         id: 1,
         name: payload.name,
@@ -40,7 +40,10 @@ pub async fn update_event(
         event_date: payload.event_date,
         venue: payload.venue,
         judge_count: payload.judge_count.unwrap_or(5),
-        admin_pin: payload.admin_pin.or_else(|| existing.map(|e| e.admin_pin)).unwrap_or_else(|| "1234".to_string()),
+        admin_pin: payload
+            .admin_pin
+            .or_else(|| existing.map(|e| e.admin_pin))
+            .unwrap_or_else(|| "1234".to_string()),
         created_at: now,
     };
 
@@ -71,7 +74,7 @@ pub async fn reset_event(
     Json(payload): Json<VerifyPinPayload>,
 ) -> Json<Value> {
     let conn = state.db.lock().unwrap();
-    
+
     // Verify PIN
     if let Ok(Some(config)) = db::event::get(&conn) {
         if config.admin_pin != payload.pin {
@@ -102,7 +105,7 @@ pub async fn save_close_event(
     Json(payload): Json<SaveClosePayload>,
 ) -> Json<Value> {
     let conn = state.db.lock().unwrap();
-    
+
     // Verify PIN
     let config = match db::event::get(&conn) {
         Ok(Some(c)) => c,

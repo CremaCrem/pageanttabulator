@@ -1,5 +1,5 @@
-use axum::{extract::State, Json};
 use crate::db::{self, AppState};
+use axum::{extract::State, Json};
 use serde_json::{json, Value};
 
 pub async fn get_logs(State(state): State<AppState>) -> Json<Value> {

@@ -274,11 +274,11 @@ The original plan used `localStorage` as primary persistence. This is **wrong** 
 
 | Computation | Location | Reason |
 |-------------|---------|--------|
-| Weighted segment score (per judge) | Rust (`scoring/compute.rs`) | Authoritative, not trust-dependent |
-| Average across judges | Rust | Same |
-| Preliminary score (25% × 4 segments) | Rust | Same |
-| Top 5 selection | Rust | Same |
-| Final score (50/50 rule) | Rust | Same |
+| Raw score per judge | Rust (`scoring/compute.rs`) | Authoritative, not trust-dependent |
+| Rank aggregation across judges | Rust | Same |
+| Preliminary rank composite (20% × 5 segments) | Rust | Same |
+| Top 3 selection and Tie-break flow | Rust | Same |
+| Final rank (50/50 rule) | Rust | Same |
 | Input validation (1–100 range) | React (client) + Rust (server) | Two-layer: UX first, then authoritative |
 
 The browser only performs **live preview** of the weighted total as the judge types — this is a convenience display, not an authoritative calculation. The server recomputes on submission.
@@ -321,12 +321,12 @@ Admin clicks "Lock Segment" (PIN confirmation required)
 POST /api/rounds/lock  →  axum server
         ↓
 Rust marks round as locked in SQLite
-Rust computes aggregate averages for all candidates for this segment
+Rust computes rankings and rank-sums for all candidates for this segment
         ↓
 Server broadcasts WS event: SEGMENT_LOCKED { segmentId }
         ↓
 Judge browsers: scoring form for this segment becomes read-only
-Admin dashboard: segment shows locked status, averages displayed
+Admin dashboard: segment shows locked status, rankings displayed
 ```
 
 ### Admin Opens Next Segment

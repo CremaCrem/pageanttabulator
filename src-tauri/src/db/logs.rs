@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct SystemLog {
     pub id: String,
-    pub level: String, // "info", "warn", "error"
+    pub level: String,  // "info", "warn", "error"
     pub source: String, // "ws", "api", "auth", "db"
     pub message: String,
     pub details: Option<String>,

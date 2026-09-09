@@ -1,9 +1,12 @@
-use axum::{extract::{State, Path}, Json};
 use crate::db::{self, AppState};
-use serde_json::{json, Value};
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
+use axum::{
+    extract::{Path, State},
+    Json,
+};
 use chrono::Utc;
+use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
+use uuid::Uuid;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -26,12 +29,15 @@ pub async fn submit_score(
     Json(payload): Json<SubmitScorePayload>,
 ) -> Json<Value> {
     let conn = state.db.lock().unwrap();
-    
+
     // Convert criteria to JSON string for storage
     let criteria_json = serde_json::to_string(&payload.criteria_entries).unwrap_or_default();
-    
-    let computed_score = crate::scoring::compute::compute_segment_score(&payload.segment_id, &payload.criteria_entries);
-    
+
+    let computed_score = crate::scoring::compute::compute_segment_score(
+        &payload.segment_id,
+        &payload.criteria_entries,
+    );
+
     let score = db::scores::Score {
         id: Uuid::new_v4().to_string(),
         judge_id: payload.judge_id,
@@ -41,7 +47,7 @@ pub async fn submit_score(
         computed_score,
         submitted_at: Utc::now().to_rfc3339(),
     };
-    
+
     if let Ok(_) = db::scores::insert(&conn, &score) {
         Json(json!({
             "scoreId": score.id,

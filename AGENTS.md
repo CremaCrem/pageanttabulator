@@ -72,8 +72,11 @@ This is a **mission-critical system used at a live event with real students**. T
 | SQLite is the **only** authoritative data store | Multi-device, crash-safe |
 | Server must listen on `0.0.0.0`, never `127.0.0.1` | Judges connect over WiFi |
 | Preliminary and Final Q&A scores are stored **separately** | Weighted 50/50 for finals |
-| Top 5 selection is by **cumulative preliminary score per gender** | Never mix male/female |
+| Main Pageant Scoring is **Ranking-Based (Borda Count)** | Official placement is by lowest sum of ranks |
+| Top 3 selection is by **composite preliminary ranking per gender** | Never mix male/female |
 | Final winners (Top 3) use the **50/50 formula only** | No other formula is valid |
+| Top 3 Boundary Ties trigger a **Dynamic Tie-Break Segment** | Admin opens it; judges score live |
+| Minor Awards (Advocacy/Ramp) use **Simple Average** scoring | Distinct path from main ranking engine |
 | Submitted scores are **locked** — no edit without admin PIN + audit log | Data integrity |
 | Admin PIN required for all irreversible actions | Prevent accidental destruction |
 | Special awards scoring is **independent** from the main competition | Never combine them |
@@ -184,21 +187,24 @@ docs/             Reference documentation (see Section 13)
 > Full formulas with worked examples: `docs/scoped/scoring-logic.md` — always verify against it.
 
 ```
-Segment Score (per judge, per candidate, per segment):
-  = Σ (criterion_score × criterion_weight)
+Main Pageant Scoring (Borda Count):
+1. Judge assigns Raw Score = Σ (criterion_score × criterion_weight)
+2. Raw scores converted to Ranks per judge per segment
+3. Placement = Lowest Sum of Ranks across all judges
+4. Raw score sum is the tie-breaker at the ranking-comparison level
 
-Preliminary Score (per candidate):
-  = Σ (avg_segment_score × segment_weight)   [4 segments × 25% each]
+Preliminary Composite (per candidate):
+  = 20% weighting of the 5 preliminary segment ranks
 
-Final Q&A Score (per candidate, Top 5 only):
-  = Σ (criterion_score × criterion_weight)   [averaged across all judges]
+Final Q&A Segment:
+  = Borda Count ranking for Final Q&A (Top 3 only)
 
 Championship Final Score:
-  = (Preliminary Score × 0.50) + (Final Q&A Score × 0.50)
+  = (Preliminary Rank × 0.50) + (Final Q&A Rank × 0.50)
 
-Top 5 selection:   Highest Preliminary Score per gender
-Final winners:     Highest Final Score per gender (Top 3)
-Special awards:    Fully independent — never combined with main scores
+Top 3 selection:   Best Preliminary Composite Ranking per gender
+Final winners:     Best Championship Final Rank per gender
+Minor awards:      Best in Advocacy & Ramp use Simple Average, completely independent
 ```
 
 - All scores entered as 1–100 integers.

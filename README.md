@@ -93,7 +93,7 @@ See [`docs/scoped/network-server.md`](./docs/scoped/network-server.md) for the f
 - All scoring formulas are defined in [`docs/scoped/scoring-logic.md`](./docs/scoped/scoring-logic.md) — never deviate
 - All score data is stored in **SQLite** on the admin's machine — never in localStorage as primary storage
 - **No cloud deployment** — this app runs entirely on the local venue network
-- All computation (averages, rankings, final scores) happens **server-side in Rust** — not in the browser
+- All computation (Borda count rankings, tie-breakers, minor award averages) happens **server-side in Rust** — not in the browser
 
 ---
 

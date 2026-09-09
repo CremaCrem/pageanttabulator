@@ -1,15 +1,15 @@
+use crate::db::AppState;
 use axum::{
-    extract::{ws::{Message, WebSocket, WebSocketUpgrade}, State},
+    extract::{
+        ws::{Message, WebSocket, WebSocketUpgrade},
+        State,
+    },
     response::Response,
 };
 use futures_util::{sink::SinkExt, stream::StreamExt};
 use serde_json::Value;
-use crate::db::AppState;
 
-pub async fn ws_handler(
-    ws: WebSocketUpgrade,
-    State(state): State<AppState>,
-) -> Response {
+pub async fn ws_handler(ws: WebSocketUpgrade, State(state): State<AppState>) -> Response {
     ws.on_upgrade(|socket| handle_socket(socket, state))
 }
 
@@ -19,14 +19,17 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
 
     // Log connection
     if let Ok(conn) = state.db.lock() {
-        let _ = crate::db::logs::insert(&conn, &crate::db::logs::SystemLog {
-            id: uuid::Uuid::new_v4().to_string(),
-            level: "info".to_string(),
-            source: "ws".to_string(),
-            message: "New WebSocket connection established".to_string(),
-            details: None,
-            created_at: chrono::Utc::now().to_rfc3339(),
-        });
+        let _ = crate::db::logs::insert(
+            &conn,
+            &crate::db::logs::SystemLog {
+                id: uuid::Uuid::new_v4().to_string(),
+                level: "info".to_string(),
+                source: "ws".to_string(),
+                message: "New WebSocket connection established".to_string(),
+                details: None,
+                created_at: chrono::Utc::now().to_rfc3339(),
+            },
+        );
     }
 
     // Spawn a task to forward messages from the broadcast channel to this client
@@ -75,14 +78,17 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                         }
                     } else if msg_type == "ERROR" {
                         if let Ok(conn) = state_clone.db.lock() {
-                            let _ = crate::db::logs::insert(&conn, &crate::db::logs::SystemLog {
-                                id: uuid::Uuid::new_v4().to_string(),
-                                level: "error".to_string(),
-                                source: "frontend".to_string(),
-                                message: "Frontend client reported an error".to_string(),
-                                details: Some(msg.to_string()),
-                                created_at: chrono::Utc::now().to_rfc3339(),
-                            });
+                            let _ = crate::db::logs::insert(
+                                &conn,
+                                &crate::db::logs::SystemLog {
+                                    id: uuid::Uuid::new_v4().to_string(),
+                                    level: "error".to_string(),
+                                    source: "frontend".to_string(),
+                                    message: "Frontend client reported an error".to_string(),
+                                    details: Some(msg.to_string()),
+                                    created_at: chrono::Utc::now().to_rfc3339(),
+                                },
+                            );
                         }
                     }
                 }
@@ -105,14 +111,17 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                 rusqlite::params![past, j_id],
             );
         }
-        
-        let _ = crate::db::logs::insert(&conn, &crate::db::logs::SystemLog {
-            id: uuid::Uuid::new_v4().to_string(),
-            level: "warn".to_string(),
-            source: "ws".to_string(),
-            message: "WebSocket connection closed".to_string(),
-            details: None,
-            created_at: chrono::Utc::now().to_rfc3339(),
-        });
+
+        let _ = crate::db::logs::insert(
+            &conn,
+            &crate::db::logs::SystemLog {
+                id: uuid::Uuid::new_v4().to_string(),
+                level: "warn".to_string(),
+                source: "ws".to_string(),
+                message: "WebSocket connection closed".to_string(),
+                details: None,
+                created_at: chrono::Utc::now().to_rfc3339(),
+            },
+        );
     }
 }

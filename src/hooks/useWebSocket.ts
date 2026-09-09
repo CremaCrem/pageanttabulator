@@ -1,9 +1,11 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useAppContext } from '../context/AppContext';
+import { useToast } from '../context/ToastContext';
 import { UserRole, WSServerMessage, WSClientMessage } from '../types';
 
 export function useWebSocket(serverIp: string | null) {
   const { state, dispatch } = useAppContext();
+  const { toast } = useToast();
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<number | null>(null);
 
@@ -36,6 +38,9 @@ export function useWebSocket(serverIp: string | null) {
     ws.onmessage = (event) => {
       try {
         const data: WSServerMessage = JSON.parse(event.data);
+        if (data.type === 'SYSTEM_MESSAGE') {
+          toast(data.message, data.level);
+        }
         dispatch({ type: 'APPLY_WS_EVENT', payload: data });
       } catch (err) {
         console.error('Failed to parse WebSocket message', err);

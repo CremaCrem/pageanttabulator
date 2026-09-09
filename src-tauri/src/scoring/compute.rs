@@ -53,9 +53,7 @@ pub fn compute_avg_segment_score(judge_scores: &[f64]) -> f64 {
     sum / (judge_scores.len() as f64)
 }
 
-pub fn compute_preliminary_score(
-    preliminary_qa: f64,
-) -> f64 {
+pub fn compute_preliminary_score(preliminary_qa: f64) -> f64 {
     // The Preliminary Score used to select the Top 5 is derived exclusively from the Preliminary Q&A segment.
     preliminary_qa
 }

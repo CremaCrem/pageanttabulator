@@ -1,4 +1,4 @@
-use rusqlite::{params, Connection, Result, OptionalExtension};
+use rusqlite::{params, Connection, OptionalExtension, Result};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -27,7 +27,8 @@ pub fn get(conn: &Connection) -> Result<Option<EventConfig>> {
             admin_pin: row.get("admin_pin")?,
             created_at: row.get("created_at")?,
         })
-    }).optional()
+    })
+    .optional()
 }
 
 pub fn upsert(conn: &Connection, config: &EventConfig) -> Result<()> {
@@ -63,7 +64,14 @@ pub fn save_past_event(conn: &Connection, event: &PastEvent) -> Result<()> {
     conn.execute(
         "INSERT INTO past_events (id, name, subtitle, event_date, winners_json, created_at)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-        params![event.id, event.name, event.subtitle, event.event_date, event.winners_json, event.created_at],
+        params![
+            event.id,
+            event.name,
+            event.subtitle,
+            event.event_date,
+            event.winners_json,
+            event.created_at
+        ],
     )?;
     Ok(())
 }

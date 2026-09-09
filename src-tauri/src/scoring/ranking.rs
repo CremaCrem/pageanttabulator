@@ -6,7 +6,7 @@ pub fn rank_candidates(candidates: &mut [CandidateResult]) {
     candidates.sort_by(|a, b| {
         let final_a = a.final_score.unwrap_or(0.0);
         let final_b = b.final_score.unwrap_or(0.0);
-        
+
         match final_b.partial_cmp(&final_a) {
             Some(Ordering::Equal) | None => {
                 let prelim_a = a.preliminary_score.unwrap_or(0.0);

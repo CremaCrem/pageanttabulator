@@ -251,6 +251,12 @@ Disabled:
   - Background: color-neutral-300
   - Text: color-neutral-500
   - Cursor: not-allowed
+
+Loading/Pending:
+  - Background: color-primary-800 (opacity 80%)
+  - Text: #FFFFFF, 14px, Inter 600
+  - Content: Replaced by or preceded by a spinning inline SVG indicator
+  - Cursor: wait or not-allowed
 ```
 
 ### 8.3 Gold Accent Button
@@ -360,6 +366,26 @@ Container:
 
 Header:
   - Font: Playfair Display 20px, color-neutral-900
+```
+
+### 8.9 Toast Notification (Global System Feedback)
+
+```
+Position: Bottom-Right (bottom-6 right-6)
+Container:
+  - Background: #FFFFFF
+  - Border-left: 4px solid [semantic color]
+  - Border-radius: 8px
+  - Box-shadow: shadow-panel
+  - Padding: 16px
+  - Width: 320px
+  - Animation: slide-in-right 300ms ease-out
+
+Semantic Variants:
+  - Success: border-l-success, icon color-success
+  - Error: border-l-error, icon color-error
+  - Warning: border-l-warning, icon color-warning
+  - Info: border-l-info, icon color-info
 ```
 
 ---

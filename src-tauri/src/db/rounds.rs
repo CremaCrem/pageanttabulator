@@ -1,4 +1,4 @@
-use rusqlite::{params, Connection, Result, OptionalExtension};
+use rusqlite::{params, Connection, OptionalExtension, Result};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -37,7 +37,8 @@ pub fn get_status(conn: &Connection, segment_id: &str) -> Result<Option<RoundSta
             opened_at: row.get("opened_at")?,
             locked_at: row.get("locked_at")?,
         })
-    }).optional()
+    })
+    .optional()
 }
 
 pub fn upsert(conn: &Connection, r: &RoundState) -> Result<()> {

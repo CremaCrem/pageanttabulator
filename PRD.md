@@ -48,29 +48,30 @@ Event tabulations are mission-critical. Errors or delays in calculations affect 
 - **Idempotency & Crash-Safety:** If a judge re-submits due to a network retry, or the admin restarts the server, no data is lost or duplicated. All authoritative state lives in SQLite.
 
 ### 3.2 Scoring System Requirements (Resolved)
+- **Scoring Methodology:** The main pageant uses Ranking-Based (Borda Count) scoring. Judges' raw scores (1-100) are used only to rank candidates per judge, per segment. The candidate with the lowest sum of ranks across judges wins the placement. Raw score sums are used as tie-breakers.
 - **Phase 1 (Preliminary Round - 50% of Final Score):** 
-  - Five equally weighted segments (20% each): 
+  - A composite of five equally weighted segments (20% each): 
     1. Production Number
     2. School Uniform
     3. Professional Attire
     4. Modern Barong/Filipiniana
     5. Preliminary Q&A
-  - Determines the Top 5 Male and Top 5 Female candidates.
+  - Determines the Top 3 Male and Top 3 Female candidates using the combined preliminary ranks.
 - **Phase 2 (Final Round - 50% of Final Score):** 
-  - Final Q&A for the Top 5.
-- **Championship Rule:** Final Winners (Top 3) are determined by `(Preliminary Score * 0.5) + (Final Q&A Score * 0.5)`.
-- **Tie-Breaking:** If there is a tie for the 5th spot in the Top 5, the system flags it for manual review. The Admin will use a "Break Tie" UI button to manually select who advances based on the committee's decision.
+  - Final Q&A for the Top 3 (also scored via Borda count).
+- **Championship Rule:** Final Winners (Top 3) are determined by `(Preliminary Rank * 0.5) + (Final Q&A Rank * 0.5)`.
+- **Dynamic Tie-Breaking:** If there is a tie at the Top 3 boundary, the system automatically exposes a new conditionally-created scoring segment (`TieBreakingQA`) scoped only to the tied candidates. Judges score live. If the tie-break round itself ties, it resolves via manual Admin override.
 - **Event Day Contingencies:** The Admin dashboard must feature a "Manual Score Entry" screen to input scores from paper backups if a judge's device disconnects and cannot be recovered.
 
 ### 3.3 Special Awards Requirements
-- System must automatically derive specific awards from segment criteria:
-  - *Best in Production Number, School Uniform, Professional Attire, Modern Barong / Filipiniana* (Highest segment score).
-  - *Best in Advocacy* (Highest score specifically in the "Advocacy Statement" criterion of the School Uniform segment).
+- System must automatically derive specific awards from segment rankings:
+  - *Best in Production Number, School Uniform, Professional Attire, Modern Barong / Filipiniana* (Lowest sum of ranks for the segment).
+- **Minor Award Segments:** *Best in Advocacy* and *Best in Ramp* are separate, admin-scheduled segments. These are scored by **simple average** (NOT ranking-based) and are excluded entirely from the preliminary composite.
 - System must allow manual entry by the Admin for external awards (e.g., People's Choice, Mr./Ms. Congeniality, Spirit Award).
 
 ### 3.4 Export & Reporting
 - Generate PDF and CSV exports server-side for official record-keeping.
-- Reports must include event name, date, category, candidate number, name, department, all segment scores, preliminary score, final score, and rank.
+- Reports must include event name, date, category, candidate number, name, department, all segment ranks, raw scores, preliminary rank, final rank, and placement.
 
 ---
 
@@ -94,13 +95,13 @@ Event tabulations are mission-critical. Errors or delays in calculations affect 
 1. Admin monitors the Judge Progress matrix via WebSocket.
 2. Once all judges reach 100% submission, Admin clicks "Lock Segment".
 3. Admin enters PIN to confirm.
-4. System computes final averages for the segment in Rust and stores in SQLite.
+4. System computes ranks for the segment in Rust and stores in SQLite.
 5. Admin opens the next segment.
 
-### 4.4 Top 5 & Final Winner Flow (Admin)
-1. After the 5 Preliminary segments conclude, Admin triggers Top 5 calculation.
-2. System filters Top 5 Male and Female. If a tie occurs at the 5th position, Admin breaks the tie manually.
-3. Top 5 proceed to Final Q&A segment.
+### 4.4 Top 3 & Final Winner Flow (Admin)
+1. After the 5 Preliminary segments conclude, Admin triggers Top 3 calculation.
+2. System filters Top 3 Male and Female based on Borda count. If a tie occurs at the 3rd position, Admin opens a dynamic `TieBreakingQA` segment for the tied candidates.
+3. Top 3 proceed to Final Q&A segment.
 4. Judges score Final Q&A.
 5. Admin triggers Final Results computation (50/50 rule).
 6. Winners are revealed and PDF reports are exported.
@@ -112,9 +113,9 @@ Event tabulations are mission-critical. Errors or delays in calculations affect 
 - **AC1:** Server successfully binds to `0.0.0.0` and can serve the React build to external devices on the same WiFi network.
 - **AC2:** Scores submitted by judges are successfully written to the SQLite database and survive a hard crash of the admin app.
 - **AC3:** A judge cannot submit a score outside the 1-100 range, nor can they submit if a segment is locked.
-- **AC4:** The Preliminary score correctly weights the 5 segments at 20% each to calculate the cumulative preliminary score.
-- **AC5:** The Top 5 selection strictly isolates Male and Female categories and provides manual tie-breaking tools for edge cases.
-- **AC6:** The Final Champion calculation strictly adheres to the `(Prelim * 0.5) + (Final Q&A * 0.5)` formula, overriding no previous scores.
-- **AC7:** "Best in Advocacy" is correctly extracted from the School Uniform criterion.
+- **AC4:** The Preliminary rank correctly combines the 5 segments at 20% each to calculate the composite preliminary rank.
+- **AC5:** The Top 3 selection strictly isolates Male and Female categories, uses Borda count scoring, and provides dynamic tie-breaking segments for Top 3 boundary ties.
+- **AC6:** The Final Champion calculation strictly adheres to the `(Prelim Rank * 0.5) + (Final Q&A Rank * 0.5)` formula.
+- **AC7:** "Best in Advocacy" and "Best in Ramp" are distinct, admin-scheduled segments scored via Simple Average, isolated from the preliminary ranking composite.
 - **AC8:** The "Manual Score Entry" feature successfully allows the admin to input a full set of criteria scores on behalf of a disconnected judge.
 - **AC9:** Admin irreversible actions (locking segments, manual score overrides, tie-breaking) prompt for and successfully validate the Admin PIN.

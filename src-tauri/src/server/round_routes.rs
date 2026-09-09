@@ -1,8 +1,8 @@
-use axum::{extract::State, Json};
 use crate::db::{self, AppState};
-use serde_json::{json, Value};
-use serde::Deserialize;
+use axum::{extract::State, Json};
 use chrono::Utc;
+use serde::Deserialize;
+use serde_json::{json, Value};
 
 pub async fn get_rounds(State(state): State<AppState>) -> Json<Value> {
     let conn = state.db.lock().unwrap();
@@ -38,7 +38,7 @@ pub async fn open_round(
         opened_at: Some(Utc::now().to_rfc3339()),
         locked_at: None,
     };
-    
+
     if let Ok(_) = db::rounds::upsert(&conn, &r) {
         let _ = state.ws_sender.send(json!({
             "type": "SEGMENT_OPENED",
@@ -62,7 +62,7 @@ pub async fn lock_round(
         opened_at: None, // usually we preserve opened_at, this is simplified for stub
         locked_at: Some(Utc::now().to_rfc3339()),
     };
-    
+
     if let Ok(_) = db::rounds::upsert(&conn, &r) {
         let _ = state.ws_sender.send(json!({
             "type": "SEGMENT_LOCKED",

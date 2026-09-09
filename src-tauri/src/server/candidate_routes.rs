@@ -1,7 +1,10 @@
-use axum::{extract::{State, Path}, Json};
 use crate::db::{self, AppState};
-use serde_json::{json, Value};
+use axum::{
+    extract::{Path, State},
+    Json,
+};
 use serde::Deserialize;
+use serde_json::{json, Value};
 
 pub async fn get_candidates(State(state): State<AppState>) -> Json<Value> {
     let conn = state.db.lock().unwrap();
@@ -32,7 +35,9 @@ pub async fn add_candidate(
     let conn = state.db.lock().unwrap();
     let now = chrono::Utc::now().to_rfc3339();
     let candidate = db::candidates::Candidate {
-        id: payload.id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string()),
+        id: payload
+            .id
+            .unwrap_or_else(|| uuid::Uuid::new_v4().to_string()),
         candidate_number: payload.candidate_number,
         full_name: payload.full_name,
         nickname: payload.nickname,

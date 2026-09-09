@@ -1,7 +1,7 @@
+use pageanttabulator_lib::{db, server};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use tokio::sync::broadcast;
-use pageanttabulator_lib::{db, server};
 
 #[tokio::main]
 async fn main() {
