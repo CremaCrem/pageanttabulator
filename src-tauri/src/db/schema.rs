@@ -100,12 +100,16 @@ pub fn init_db_with_path(db_path: &Path) -> Result<Connection, rusqlite::Error> 
             final_qa_score      REAL,
             final_score         REAL,
             rank                INTEGER,
-            is_top5             INTEGER NOT NULL DEFAULT 0,
+            is_top3             INTEGER NOT NULL DEFAULT 0,
             computed_at         TEXT NOT NULL,
             UNIQUE(candidate_id, segment_id)
         )",
         [],
     )?;
+
+    // Quick migration for existing databases
+    let _ = conn.execute("ALTER TABLE judges ADD COLUMN session_token TEXT", []);
+    let _ = conn.execute("ALTER TABLE results RENAME COLUMN is_top5 TO is_top3", []);
 
     // Special Awards
     conn.execute(

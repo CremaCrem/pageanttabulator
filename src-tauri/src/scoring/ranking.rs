@@ -103,17 +103,18 @@ pub fn consolidate_segment_ranks(judge_ranks: Vec<Vec<JudgeRank>>) -> Vec<Candid
     results
 }
 
-// Keep old for now to not break everything immediately, but we will change this soon.
+// Keep old for now but updated to sort ascending (lower rank sum is better).
 pub fn rank_candidates(candidates: &mut [CandidateResult]) {
     candidates.sort_by(|a, b| {
-        let final_a = a.final_score.unwrap_or(0.0);
-        let final_b = b.final_score.unwrap_or(0.0);
+        // Lower is better in Borda count
+        let final_a = a.final_score.unwrap_or(f64::MAX);
+        let final_b = b.final_score.unwrap_or(f64::MAX);
 
-        match final_b.partial_cmp(&final_a) {
+        match final_a.partial_cmp(&final_b) {
             Some(Ordering::Equal) | None => {
-                let prelim_a = a.preliminary_score.unwrap_or(0.0);
-                let prelim_b = b.preliminary_score.unwrap_or(0.0);
-                prelim_b.partial_cmp(&prelim_a).unwrap_or(Ordering::Equal)
+                let prelim_a = a.preliminary_score.unwrap_or(f64::MAX);
+                let prelim_b = b.preliminary_score.unwrap_or(f64::MAX);
+                prelim_a.partial_cmp(&prelim_b).unwrap_or(Ordering::Equal)
             }
             Some(ord) => ord,
         }
@@ -127,9 +128,9 @@ pub fn rank_candidates(candidates: &mut [CandidateResult]) {
 pub fn select_top3(candidates: &mut [CandidateResult]) {
     for (i, candidate) in candidates.iter_mut().enumerate() {
         if i < 3 {
-            candidate.is_top5 = true; // Still using is_top5 field from old schema until Phase 2
+            candidate.is_top3 = true; 
         } else {
-            candidate.is_top5 = false;
+            candidate.is_top3 = false;
         }
     }
 }
