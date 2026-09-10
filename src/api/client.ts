@@ -51,3 +51,38 @@ export const fetchApi = async (endpoint: string, options?: RequestInit, retries 
     throw err;
   }
 };
+
+export const uploadFile = async (endpoint: string, file: File, retries = 3): Promise<{ url: string }> => {
+  const baseUrl = getApiBaseUrl();
+  const url = `${baseUrl}${endpoint}`;
+  
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!res.ok) {
+      let errMessage = `Error ${res.status}`;
+      try {
+        const data = await res.json();
+        if (data.error) errMessage = data.error;
+      } catch (e) {
+        // Ignore json parse error
+      }
+      throw new Error(errMessage);
+    }
+
+    return await res.json();
+  } catch (err: any) {
+    if (retries > 0 && err.message === 'Failed to fetch') {
+      console.warn(`Network error on upload. Retrying in 1s... (${retries} left)`);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      return uploadFile(endpoint, file, retries - 1);
+    }
+    throw err;
+  }
+};

@@ -131,12 +131,22 @@ export const ResultsPage: React.FC = () => {
         <button 
           onClick={async () => {
             setLoading(true);
+            setError('');
             try {
               await fetchApi('/api/results/compute', { method: 'POST', body: JSON.stringify({ round: 'preliminary' }) });
               await fetchApi('/api/results/compute', { method: 'POST', body: JSON.stringify({ round: 'final' }) });
-              window.location.reload();
+              // Refresh state in-place instead of full page reload
+              const [candRes, resRes, brkRes] = await Promise.all([
+                fetchApi('/api/candidates'),
+                fetchApi('/api/results'),
+                fetchApi('/api/results/breakdown')
+              ]);
+              setCandidates(candRes);
+              setResults(resRes);
+              setBreakdown(brkRes);
             } catch (err) {
               setError('Failed to compute results');
+            } finally {
               setLoading(false);
             }
           }}

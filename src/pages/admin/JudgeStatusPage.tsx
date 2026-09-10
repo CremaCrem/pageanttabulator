@@ -4,6 +4,8 @@ import { fetchApi } from '../../api/client';
 import { IJudge } from '../../types';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { useAppContext } from '../../context/AppContext';
+import { ImageUpload } from '../../components/ui/ImageUpload';
+import { getApiBaseUrl } from '../../api/client';
 
 interface JudgeStatusResponse extends IJudge {
   totalScoresSubmitted: number;
@@ -28,6 +30,10 @@ export const JudgeStatusPage: React.FC = () => {
     isOpen: false,
     judgeId: null
   });
+
+  const [editJudge, setEditJudge] = useState<IJudge | null>(null);
+  const [editForm, setEditForm] = useState({ name: '', photoPath: '', password: '' });
+  const [saving, setSaving] = useState(false);
 
   const loadStatus = async () => {
     try {
@@ -65,6 +71,39 @@ export const JudgeStatusPage: React.FC = () => {
     }
   };
 
+  const handleEditClick = (judge: JudgeStatusResponse) => {
+    setEditJudge(judge);
+    setEditForm({
+      name: judge.name || '',
+      photoPath: judge.photoPath || '',
+      password: judge.password || '',
+    });
+  };
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editJudge) return;
+
+    setSaving(true);
+    setError('');
+    try {
+      await fetchApi(`/api/judges/${editJudge.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          name: editForm.name || undefined,
+          photoPath: editForm.photoPath || undefined,
+          password: editForm.password || undefined,
+        })
+      });
+      setEditJudge(null);
+      await loadStatus();
+    } catch (err: any) {
+      setError(err.message || 'Failed to update judge profile');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <PageWrapper>
       <div className="flex justify-between items-center mb-6">
@@ -90,7 +129,9 @@ export const JudgeStatusPage: React.FC = () => {
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-neutral-50 text-neutral-600 text-sm border-b border-neutral-200">
+              <th className="p-4 font-semibold w-16">Photo</th>
               <th className="p-4 font-semibold">Judge ID</th>
+              <th className="p-4 font-semibold">Name</th>
               <th className="p-4 font-semibold">Status</th>
               <th className="p-4 font-semibold text-center">Scores Submitted</th>
               <th className="p-4 font-semibold text-right">Actions</th>
@@ -98,16 +139,26 @@ export const JudgeStatusPage: React.FC = () => {
           </thead>
           <tbody className="divide-y divide-neutral-100">
             {loading && !state.eventConfig ? (
-              <tr><td colSpan={4} className="p-8 text-center text-neutral-400">Loading...</td></tr>
+              <tr><td colSpan={6} className="p-8 text-center text-neutral-400">Loading...</td></tr>
             ) : !state.eventConfig ? (
-              <tr><td colSpan={4} className="p-8 text-center text-neutral-400">No event configuration found.</td></tr>
+              <tr><td colSpan={6} className="p-8 text-center text-neutral-400">No event configuration found.</td></tr>
             ) : (
               Array.from({ length: state.eventConfig.judgeCount || 5 }).map((_, i) => {
                 const jId = `J${i + 1}`;
                 const judge = statuses.find(j => j.id === jId) || { id: jId, isActive: false, totalScoresSubmitted: 0 } as JudgeStatusResponse;
                 return (
                   <tr key={judge.id} className="hover:bg-neutral-50 transition-colors">
+                    <td className="p-4">
+                      {judge.photoPath ? (
+                        <img src={`${getApiBaseUrl()}${judge.photoPath}`} alt={judge.name || judge.id} className="w-10 h-10 rounded-full object-cover border border-neutral-200" />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-neutral-200 flex items-center justify-center text-neutral-500 text-xs font-bold border border-neutral-300">
+                          {judge.id}
+                        </div>
+                      )}
+                    </td>
                     <td className="p-4 font-bold text-primary-900">{judge.id}</td>
+                    <td className="p-4 font-medium text-neutral-800">{judge.name || <span className="text-neutral-400 italic">Not set</span>}</td>
                     <td className="p-4">
                       {isOnline(judge) ? (
                         <div className="flex items-center space-x-2">
@@ -124,7 +175,13 @@ export const JudgeStatusPage: React.FC = () => {
                     <td className="p-4 text-center">
                       <span className="font-bold text-lg text-primary-900">{judge.totalScoresSubmitted}</span>
                     </td>
-                    <td className="p-4 text-right">
+                    <td className="p-4 text-right space-x-4">
+                      <button 
+                        onClick={() => handleEditClick(judge)}
+                        className="text-sm font-medium text-primary-600 hover:text-primary-800"
+                      >
+                        Edit Profile
+                      </button>
                       <button 
                         onClick={() => handleResetSessionClick(judge.id)}
                         disabled={!judge.isActive}
@@ -149,6 +206,60 @@ export const JudgeStatusPage: React.FC = () => {
         onConfirm={handleResetSessionConfirm}
         onCancel={() => setConfirmConfig({ ...confirmConfig, isOpen: false })}
       />
+
+      {/* Edit Judge Modal */}
+      {editJudge && (
+        <div className="fixed inset-0 bg-neutral-900/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="p-6 border-b border-neutral-100 flex justify-between items-center bg-neutral-50">
+              <h2 className="text-xl font-bold text-primary-900">Edit {editJudge.id} Profile</h2>
+              <button onClick={() => setEditJudge(null)} className="text-neutral-400 hover:text-neutral-600">✕</button>
+            </div>
+            
+            <form onSubmit={handleSaveProfile} className="p-6 overflow-y-auto flex-1 flex flex-col gap-6">
+              <div>
+                <label className="block text-sm font-semibold text-neutral-700 mb-2">Judge Photo</label>
+                <ImageUpload 
+                  value={editForm.photoPath} 
+                  onChange={(url) => setEditForm({...editForm, photoPath: url})} 
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-neutral-700 mb-1">Name</label>
+                <input 
+                  type="text" 
+                  value={editForm.name} 
+                  onChange={e => setEditForm({...editForm, name: e.target.value})} 
+                  className="w-full p-3 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-shadow" 
+                  placeholder="e.g. Dr. Jane Smith" 
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-neutral-700 mb-1">Password (Plain Text)</label>
+                <input 
+                  type="text" 
+                  value={editForm.password} 
+                  onChange={e => setEditForm({...editForm, password: e.target.value})} 
+                  className="w-full p-3 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-shadow" 
+                  placeholder="Leave empty for no password" 
+                />
+                <p className="text-xs text-neutral-500 mt-1">If set, the judge must enter this password to claim their slot.</p>
+              </div>
+
+              <div className="flex gap-3 justify-end mt-4">
+                <button type="button" onClick={() => setEditJudge(null)} className="px-5 py-2.5 text-neutral-600 font-medium hover:bg-neutral-100 rounded-lg transition-colors">
+                  Cancel
+                </button>
+                <button type="submit" disabled={saving} className="px-5 py-2.5 bg-primary-600 text-white font-medium hover:bg-primary-700 rounded-lg transition-colors shadow-sm disabled:opacity-50">
+                  {saving ? 'Saving...' : 'Save Profile'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </PageWrapper>
   );
 };

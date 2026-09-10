@@ -116,6 +116,18 @@ To survive browser refreshes and accidental tab closures, judge sessions use a c
 | `GET` | `/api/awards` | Get all special award assignments |
 | `POST` | `/api/awards` | Set a special award winner (admin only) |
 
+### Media Uploads (Images)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/upload` | Upload a photo (judge or candidate) via `multipart/form-data`. Server resizes and re-encodes it before returning a URL. |
+| `POST` | `/api/upload/cleanup` | Delete orphaned media files from disk that are no longer referenced in the database (admin only, requires PIN). |
+
+#### Image Compression & Caching Strategy
+- **Compression**: All uploaded images are resized to a maximum width of ~800px and re-encoded as WebP/JPEG (75-85% quality) on the server. Original files are never stored, minimizing network payload across the LAN.
+- **Immutable Filenames**: Every upload generates a unique UUID filename (e.g., `uploads/12345678-1234-5678-1234-567812345678.webp`). Old files are never overwritten in-place.
+- **Caching**: The `/uploads/` directory is served statically with `Cache-Control: public, max-age=31536000, immutable`. Because filenames are unique per upload, the cache will never serve stale data even if a photo is replaced mid-event.
+
 ### System & Network Info
 
 | Method | Path | Description |
@@ -305,7 +317,10 @@ CREATE TABLE candidates (
 CREATE TABLE judges (
   id          TEXT PRIMARY KEY,  -- "J1", "J2", etc.
   name        TEXT,              -- optional real name
+  photo_path  TEXT,              -- optional photo URL
+  password    TEXT,              -- optional plain text password
   is_active   INTEGER NOT NULL DEFAULT 0,
+  session_token TEXT,
   last_seen   TEXT
 );
 

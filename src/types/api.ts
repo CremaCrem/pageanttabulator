@@ -21,6 +21,14 @@ export interface ISubmitScoreResponse {
 
 export interface IClaimJudgeSessionRequest {
   judgeId: string;
+  password?: string;
+  deviceToken?: string;
+}
+
+export interface IUpdateJudgeProfileRequest {
+  name?: string;
+  photoPath?: string;
+  password?: string;
 }
 
 export interface IOpenRoundRequest {

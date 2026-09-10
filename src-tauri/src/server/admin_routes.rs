@@ -36,10 +36,26 @@ pub async fn compute_results(
     let conn = state.db.lock().unwrap();
     let now = chrono::Utc::now().to_rfc3339();
 
+    // One-time cleanup: purge duplicate overall-result rows caused by the NULL-uniqueness bug
+    match db::results::cleanup_duplicate_overall_results(&conn) {
+        Ok(deleted) => {
+            if deleted > 0 {
+                eprintln!("[cleanup] Removed {} duplicate overall-result rows", deleted);
+            }
+        }
+        Err(e) => eprintln!("[cleanup] Failed to clean duplicate results: {}", e),
+    }
+
     match payload.round.as_str() {
         "preliminary" => {
             let candidates = db::candidates::get_all(&conn).unwrap_or_default();
             let scores = db::scores::get_all(&conn).unwrap_or_default();
+
+            // Build candidate gender map (reuse same approach as get_results_breakdown)
+            let mut candidate_genders: HashMap<String, String> = HashMap::new();
+            for c in &candidates {
+                candidate_genders.insert(c.id.clone(), c.gender.clone());
+            }
 
             let prelim_segments = vec![
                 "production_number",
@@ -49,9 +65,11 @@ pub async fn compute_results(
                 "preliminary_qa",
             ];
 
+            // Track composite ranks per candidate (weighted sum of segment final_ranks)
             let mut candidate_prelim_ranks: HashMap<String, f64> = HashMap::new();
 
             for segment in &prelim_segments {
+                // Group raw scores by judge
                 let mut segment_scores_by_judge: HashMap<String, Vec<crate::scoring::ranking::JudgeRawScore>> = HashMap::new();
                 
                 for score in &scores {
@@ -66,46 +84,38 @@ pub async fn compute_results(
                     }
                 }
                 
-                let mut judge_ranks = Vec::new();
+                // Gender-segregated ranking per judge (same logic as get_results_breakdown)
+                let mut male_judge_ranks = Vec::new();
+                let mut female_judge_ranks = Vec::new();
+                
                 for (_, judge_raw_scores) in segment_scores_by_judge {
-                    let ranks = crate::scoring::ranking::rank_segment_scores(judge_raw_scores);
-                    judge_ranks.push(ranks);
-                }
-                
-                let consolidated = crate::scoring::ranking::consolidate_segment_ranks(judge_ranks);
-                
-                // Keep track of best male/female for special awards (excluding QA)
-                let mut best_male: Option<(String, u32)> = None;
-                let mut best_female: Option<(String, u32)> = None;
-
-                for res in consolidated {
-                    *candidate_prelim_ranks.entry(res.candidate_id.clone()).or_insert(0.0) += (res.final_rank as f64) * 0.20;
-
-                    if *segment != "preliminary_qa" {
-                        if let Some(c) = candidates.iter().find(|c| c.id == res.candidate_id) {
-                            if c.gender == "male" {
-                                if best_male.is_none() || res.final_rank < best_male.as_ref().unwrap().1 {
-                                    best_male = Some((c.id.clone(), res.final_rank));
-                                }
-                            } else if c.gender == "female" {
-                                if best_female.is_none() || res.final_rank < best_female.as_ref().unwrap().1 {
-                                    best_female = Some((c.id.clone(), res.final_rank));
-                                }
+                    let mut male_scores = Vec::new();
+                    let mut female_scores = Vec::new();
+                    
+                    for score in judge_raw_scores {
+                        if let Some(gender) = candidate_genders.get(&score.candidate_id) {
+                            if gender.to_lowercase() == "male" {
+                                male_scores.push(score);
+                            } else if gender.to_lowercase() == "female" {
+                                female_scores.push(score);
                             }
                         }
                     }
+                    
+                    if !male_scores.is_empty() {
+                        male_judge_ranks.push(crate::scoring::ranking::rank_segment_scores(male_scores));
+                    }
+                    if !female_scores.is_empty() {
+                        female_judge_ranks.push(crate::scoring::ranking::rank_segment_scores(female_scores));
+                    }
                 }
+                
+                let male_consolidated = crate::scoring::ranking::consolidate_segment_ranks(male_judge_ranks);
+                let female_consolidated = crate::scoring::ranking::consolidate_segment_ranks(female_judge_ranks);
 
-                if *segment != "preliminary_qa" {
-                    let award = db::special_awards::SpecialAward {
-                        award_id: segment.to_string(),
-                        winner_male_id: best_male.map(|x| x.0),
-                        winner_female_id: best_female.map(|x| x.0),
-                        is_auto_computed: true,
-                        notes: None,
-                        assigned_at: Some(now.clone()),
-                    };
-                    let _ = db::special_awards::insert_or_update(&conn, &award);
+                for res in male_consolidated.into_iter().chain(female_consolidated.into_iter()) {
+                    // Each segment contributes 20% to the preliminary composite
+                    *candidate_prelim_ranks.entry(res.candidate_id.clone()).or_insert(0.0) += (res.final_rank as f64) * 0.20;
                 }
             }
 
@@ -117,7 +127,7 @@ pub async fn compute_results(
 
                 let res = db::results::CandidateResult {
                     candidate_id: c.id.clone(),
-                    segment_id: None, // Overall result
+                    segment_id: Some("".to_string()), // Empty string, not NULL — makes UNIQUE constraint work
                     preliminary_score: Some(prelim_score),
                     final_qa_score: None,
                     final_score: None,
@@ -133,7 +143,7 @@ pub async fn compute_results(
                 }
             }
 
-            // Sort and rank preliminary (ascending for Borda count)
+            // Sort and rank preliminary (ascending for Borda count) — within each gender
             crate::scoring::ranking::rank_candidates(&mut male_results);
             crate::scoring::ranking::select_top3(&mut male_results);
 
@@ -315,6 +325,12 @@ pub struct SegmentBreakdown {
 pub async fn get_results_breakdown(State(state): State<AppState>) -> Json<Value> {
     let conn = state.db.lock().unwrap();
     let scores = db::scores::get_all(&conn).unwrap_or_default();
+    let candidates = db::candidates::get_all(&conn).unwrap_or_default();
+    
+    let mut candidate_genders = std::collections::HashMap::new();
+    for candidate in candidates {
+        candidate_genders.insert(candidate.id, candidate.gender);
+    }
     
     let segments = vec![
         "production_number",
@@ -347,15 +363,35 @@ pub async fn get_results_breakdown(State(state): State<AppState>) -> Json<Value>
             continue;
         }
         
-        let mut judge_ranks = Vec::new();
+        let mut male_judge_ranks = Vec::new();
+        let mut female_judge_ranks = Vec::new();
+        
         for (_, judge_raw_scores) in segment_scores_by_judge {
-            let ranks = crate::scoring::ranking::rank_segment_scores(judge_raw_scores);
-            judge_ranks.push(ranks);
+            let mut male_scores = Vec::new();
+            let mut female_scores = Vec::new();
+            
+            for score in judge_raw_scores {
+                if let Some(gender) = candidate_genders.get(&score.candidate_id) {
+                    if gender.to_lowercase() == "male" {
+                        male_scores.push(score);
+                    } else if gender.to_lowercase() == "female" {
+                        female_scores.push(score);
+                    }
+                }
+            }
+            
+            if !male_scores.is_empty() {
+                male_judge_ranks.push(crate::scoring::ranking::rank_segment_scores(male_scores));
+            }
+            if !female_scores.is_empty() {
+                female_judge_ranks.push(crate::scoring::ranking::rank_segment_scores(female_scores));
+            }
         }
         
-        let consolidated = crate::scoring::ranking::consolidate_segment_ranks(judge_ranks);
+        let male_consolidated = crate::scoring::ranking::consolidate_segment_ranks(male_judge_ranks);
+        let female_consolidated = crate::scoring::ranking::consolidate_segment_ranks(female_judge_ranks);
         
-        for res in consolidated {
+        for res in male_consolidated.into_iter().chain(female_consolidated.into_iter()) {
             breakdown.push(SegmentBreakdown {
                 candidate_id: res.candidate_id,
                 segment_id: segment.to_string(),

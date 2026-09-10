@@ -6,10 +6,12 @@ pub mod log_routes;
 pub mod network_routes;
 pub mod round_routes;
 pub mod score_routes;
+pub mod upload_routes;
 pub mod ws;
 
 use crate::db::AppState;
 use axum::{
+    http::HeaderValue,
     routing::{delete, get, patch, post},
     Router,
 };
@@ -18,9 +20,14 @@ use tokio::net::TcpListener;
 use tower_http::cors::CorsLayer;
 
 use tower_http::services::{ServeDir, ServeFile};
+use tower_http::set_header::SetResponseHeaderLayer;
 
 pub async fn start_server(app_state: AppState) {
     let frontend_dir = "../dist"; // Path to Vite build output
+
+    let app_dir = std::path::Path::new(app_state.db.lock().unwrap().path().unwrap()).parent().unwrap().to_path_buf();
+    let uploads_dir = app_dir.join("uploads");
+    std::fs::create_dir_all(&uploads_dir).ok();
 
     let app = Router::new()
         .route("/api/health", get(|| async { r#"{"status":"ok"}"# }))
@@ -52,6 +59,7 @@ pub async fn start_server(app_state: AppState) {
             patch(candidate_routes::toggle_tiebreak),
         )
         .route("/api/judges", get(judge_routes::get_judges))
+        .route("/api/judges/{id}", patch(judge_routes::update_judge))
         .route("/api/judges/session", post(judge_routes::claim_session))
         .route(
             "/api/judges/session/verify",
@@ -84,8 +92,26 @@ pub async fn start_server(app_state: AppState) {
             "/api/logs",
             get(log_routes::get_logs).delete(log_routes::clear_logs),
         )
+        .route(
+            "/api/upload",
+            post(upload_routes::upload_image),
+        )
+        .route(
+            "/api/upload/cleanup",
+            post(upload_routes::cleanup_orphans),
+        )
         .route("/ws", get(ws::ws_handler))
         .with_state(app_state)
+        // Serve uploads directory with immutable cache headers
+        .nest_service(
+            "/uploads",
+            tower::ServiceBuilder::new()
+                .layer(SetResponseHeaderLayer::overriding(
+                    axum::http::header::CACHE_CONTROL,
+                    HeaderValue::from_static("public, max-age=31536000, immutable"),
+                ))
+                .service(ServeDir::new(uploads_dir)),
+        )
         // Serve static files from ../dist, fallback to index.html for SPA routing
         .fallback_service(
             ServeDir::new(frontend_dir)

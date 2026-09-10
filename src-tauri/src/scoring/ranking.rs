@@ -103,7 +103,7 @@ pub fn consolidate_segment_ranks(judge_ranks: Vec<Vec<JudgeRank>>) -> Vec<Candid
     results
 }
 
-// Keep old for now but updated to sort ascending (lower rank sum is better).
+// Sort candidates by Borda score (lower is better). Assigns equal ranks to tied candidates.
 pub fn rank_candidates(candidates: &mut [CandidateResult]) {
     candidates.sort_by(|a, b| {
         // Lower is better in Borda count
@@ -120,18 +120,46 @@ pub fn rank_candidates(candidates: &mut [CandidateResult]) {
         }
     });
 
-    for (i, candidate) in candidates.iter_mut().enumerate() {
-        candidate.rank = Some((i + 1) as i64);
+    // Assign ranks with proper tie handling: tied candidates share the same rank
+    let mut current_rank: i64 = 1;
+    for i in 0..candidates.len() {
+        if i == 0 {
+            candidates[i].rank = Some(current_rank);
+        } else {
+            let prev_prelim = candidates[i - 1].preliminary_score.unwrap_or(f64::MAX);
+            let curr_prelim = candidates[i].preliminary_score.unwrap_or(f64::MAX);
+            let prev_final = candidates[i - 1].final_score.unwrap_or(f64::MAX);
+            let curr_final = candidates[i].final_score.unwrap_or(f64::MAX);
+
+            let is_tie = (prev_prelim - curr_prelim).abs() < f64::EPSILON
+                && (prev_final - curr_final).abs() < f64::EPSILON;
+
+            if !is_tie {
+                current_rank = (i + 1) as i64;
+            }
+            candidates[i].rank = Some(current_rank);
+        }
     }
 }
 
+/// Flags Top 3 candidates, with tie handling at the boundary.
+/// If the candidate at rank 3 shares the same preliminary_score as the
+/// candidate at rank 4 (or lower), all tied candidates are included.
 pub fn select_top3(candidates: &mut [CandidateResult]) {
-    for (i, candidate) in candidates.iter_mut().enumerate() {
-        if i < 3 {
-            candidate.is_top3 = true; 
-        } else {
-            candidate.is_top3 = false;
+    if candidates.len() <= 3 {
+        for c in candidates.iter_mut() {
+            c.is_top3 = true;
         }
+        return;
+    }
+
+    // Find the preliminary score of the 3rd-place candidate (index 2)
+    let third_place_score = candidates[2].preliminary_score.unwrap_or(f64::MAX);
+
+    for candidate in candidates.iter_mut() {
+        let score = candidate.preliminary_score.unwrap_or(f64::MAX);
+        // Include if score is better than or equal to 3rd place (lower is better)
+        candidate.is_top3 = score <= third_place_score + f64::EPSILON;
     }
 }
 

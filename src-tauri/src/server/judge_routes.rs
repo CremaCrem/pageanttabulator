@@ -19,6 +19,7 @@ pub async fn get_judges(State(state): State<AppState>) -> Json<Value> {
 #[serde(rename_all = "camelCase")]
 pub struct ClaimSessionPayload {
     pub judge_id: String,
+    pub password: Option<String>,
     pub device_token: Option<String>,
 }
 
@@ -35,8 +36,25 @@ pub async fn claim_session(
 ) -> (axum::http::StatusCode, Json<Value>) {
     let conn = state.db.lock().unwrap();
 
+    let mut judge_name = None;
+    let mut photo_path = None;
+    let mut password = None;
+
     // Check existing judge
     if let Ok(Some(existing)) = db::judges::get_by_id(&conn, &payload.judge_id) {
+        // Password verification if one is set
+        if let Some(ref db_pass) = existing.password {
+            // Ignore empty string passwords as no password
+            if !db_pass.trim().is_empty() {
+                if payload.password.as_ref() != Some(db_pass) {
+                    return (
+                        axum::http::StatusCode::UNAUTHORIZED,
+                        Json(json!({"error": "Incorrect password for this judge slot."})),
+                    );
+                }
+            }
+        }
+
         if existing.is_active {
             // If it's active but the client doesn't have the right token, reject
             if let Some(ref current_token) = existing.session_token {
@@ -48,6 +66,10 @@ pub async fn claim_session(
                 }
             }
         }
+        
+        judge_name = existing.name;
+        photo_path = existing.photo_path;
+        password = existing.password;
     }
 
     let token = payload
@@ -57,7 +79,9 @@ pub async fn claim_session(
 
     let judge = db::judges::Judge {
         id: payload.judge_id.clone(),
-        name: None,
+        name: judge_name,
+        photo_path,
+        password,
         is_active: true,
         session_token: Some(token.clone()),
         last_seen: Some(now),
@@ -133,5 +157,32 @@ pub async fn get_judge_status(State(state): State<AppState>) -> Json<Value> {
         Json(json!(statuses))
     } else {
         Json(json!([]))
+    }
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateJudgePayload {
+    pub name: Option<String>,
+    pub photo_path: Option<String>,
+    pub password: Option<String>,
+}
+
+pub async fn update_judge(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Json(payload): Json<UpdateJudgePayload>,
+) -> Json<Value> {
+    let conn = state.db.lock().unwrap();
+    if let Ok(_) = db::judges::update_judge_profile(
+        &conn,
+        &id,
+        payload.name.as_deref(),
+        payload.photo_path.as_deref(),
+        payload.password.as_deref(),
+    ) {
+        Json(json!({"status": "success"}))
+    } else {
+        Json(json!({"error": "Failed to update judge profile"}))
     }
 }

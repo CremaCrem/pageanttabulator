@@ -6,12 +6,12 @@ use axum::{
 use serde::Deserialize;
 use serde_json::{json, Value};
 
-pub async fn get_candidates(State(state): State<AppState>) -> Json<Value> {
+pub async fn get_candidates(State(state): State<AppState>) -> (axum::http::StatusCode, Json<Value>) {
     let conn = state.db.lock().unwrap();
     if let Ok(candidates) = db::candidates::get_all(&conn) {
-        Json(json!(candidates))
+        (axum::http::StatusCode::OK, Json(json!(candidates)))
     } else {
-        Json(json!([]))
+        (axum::http::StatusCode::INTERNAL_SERVER_ERROR, Json(json!([])))
     }
 }
 
@@ -31,7 +31,7 @@ pub struct AddCandidatePayload {
 pub async fn add_candidate(
     State(state): State<AppState>,
     Json(payload): Json<AddCandidatePayload>,
-) -> Json<Value> {
+) -> (axum::http::StatusCode, Json<Value>) {
     let conn = state.db.lock().unwrap();
     let now = chrono::Utc::now().to_rfc3339();
     let candidate = db::candidates::Candidate {
@@ -51,9 +51,9 @@ pub async fn add_candidate(
     };
 
     if let Ok(_) = db::candidates::insert(&conn, &candidate) {
-        Json(json!(candidate))
+        (axum::http::StatusCode::OK, Json(json!(candidate)))
     } else {
-        Json(json!({"error": "Failed to add candidate"}))
+        (axum::http::StatusCode::CONFLICT, Json(json!({"error": "Failed to add candidate. The candidate number may already be in use for this category."})))
     }
 }
 
@@ -61,12 +61,12 @@ pub async fn update_candidate(
     State(state): State<AppState>,
     Path(_id): Path<String>,
     Json(payload): Json<db::candidates::Candidate>,
-) -> Json<Value> {
+) -> (axum::http::StatusCode, Json<Value>) {
     let conn = state.db.lock().unwrap();
     if let Ok(_) = db::candidates::update(&conn, &payload) {
-        Json(json!({"status": "success"}))
+        (axum::http::StatusCode::OK, Json(json!({"status": "success"})))
     } else {
-        Json(json!({"error": "Failed to update candidate"}))
+        (axum::http::StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": "Failed to update candidate"})))
     }
 }
 
@@ -80,12 +80,12 @@ pub async fn disqualify_candidate(
     State(state): State<AppState>,
     Path(id): Path<String>,
     Json(payload): Json<DisqualifyPayload>,
-) -> Json<Value> {
+) -> (axum::http::StatusCode, Json<Value>) {
     let conn = state.db.lock().unwrap();
     if let Ok(_) = db::candidates::disqualify(&conn, &id, payload.note.as_deref()) {
-        Json(json!({"status": "success"}))
+        (axum::http::StatusCode::OK, Json(json!({"status": "success"})))
     } else {
-        Json(json!({"error": "Failed to disqualify candidate"}))
+        (axum::http::StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": "Failed to disqualify candidate"})))
     }
 }
 
@@ -99,7 +99,7 @@ pub async fn toggle_tiebreak(
     State(state): State<AppState>,
     Path(id): Path<String>,
     Json(payload): Json<ToggleTiebreakPayload>,
-) -> Json<Value> {
+) -> (axum::http::StatusCode, Json<Value>) {
     let conn = state.db.lock().unwrap();
     
     // We will just fetch the candidate, update the field, and save it.
@@ -107,10 +107,10 @@ pub async fn toggle_tiebreak(
         if let Some(c) = candidates.iter_mut().find(|c| c.id == id) {
             c.is_in_tiebreak = payload.is_in_tiebreak;
             if let Ok(_) = db::candidates::update(&conn, c) {
-                return Json(json!({"status": "success"}));
+                return (axum::http::StatusCode::OK, Json(json!({"status": "success"})));
             }
         }
     }
     
-    Json(json!({"error": "Failed to update candidate tie-break status"}))
+    (axum::http::StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": "Failed to update candidate tie-break status"})))
 }

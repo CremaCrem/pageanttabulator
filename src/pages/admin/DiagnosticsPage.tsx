@@ -25,6 +25,9 @@ export const DiagnosticsPage: React.FC = () => {
   const [judges, setJudges] = useState<JudgeStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [clearModalOpen, setClearModalOpen] = useState(false);
+  const [cleanupModalOpen, setCleanupModalOpen] = useState(false);
+  const [pin, setPin] = useState('');
+  const [cleanupError, setCleanupError] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -59,6 +62,30 @@ export const DiagnosticsPage: React.FC = () => {
     }
   };
 
+  const handleCleanupMediaClick = () => {
+    setPin('');
+    setCleanupError('');
+    setCleanupModalOpen(true);
+  };
+
+  const handleCleanupMediaConfirm = async () => {
+    if (!pin) {
+      setCleanupError('PIN is required');
+      return;
+    }
+
+    try {
+      const res = await fetchApi('/api/upload/cleanup', {
+        method: 'POST',
+        body: JSON.stringify({ pin })
+      });
+      alert(`Cleanup successful. Deleted ${res.deletedCount || 0} orphaned file(s).`);
+      setCleanupModalOpen(false);
+    } catch (err: any) {
+      setCleanupError(err.message || 'Failed to cleanup media');
+    }
+  };
+
   const getLevelColor = (level: string) => {
     switch (level.toLowerCase()) {
       case 'error': return 'bg-red-100 text-red-800 border-red-200';
@@ -74,13 +101,21 @@ export const DiagnosticsPage: React.FC = () => {
           <h1 className="text-heading-1 text-primary-900">System Diagnostics</h1>
           <p className="text-neutral-500">Live connection status and error logs</p>
         </div>
-        <button
-          onClick={() => setClearModalOpen(true)}
-          className="flex items-center space-x-2 px-4 py-2 bg-white border border-neutral-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200 text-neutral-600 font-medium rounded-lg transition-colors"
-        >
-          <Trash2 className="w-4 h-4" />
-          <span>Clear Logs</span>
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={handleCleanupMediaClick}
+            className="flex items-center space-x-2 px-4 py-2 bg-white border border-neutral-200 hover:bg-neutral-50 text-neutral-600 font-medium rounded-lg transition-colors"
+          >
+            <span>Clean Up Media</span>
+          </button>
+          <button
+            onClick={() => setClearModalOpen(true)}
+            className="flex items-center space-x-2 px-4 py-2 bg-white border border-neutral-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200 text-neutral-600 font-medium rounded-lg transition-colors"
+          >
+            <Trash2 className="w-4 h-4" />
+            <span>Clear Logs</span>
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -176,6 +211,28 @@ export const DiagnosticsPage: React.FC = () => {
         confirmText="Clear Logs"
         isDestructive={true}
       />
+
+      <ConfirmModal
+        isOpen={cleanupModalOpen}
+        title="Clean Up Media"
+        message="Are you sure you want to delete orphaned media files? This requires an Admin PIN."
+        onConfirm={handleCleanupMediaConfirm}
+        onCancel={() => setCleanupModalOpen(false)}
+        confirmText="Clean Up"
+        isDestructive={false}
+      >
+        <div className="mt-4">
+          <input
+            type="password"
+            placeholder="Admin PIN"
+            value={pin}
+            onChange={e => setPin(e.target.value)}
+            className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:outline-none transition-shadow ${cleanupError ? 'border-red-300 focus:ring-red-200' : 'border-neutral-200 focus:ring-primary-200'}`}
+            autoFocus
+          />
+          {cleanupError && <div className="mt-2 text-xs text-red-600 font-semibold">{cleanupError}</div>}
+        </div>
+      </ConfirmModal>
 
     </PageWrapper>
   );

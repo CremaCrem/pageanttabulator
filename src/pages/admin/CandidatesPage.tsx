@@ -3,6 +3,8 @@ import { PageWrapper } from '../../components/layout/PageWrapper';
 import { fetchApi } from '../../api/client';
 import { ICandidate, Gender } from '../../types';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
+import { ImageUpload } from '../../components/ui/ImageUpload';
+import { getApiBaseUrl } from '../../api/client';
 
 export const CandidatesPage: React.FC = () => {
   const [candidates, setCandidates] = useState<ICandidate[]>([]);
@@ -20,6 +22,7 @@ export const CandidatesPage: React.FC = () => {
     fullName: '',
     department: '',
     gender: Gender.Female,
+    photoPath: '',
   });
 
   const loadCandidates = async () => {
@@ -51,10 +54,11 @@ export const CandidatesPage: React.FC = () => {
           fullName: newCandidate.fullName,
           department: newCandidate.department,
           gender: newCandidate.gender,
+          photoPath: newCandidate.photoPath || undefined,
           isEligible: true
         })
       });
-      setNewCandidate({ candidateNumber: '', fullName: '', department: '', gender: Gender.Female });
+      setNewCandidate({ candidateNumber: '', fullName: '', department: '', gender: Gender.Female, photoPath: '' });
       await loadCandidates();
     } catch (err: any) {
       setError(err.message || 'Failed to add candidate');
@@ -105,11 +109,17 @@ export const CandidatesPage: React.FC = () => {
       {/* Add Candidate Form */}
       <div className="bg-white p-6 rounded-xl shadow-panel mb-8 border border-neutral-100">
         <h2 className="text-lg font-bold text-neutral-800 mb-4">Add New Candidate</h2>
-        <form onSubmit={handleAdd} className="flex flex-wrap gap-4 items-end">
-          <div className="flex-1 min-w-[120px]">
-            <label className="block text-xs font-semibold text-neutral-600 mb-1">Number</label>
-            <input type="text" required value={newCandidate.candidateNumber} onChange={e => setNewCandidate({...newCandidate, candidateNumber: e.target.value})} className="w-full p-2 border border-neutral-300 rounded focus:border-primary-500 outline-none" placeholder="e.g. 01" />
-          </div>
+        <form onSubmit={handleAdd} className="flex flex-col gap-6">
+          <div className="flex gap-6 items-start">
+            <ImageUpload 
+              value={newCandidate.photoPath} 
+              onChange={(url) => setNewCandidate({...newCandidate, photoPath: url})} 
+            />
+            <div className="flex flex-wrap gap-4 items-end flex-1">
+              <div className="flex-1 min-w-[120px]">
+                <label className="block text-xs font-semibold text-neutral-600 mb-1">Number</label>
+                <input type="text" required value={newCandidate.candidateNumber} onChange={e => setNewCandidate({...newCandidate, candidateNumber: e.target.value})} className="w-full p-2 border border-neutral-300 rounded focus:border-primary-500 outline-none" placeholder="e.g. 01" />
+              </div>
           <div className="flex-[3] min-w-[200px]">
             <label className="block text-xs font-semibold text-neutral-600 mb-1">Full Name</label>
             <input type="text" required value={newCandidate.fullName} onChange={e => setNewCandidate({...newCandidate, fullName: e.target.value})} className="w-full p-2 border border-neutral-300 rounded focus:border-primary-500 outline-none" placeholder="Juan dela Cruz" />
@@ -118,16 +128,20 @@ export const CandidatesPage: React.FC = () => {
             <label className="block text-xs font-semibold text-neutral-600 mb-1">Department/College</label>
             <input type="text" required value={newCandidate.department} onChange={e => setNewCandidate({...newCandidate, department: e.target.value})} className="w-full p-2 border border-neutral-300 rounded focus:border-primary-500 outline-none" placeholder="CAS" />
           </div>
-          <div className="flex-1 min-w-[120px]">
-            <label className="block text-xs font-semibold text-neutral-600 mb-1">Category</label>
-            <select value={newCandidate.gender} onChange={e => setNewCandidate({...newCandidate, gender: e.target.value as Gender})} className="w-full p-2 border border-neutral-300 rounded focus:border-primary-500 outline-none bg-white">
-              <option value={Gender.Female}>Female (Ms.)</option>
-              <option value={Gender.Male}>Male (Mr.)</option>
-            </select>
+              <div className="flex-1 min-w-[120px]">
+                <label className="block text-xs font-semibold text-neutral-600 mb-1">Category</label>
+                <select value={newCandidate.gender} onChange={e => setNewCandidate({...newCandidate, gender: e.target.value as Gender})} className="w-full p-2 border border-neutral-300 rounded focus:border-primary-500 outline-none bg-white">
+                  <option value={Gender.Female}>Female (Ms.)</option>
+                  <option value={Gender.Male}>Male (Mr.)</option>
+                </select>
+              </div>
+            </div>
           </div>
-          <button type="submit" disabled={adding} className="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded shadow transition-colors disabled:opacity-50 h-[42px]">
-            {adding ? 'Adding...' : 'Add'}
-          </button>
+          <div className="flex justify-end">
+            <button type="submit" disabled={adding} className="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded shadow transition-colors disabled:opacity-50 h-[42px]">
+              {adding ? 'Adding...' : 'Add Candidate'}
+            </button>
+          </div>
         </form>
       </div>
 
@@ -137,6 +151,7 @@ export const CandidatesPage: React.FC = () => {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-neutral-50 text-neutral-600 text-sm border-b border-neutral-200">
+                <th className="p-4 font-semibold w-16">Photo</th>
                 <th className="p-4 font-semibold">No.</th>
                 <th className="p-4 font-semibold">Name</th>
                 <th className="p-4 font-semibold">Department</th>
@@ -153,6 +168,15 @@ export const CandidatesPage: React.FC = () => {
               ) : (
                 candidates.map((candidate) => (
                   <tr key={candidate.id} className="hover:bg-neutral-50 transition-colors">
+                    <td className="p-4">
+                      {candidate.photoPath ? (
+                        <img src={`${getApiBaseUrl()}${candidate.photoPath}`} alt={candidate.fullName} className="w-10 h-10 rounded-full object-cover border border-neutral-200" />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-neutral-200 flex items-center justify-center text-neutral-500 text-xs font-bold border border-neutral-300">
+                          {candidate.candidateNumber}
+                        </div>
+                      )}
+                    </td>
                     <td className="p-4 font-bold text-primary-900">{candidate.candidateNumber}</td>
                     <td className="p-4 font-medium text-neutral-800">{candidate.fullName}</td>
                     <td className="p-4 text-neutral-600">{candidate.department}</td>

@@ -114,11 +114,15 @@ export interface ICandidate {
 export interface IJudge {
   id:           string;   // "J1" through "J10"
   name?:        string;   // Optional real name (admin can fill this in)
+  photoPath?:   string;   // Optional photo URL (served by local backend)
+  password?:    string;   // Plain text password for slot claim (intentional for LAN environment)
   isActive:     boolean;  // True when a browser has claimed this slot
   sessionToken?: string;  // Unique token used for localStorage auto-reconnect
   lastSeen?:    string;   // ISO timestamp of last WebSocket ping
 }
 ```
+
+> 📌 **Security Note:** Passwords for judges are deliberately stored as plain text. This is a closed, offline LAN system for volunteers, and adding crypto dependencies is an anti-goal. Do not add hashing.
 
 ### Segment & Criteria (Static — not from DB)
 ```typescript
@@ -284,7 +288,15 @@ export interface ISubmitScoreResponse {
 // POST /api/judges/session — request body
 export interface IClaimJudgeSessionRequest {
   judgeId: string;
+  password?: string; // Checked against the DB plain text password if set
   deviceToken?: string; // If provided, attempts to re-claim an existing active session
+}
+
+// PATCH /api/judges/:id — request body
+export interface IUpdateJudgeProfileRequest {
+  name?: string;
+  password?: string;
+  photoPath?: string;
 }
 
 // POST /api/judges/session — response
