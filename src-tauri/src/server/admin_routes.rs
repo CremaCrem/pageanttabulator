@@ -155,9 +155,21 @@ pub async fn compute_results(
                 let _ = db::results::insert(&conn, r);
             }
 
+            let _ = crate::db::logs::insert(
+                &conn,
+                &crate::db::logs::SystemLog {
+                    id: uuid::Uuid::new_v4().to_string(),
+                    level: "info".to_string(),
+                    source: "admin".to_string(),
+                    message: "Admin computed Preliminary results".to_string(),
+                    details: None,
+                    created_at: chrono::Utc::now().to_rfc3339(),
+                },
+            );
+
             Json(json!({
                 "status": "success",
-                "message": "Preliminary composite ranks computed. Top 3 generated."
+                "message": "Preliminary results computed."
             }))
         }
         "final" => {
@@ -166,9 +178,9 @@ pub async fn compute_results(
             let scores = db::scores::get_all(&conn).unwrap_or_default();
 
             let mut score_map: HashMap<(String, String), Vec<f64>> = HashMap::new();
-            for score in scores {
+            for score in &scores {
                 score_map
-                    .entry((score.candidate_id, score.segment_id))
+                    .entry((score.candidate_id.clone(), score.segment_id.clone()))
                     .or_insert_with(Vec::new)
                     .push(score.computed_score);
             }
@@ -215,66 +227,244 @@ pub async fn compute_results(
                 }
             }
 
-            // Rank final winners
-            crate::scoring::ranking::rank_candidates(&mut male_results);
-            crate::scoring::ranking::rank_candidates(&mut female_results);
+            // TIE-BREAK RESOLUTION & AUTO-FLAGGING
+            let mut tiebreak_scores_exist = false;
+            for score in &scores {
+                if score.segment_id == "tie_breaking_qa" {
+                    tiebreak_scores_exist = true;
+                    break;
+                }
+            }
+
+            let process_finals = |gender_results: &mut Vec<db::results::CandidateResult>| {
+                // Build a per-candidate tiebreak Borda rank (among the tied subset only).
+                // Key: candidate_id → their Borda rank within their tie group from the tiebreak Q&A.
+                let mut tb_rank_map: HashMap<String, u32> = HashMap::new();
+
+                if tiebreak_scores_exist {
+                    // Find which candidates are tied in final_score (for this gender group)
+                    let mut score_count: HashMap<String, usize> = HashMap::new();
+                    for res in gender_results.iter() {
+                        let score_str = format!("{:.4}", res.final_score.unwrap_or(0.0));
+                        *score_count.entry(score_str).or_insert(0) += 1;
+                    }
+
+                    // Collect tied-candidate IDs grouped by their shared score bucket
+                    let mut tie_groups: HashMap<String, Vec<String>> = HashMap::new();
+                    for res in gender_results.iter() {
+                        let score_str = format!("{:.4}", res.final_score.unwrap_or(0.0));
+                        if score_count.get(&score_str).copied().unwrap_or(0) > 1 {
+                            tie_groups.entry(score_str).or_default().push(res.candidate_id.clone());
+                        }
+                    }
+
+                    // For each tie group, run Borda count on tiebreak Q&A scores
+                    for (_score_str, group_ids) in &tie_groups {
+                        let mut segment_scores_by_judge: HashMap<String, Vec<crate::scoring::ranking::JudgeRawScore>> = HashMap::new();
+                        for score in &scores {
+                            if score.segment_id == "tie_breaking_qa" && group_ids.contains(&score.candidate_id) {
+                                segment_scores_by_judge
+                                    .entry(score.judge_id.clone())
+                                    .or_default()
+                                    .push(crate::scoring::ranking::JudgeRawScore {
+                                        candidate_id: score.candidate_id.clone(),
+                                        raw_score: score.computed_score,
+                                    });
+                            }
+                        }
+
+                        let judge_ranks: Vec<_> = segment_scores_by_judge
+                            .into_values()
+                            .filter(|v| !v.is_empty())
+                            .map(crate::scoring::ranking::rank_segment_scores)
+                            .collect();
+
+                        if !judge_ranks.is_empty() {
+                            let consolidated = crate::scoring::ranking::consolidate_segment_ranks(judge_ranks);
+                            for r in consolidated {
+                                tb_rank_map.insert(r.candidate_id, r.final_rank);
+                            }
+                        }
+                        // If no judge ranks, tb_rank_map has no entries for these — they stay tied
+                    }
+                }
+
+                // Determine who is still tied after tiebreak resolution:
+                // — Tied in final_score AND either no tiebreak scores exist, OR tiebreak also ties them.
+                let mut score_count: HashMap<String, usize> = HashMap::new();
+                for res in gender_results.iter() {
+                    let score_str = format!("{:.4}", res.final_score.unwrap_or(0.0));
+                    *score_count.entry(score_str).or_insert(0) += 1;
+                }
+                let mut all_tied: std::collections::HashSet<String> = std::collections::HashSet::new();
+                for res in gender_results.iter() {
+                    let score_str = format!("{:.4}", res.final_score.unwrap_or(0.0));
+                    if score_count.get(&score_str).copied().unwrap_or(0) > 1 {
+                        all_tied.insert(res.candidate_id.clone());
+                    }
+                }
+
+                // Count how many candidates share each tiebreak rank within a tie group
+                let mut tb_rank_share: HashMap<(String, u32), usize> = HashMap::new();
+                for res in gender_results.iter() {
+                    if all_tied.contains(&res.candidate_id) {
+                        let score_str = format!("{:.4}", res.final_score.unwrap_or(0.0));
+                        let tb_rank = tb_rank_map.get(&res.candidate_id).copied().unwrap_or(u32::MAX);
+                        *tb_rank_share.entry((score_str, tb_rank)).or_insert(0) += 1;
+                    }
+                }
+
+                let mut still_tied: std::collections::HashSet<String> = std::collections::HashSet::new();
+                for res in gender_results.iter() {
+                    if all_tied.contains(&res.candidate_id) {
+                        let score_str = format!("{:.4}", res.final_score.unwrap_or(0.0));
+                        let tb_rank = tb_rank_map.get(&res.candidate_id).copied().unwrap_or(u32::MAX);
+                        let share = tb_rank_share.get(&(score_str, tb_rank)).copied().unwrap_or(1);
+                        // Still tied if: no tiebreak ran, or they share a tiebreak rank with another
+                        if !tiebreak_scores_exist || share > 1 {
+                            still_tied.insert(res.candidate_id.clone());
+                        }
+                    }
+                }
+
+                // Sort: primary = final_score ascending (lower Borda sum = better),
+                //        secondary = tiebreak Borda rank ascending (lower = better, u32::MAX if no score).
+                gender_results.sort_by(|a, b| {
+                    let final_a = a.final_score.unwrap_or(f64::MAX);
+                    let final_b = b.final_score.unwrap_or(f64::MAX);
+                    match final_a.partial_cmp(&final_b).unwrap_or(std::cmp::Ordering::Equal) {
+                        std::cmp::Ordering::Equal => {
+                            let tb_a = tb_rank_map.get(&a.candidate_id).copied().unwrap_or(u32::MAX);
+                            let tb_b = tb_rank_map.get(&b.candidate_id).copied().unwrap_or(u32::MAX);
+                            tb_a.cmp(&tb_b)
+                        }
+                        ord => ord,
+                    }
+                });
+
+                // Re-assign ranks with proper shared-rank handling for still-tied candidates.
+                let mut current_rank: i64 = 1;
+                let mut last_final = f64::MAX;
+                let mut last_tb_rank = u32::MAX;
+                for (i, res) in gender_results.iter_mut().enumerate() {
+                    let this_final = res.final_score.unwrap_or(f64::MAX);
+                    let this_tb_rank = tb_rank_map.get(&res.candidate_id).copied().unwrap_or(u32::MAX);
+
+                    let same_as_prev = i > 0
+                        && (this_final - last_final).abs() < f64::EPSILON
+                        && this_tb_rank == last_tb_rank;
+
+                    if !same_as_prev {
+                        current_rank = (i + 1) as i64;
+                    }
+                    res.rank = Some(current_rank);
+                    last_final = this_final;
+                    last_tb_rank = this_tb_rank;
+                }
+
+                // Update is_in_tiebreak flag in candidates table.
+                // Flagged = still tied (needs tiebreak Q&A run, or needs admin override after tiebreak also tied).
+                // Cleared = tie fully resolved.
+                for res in gender_results.iter() {
+                    let should_flag = still_tied.contains(&res.candidate_id);
+                    let _ = conn.execute(
+                        "UPDATE candidates SET is_in_tiebreak = ?1 WHERE id = ?2",
+                        rusqlite::params![if should_flag { 1 } else { 0 }, res.candidate_id],
+                    );
+                }
+            };
+
+            process_finals(&mut male_results);
+            process_finals(&mut female_results);
 
             for r in male_results.iter().chain(female_results.iter()) {
                 let _ = db::results::insert(&conn, r);
             }
 
+            let _ = crate::db::logs::insert(
+                &conn,
+                &crate::db::logs::SystemLog {
+                    id: uuid::Uuid::new_v4().to_string(),
+                    level: "info".to_string(),
+                    source: "admin".to_string(),
+                    message: "Admin computed Final Winners results".to_string(),
+                    details: None,
+                    created_at: chrono::Utc::now().to_rfc3339(),
+                },
+            );
+
             Json(json!({
                 "status": "success",
-                "message": "Final rankings computed. Winners are ready."
+                "message": "Final winners computed."
             }))
         }
         "minor_awards" => {
             let candidates = db::candidates::get_all(&conn).unwrap_or_default();
             let scores = db::scores::get_all(&conn).unwrap_or_default();
-
-            // Group scores by (candidate_id, segment_id) -> Vec<f64>
-            let mut score_map: HashMap<(String, String), Vec<f64>> = HashMap::new();
-            for score in scores {
-                score_map
-                    .entry((score.candidate_id, score.segment_id))
-                    .or_insert_with(Vec::new)
-                    .push(score.computed_score);
+            
+            let mut candidate_genders = HashMap::new();
+            for c in &candidates {
+                candidate_genders.insert(c.id.clone(), c.gender.clone());
             }
 
-            let get_avg = |c_id: &str, s_id: &str| -> Option<f64> {
-                if let Some(list) = score_map.get(&(c_id.to_string(), s_id.to_string())) {
-                    if !list.is_empty() {
-                        let sum: f64 = list.iter().sum();
-                        return Some(sum / list.len() as f64);
-                    }
-                }
-                None
-            };
-
-            let minor_segments = vec!["best_advocacy", "best_in_ramp"];
+            let minor_segments = vec![
+                "best_advocacy", 
+                "school_uniform", 
+                "modern_barong", 
+                "best_in_ramp", 
+                "production_number", 
+                "professional_attire"
+            ];
 
             for segment in minor_segments {
-                let mut best_male: Option<(String, f64)> = None;
-                let mut best_female: Option<(String, f64)> = None;
+                let mut segment_scores_by_judge: HashMap<String, Vec<crate::scoring::ranking::JudgeRawScore>> = HashMap::new();
+                for score in &scores {
+                    if score.segment_id == segment {
+                        segment_scores_by_judge
+                            .entry(score.judge_id.clone())
+                            .or_default()
+                            .push(crate::scoring::ranking::JudgeRawScore {
+                                candidate_id: score.candidate_id.clone(),
+                                raw_score: score.computed_score,
+                            });
+                    }
+                }
 
-                for c in &candidates {
-                    if let Some(avg) = get_avg(&c.id, segment) {
-                        if c.gender == "male" {
-                            if best_male.is_none() || avg > best_male.as_ref().unwrap().1 {
-                                best_male = Some((c.id.clone(), avg));
-                            }
-                        } else if c.gender == "female" {
-                            if best_female.is_none() || avg > best_female.as_ref().unwrap().1 {
-                                best_female = Some((c.id.clone(), avg));
+                let mut male_judge_ranks = Vec::new();
+                let mut female_judge_ranks = Vec::new();
+
+                for (_, judge_raw_scores) in segment_scores_by_judge {
+                    let mut male_scores = Vec::new();
+                    let mut female_scores = Vec::new();
+
+                    for score in judge_raw_scores {
+                        if let Some(gender) = candidate_genders.get(&score.candidate_id) {
+                            if gender.to_lowercase() == "male" {
+                                male_scores.push(score);
+                            } else if gender.to_lowercase() == "female" {
+                                female_scores.push(score);
                             }
                         }
                     }
+
+                    if !male_scores.is_empty() {
+                        male_judge_ranks.push(crate::scoring::ranking::rank_segment_scores(male_scores));
+                    }
+                    if !female_scores.is_empty() {
+                        female_judge_ranks.push(crate::scoring::ranking::rank_segment_scores(female_scores));
+                    }
                 }
+
+                let male_consolidated = crate::scoring::ranking::consolidate_segment_ranks(male_judge_ranks);
+                let female_consolidated = crate::scoring::ranking::consolidate_segment_ranks(female_judge_ranks);
+
+                let best_male = male_consolidated.into_iter().find(|r| r.final_rank == 1).map(|r| r.candidate_id);
+                let best_female = female_consolidated.into_iter().find(|r| r.final_rank == 1).map(|r| r.candidate_id);
 
                 let award = db::special_awards::SpecialAward {
                     award_id: segment.to_string(),
-                    winner_male_id: best_male.map(|x| x.0),
-                    winner_female_id: best_female.map(|x| x.0),
+                    winner_male_id: best_male,
+                    winner_female_id: best_female,
                     is_auto_computed: true,
                     notes: None,
                     assigned_at: Some(now.clone()),
@@ -282,9 +472,21 @@ pub async fn compute_results(
                 let _ = db::special_awards::insert_or_update(&conn, &award);
             }
 
+            let _ = crate::db::logs::insert(
+                &conn,
+                &crate::db::logs::SystemLog {
+                    id: uuid::Uuid::new_v4().to_string(),
+                    level: "info".to_string(),
+                    source: "admin".to_string(),
+                    message: "Admin computed Minor Awards results".to_string(),
+                    details: None,
+                    created_at: chrono::Utc::now().to_rfc3339(),
+                },
+            );
+
             Json(json!({
                 "status": "success",
-                "message": "Minor awards computed."
+                "message": "Minor awards computed using Borda Count."
             }))
         }
         _ => Json(json!({
@@ -311,6 +513,37 @@ pub async fn get_special_awards(State(state): State<AppState>) -> Json<Value> {
         Json(json!([]))
     }
 }
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdvanceTop3Payload {
+    pub is_top3: bool,
+}
+
+pub async fn advance_top3(
+    State(state): State<AppState>,
+    axum::extract::Path(id): axum::extract::Path<String>,
+    Json(payload): Json<AdvanceTop3Payload>,
+) -> (axum::http::StatusCode, Json<Value>) {
+    let conn = state.db.lock().unwrap();
+    if let Ok(_) = db::results::update_top3(&conn, &id, payload.is_top3) {
+        let _ = crate::db::logs::insert(
+            &conn,
+            &crate::db::logs::SystemLog {
+                id: uuid::Uuid::new_v4().to_string(),
+                level: "info".to_string(),
+                source: "admin".to_string(),
+                message: format!("Admin manually overrode Top 3 status to {} for candidate {}", payload.is_top3, id),
+                details: None,
+                created_at: chrono::Utc::now().to_rfc3339(),
+            },
+        );
+        (axum::http::StatusCode::OK, Json(json!({"status": "success"})))
+    } else {
+        (axum::http::StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": "Failed to update top 3 status"})))
+    }
+}
+
 
 #[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -339,7 +572,9 @@ pub async fn get_results_breakdown(State(state): State<AppState>) -> Json<Value>
         "modern_barong",
         "preliminary_qa",
         "final_qa",
-        "tie_breaking_qa"
+        "tie_breaking_qa",
+        "best_advocacy",
+        "best_in_ramp"
     ];
     
     let mut breakdown: Vec<SegmentBreakdown> = Vec::new();
