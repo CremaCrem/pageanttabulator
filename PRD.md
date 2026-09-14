@@ -1,9 +1,9 @@
 # Product Requirements Document (PRD) — PageantTabulator
 
 **Project:** Official Tabulation System — Mr. and Ms. IDSC 2026  
-**Event Date:** September 10, 2026  
+**Event Date (held):** September 10, 2026  
 **Location:** Ligao City Gymnasium  
-**Status:** Draft / Active Implementation
+**Status:** Post-Event / Maintenance & Feature Additions
 
 ---
 

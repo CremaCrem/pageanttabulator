@@ -136,7 +136,7 @@ This is a **mission-critical system used at a live event with real students**. T
 - **rusqlite** — schema defined in `src-tauri/src/db/schema.rs`.
 - **ALL formulas in `src-tauri/src/scoring/compute.rs`** — never in route handlers, never in `db/` modules.
 - **`#[serde(rename_all = "camelCase")]` on ALL request/response DTOs.** Non-negotiable.
-- No separate server process — the server is part of the Tauri binary.
+- The production Tauri app has no separate server process — the server runs embedded inside the Tauri binary. A standalone dev/test server binary (src-tauri/src/bin/server.rs, run via `cargo run --bin pageant-server`) intentionally exists separately for local testing outside the full Tauri shell — this is expected, not a violation of this rule.
 
 ### 5.3 Multi-Device Laws
 

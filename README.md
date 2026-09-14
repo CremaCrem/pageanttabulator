@@ -1,7 +1,7 @@
 # PageantTabulator
 
 **Official Tabulation System — Mr. and Ms. IDSC 2026**  
-IDSC 18th Founding Anniversary Celebration · Pageant Day: September 10, 2026 · Ligao City Gymnasium
+IDSC 18th Founding Anniversary Celebration · Held September 10, 2026 · Ligao City Gymnasium
 
 ---
 
