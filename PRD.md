@@ -63,7 +63,9 @@ Event tabulations are mission-critical. Errors or delays in calculations affect 
 - **Dynamic Tie-Breaking:** Tie-breaking is handled via two strictly distinct mechanisms:
   - **Preliminary Boundary Ties (Top 3 Selection):** If a mathematical tie occurs at the Top 3 cutoff boundary (any number of tied candidates), the system pauses and forces an offline, PIN-protected manual admin override to select who advances. This decision is saved permanently to the `stage_resolutions` table. No scoring segment is opened.
   - **Championship/Finals Ties:** If the confirmed Top 3 finalists perfectly tie on their 50/50 Championship score, the system automatically flags them and exposes a conditional scoring segment (`TieBreakingQA`) scoped only to the tied finalists.
-- **Event Day Contingencies:** The Admin dashboard must feature a "Manual Score Entry" screen to input scores from paper backups if a judge's device disconnects and cannot be recovered.
+- **Event Day Contingencies:** 
+  - **Printable Blank Score Sheets:** The Admin can proactively generate a PDF backup per judge per segment anytime. This PDF contains a blank grid (matching the official design system) for handwritten scores.
+  - **Manual Score Entry:** The Admin dashboard features a "Manual Score Entry" screen. The admin selects a judge and segment, then inputs their criterion scores. This action requires the Admin PIN and strictly enforces normal judge validation (1-100 integers). Once saved, the data is indistinguishable from a normal judge submission for computation purposes.
 
 ### 3.3 Special Awards Requirements
 - System must automatically derive specific awards from segment rankings:
@@ -119,5 +121,6 @@ Event tabulations are mission-critical. Errors or delays in calculations affect 
 - **AC5:** The Top 3 selection strictly isolates Male and Female categories, uses Borda count scoring, and forces a PIN-protected manual admin override (persisted permanently) to resolve Top 3 boundary ties offline without a scoring segment.
 - **AC6:** The Final Champion calculation strictly adheres to the `(Prelim Rank * 0.5) + (Final Q&A Rank * 0.5)` formula. Any ties at this championship level trigger a dynamic `TieBreakingQA` segment scoped only to the tied finalists.
 - **AC7:** "Best in Advocacy" and "Best in Ramp" are concurrently scored with their parent segments and use Ranking-Based scoring, completely isolated from the preliminary ranking composite.
-- **AC8:** The "Manual Score Entry" feature successfully allows the admin to input a full set of criteria scores on behalf of a disconnected judge.
+- **AC8:** The "Manual Score Entry" feature allows the admin to input criteria scores on behalf of a judge, validates input identically to the judge view, requires the Admin PIN to save, and seamlessly feeds into standard computation.
 - **AC9:** Admin irreversible actions (locking segments, manual score overrides, tie-breaking) prompt for and successfully validate the Admin PIN.
+- **AC10:** The system can generate Printable Blank Score Sheets (PDF) per judge per segment that visually adhere to the established final-results design system.

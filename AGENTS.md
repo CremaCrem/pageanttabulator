@@ -80,7 +80,7 @@ This is a **mission-critical system used at a live event with real students**. T
 | `is_in_tiebreak` is set ONLY by `compute_results` "final" | Never set manually from any UI |
 | Minor Awards (Advocacy/Ramp) use **Ranking-Based** scoring | Uses the Borda count ranking system |
 | Submitted scores are **locked** — no edit without admin PIN + audit log | Data integrity |
-| Admin PIN required for all irreversible actions | Prevent accidental destruction |
+| Admin PIN required for all irreversible actions (locks, overrides, manual score entry) | Prevent accidental destruction / fraudulent entry |
 | Special awards scoring is **concurrent** with main segments on the UI | Merged forms for judge efficiency |
 | All Rust DTO structs communicating with frontend use `#[serde(rename_all = "camelCase")]` | Prevent 422 deserialization crashes |
 | UI headers/titles/branding must **dynamically bind** to `eventConfig` | Zero hardcoded event strings |

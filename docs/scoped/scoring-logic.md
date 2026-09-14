@@ -26,6 +26,7 @@ Minor awards use an isolated **Simple Average** engine.
 - All criteria scores are entered on a **scale of 1 to 100** (integers only, no decimals at input).
 - Judges enter **one score per criterion** per candidate per segment.
 - A score of `0` is **not valid** — minimum valid score is `1`.
+- **Manual Score Entry Note:** If the Admin uses the PIN-protected Manual Score Entry feature to input a judge's backup paper scores, the resulting database rows are strictly indistinguishable from scores submitted directly via the judge's browser. Therefore, all Borda Count math automatically handles manual entries with zero additional logic required downstream.
 
 ---
 
