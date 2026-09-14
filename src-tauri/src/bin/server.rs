@@ -5,7 +5,10 @@ use tokio::sync::broadcast;
 
 #[tokio::main]
 async fn main() {
-    let db_path = PathBuf::from("./pageant_data.db");
+    let project_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
+    let dev_data_dir = project_root.join(".dev-data");
+    std::fs::create_dir_all(&dev_data_dir).expect("Failed to create .dev-data directory");
+    let db_path = dev_data_dir.join("pageant_data.db");
     println!("Initializing database at {:?}", db_path);
     let conn = db::schema::init_db_with_path(&db_path).expect("Failed to initialize database");
 

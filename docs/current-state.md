@@ -29,3 +29,9 @@ Every candidate gets a `preliminary_status` that dictates what happens to them n
 - **`advancing`**: The candidate safely made it into the Top 3 and will proceed to the Final Q&A.
 - **`excluded`**: The candidate did not make the Top 3. Their journey ends here.
 - **`pending_override`**: A mathematical tie occurred right at the Top 3 cutoff boundary. The system is paused and waiting for the Admin to use their PIN to manually `advance` or `exclude` them.
+
+## 5. Database Storage Locations
+To prevent accidental data mixing, the database is stored in two entirely separate locations depending on how you run the app:
+
+- **Real Event Mode (Tauri Desktop App)**: The `.db` file is stored securely in your OS-level application data folder (e.g., `~/Library/Application Support/...` on Mac). It is never saved in the source folder.
+- **Development/Test Mode (Standalone Server)**: When you run `cargo run --bin pageant-server` to run tests, the database is intentionally stored in `.dev-data/pageant_data.db` at the root of the project. This folder is git-ignored and explicitly isolated for development and testing only.

@@ -29,3 +29,6 @@ dist-ssr
 *.sqlite
 *.sqlite3
 pageant_data.db*
+
+# Dev/Test Data
+.dev-data/
