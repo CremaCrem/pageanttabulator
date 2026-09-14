@@ -135,10 +135,11 @@ export const SetupPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         
         {/* Main Panel */}
-        <div className="lg:col-span-2 bg-white p-8 rounded-xl shadow-panel">
+        <div className="lg:col-span-2 bg-white rounded-xl shadow-panel overflow-hidden flex flex-col">
+          <div className="p-8 flex-grow">
           {loading ? (
             <div className="text-neutral-500 animate-pulse">Loading configuration...</div>
           ) : (
@@ -230,6 +231,26 @@ export const SetupPage: React.FC = () => {
               </div>
             </form>
           )}
+          </div>
+          
+          {/* Creative Decorative Footer */}
+          <div className="bg-gradient-to-r from-primary-900 to-primary-700 p-6 relative overflow-hidden flex items-center justify-between">
+            <div className="absolute top-0 right-0 opacity-10 pointer-events-none transform translate-x-4 -translate-y-4">
+              <svg width="120" height="120" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="currentColor" strokeWidth="2"/>
+                <path d="M12 8V16M8 12H16" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+              </svg>
+            </div>
+            <div className="relative z-10 text-white">
+              <h4 className="font-bold text-lg mb-1 flex items-center">
+                <span className="w-2 h-2 rounded-full bg-green-400 mr-2 animate-pulse"></span>
+                System Ready
+              </h4>
+              <p className="text-primary-100 text-sm max-w-md">
+                Configure your event settings here. Changes are instantly broadcast to all connected judge devices via the local network.
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Live Hub Panel */}

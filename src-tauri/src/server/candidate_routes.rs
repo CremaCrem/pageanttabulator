@@ -50,7 +50,18 @@ pub async fn add_candidate(
         created_at: now,
     };
 
-    if let Ok(_) = db::candidates::insert(&conn, &candidate) {
+    if db::candidates::insert(&conn, &candidate).is_ok() {
+        let _ = crate::db::logs::insert(
+            &conn,
+            &crate::db::logs::SystemLog {
+                id: uuid::Uuid::new_v4().to_string(),
+                level: "info".to_string(),
+                source: "admin".to_string(),
+                message: format!("Admin added candidate: #{} {}", candidate.candidate_number, candidate.full_name),
+                details: None,
+                created_at: chrono::Utc::now().to_rfc3339(),
+            },
+        );
         (axum::http::StatusCode::OK, Json(json!(candidate)))
     } else {
         (axum::http::StatusCode::CONFLICT, Json(json!({"error": "Failed to add candidate. The candidate number may already be in use for this category."})))
@@ -63,7 +74,7 @@ pub async fn update_candidate(
     Json(payload): Json<db::candidates::Candidate>,
 ) -> (axum::http::StatusCode, Json<Value>) {
     let conn = state.db.lock().unwrap();
-    if let Ok(_) = db::candidates::update(&conn, &payload) {
+    if db::candidates::update(&conn, &payload).is_ok() {
         (axum::http::StatusCode::OK, Json(json!({"status": "success"})))
     } else {
         (axum::http::StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": "Failed to update candidate"})))
@@ -82,35 +93,21 @@ pub async fn disqualify_candidate(
     Json(payload): Json<DisqualifyPayload>,
 ) -> (axum::http::StatusCode, Json<Value>) {
     let conn = state.db.lock().unwrap();
-    if let Ok(_) = db::candidates::disqualify(&conn, &id, payload.note.as_deref()) {
+    if db::candidates::disqualify(&conn, &id, payload.note.as_deref()).is_ok() {
+        let _ = crate::db::logs::insert(
+            &conn,
+            &crate::db::logs::SystemLog {
+                id: uuid::Uuid::new_v4().to_string(),
+                level: "info".to_string(),
+                source: "admin".to_string(),
+                message: format!("Admin changed eligibility for candidate ID: {}", id),
+                details: payload.note.clone(),
+                created_at: chrono::Utc::now().to_rfc3339(),
+            },
+        );
         (axum::http::StatusCode::OK, Json(json!({"status": "success"})))
     } else {
         (axum::http::StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": "Failed to disqualify candidate"})))
     }
 }
 
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ToggleTiebreakPayload {
-    pub is_in_tiebreak: bool,
-}
-
-pub async fn toggle_tiebreak(
-    State(state): State<AppState>,
-    Path(id): Path<String>,
-    Json(payload): Json<ToggleTiebreakPayload>,
-) -> (axum::http::StatusCode, Json<Value>) {
-    let conn = state.db.lock().unwrap();
-    
-    // We will just fetch the candidate, update the field, and save it.
-    if let Ok(mut candidates) = db::candidates::get_all(&conn) {
-        if let Some(c) = candidates.iter_mut().find(|c| c.id == id) {
-            c.is_in_tiebreak = payload.is_in_tiebreak;
-            if let Ok(_) = db::candidates::update(&conn, c) {
-                return (axum::http::StatusCode::OK, Json(json!({"status": "success"})));
-            }
-        }
-    }
-    
-    (axum::http::StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": "Failed to update candidate tie-break status"})))
-}

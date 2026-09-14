@@ -66,7 +66,7 @@ Event tabulations are mission-critical. Errors or delays in calculations affect 
 ### 3.3 Special Awards Requirements
 - System must automatically derive specific awards from segment rankings:
   - *Best in Production Number, School Uniform, Professional Attire, Modern Barong / Filipiniana* (Lowest sum of ranks for the segment).
-- **Minor Award Segments:** *Best in Advocacy* and *Best in Ramp* are separate, admin-scheduled segments. These are scored by **simple average** (NOT ranking-based) and are excluded entirely from the preliminary composite.
+  - **Minor Award Segments:** *Best in Advocacy* and *Best in Ramp* are scored concurrently with *School Uniform* and *Modern Barong/Filipiniana*, respectively. They are scored by **Ranking-Based (Borda Count)** but are excluded entirely from the preliminary composite.
 - System must allow manual entry by the Admin for external awards (e.g., People's Choice, Mr./Ms. Congeniality, Spirit Award).
 
 ### 3.4 Export & Reporting
@@ -116,6 +116,6 @@ Event tabulations are mission-critical. Errors or delays in calculations affect 
 - **AC4:** The Preliminary rank correctly combines the 5 segments at 20% each to calculate the composite preliminary rank.
 - **AC5:** The Top 3 selection strictly isolates Male and Female categories, uses Borda count scoring, and provides dynamic tie-breaking segments for Top 3 boundary ties.
 - **AC6:** The Final Champion calculation strictly adheres to the `(Prelim Rank * 0.5) + (Final Q&A Rank * 0.5)` formula.
-- **AC7:** "Best in Advocacy" and "Best in Ramp" are distinct, admin-scheduled segments scored via Simple Average, isolated from the preliminary ranking composite.
+- **AC7:** "Best in Advocacy" and "Best in Ramp" are concurrently scored with their parent segments and use Ranking-Based scoring, completely isolated from the preliminary ranking composite.
 - **AC8:** The "Manual Score Entry" feature successfully allows the admin to input a full set of criteria scores on behalf of a disconnected judge.
 - **AC9:** Admin irreversible actions (locking segments, manual score overrides, tie-breaking) prompt for and successfully validate the Admin PIN.

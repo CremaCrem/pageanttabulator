@@ -13,7 +13,7 @@ export const ReportsPage: React.FC = () => {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
-  const [confirmConfig, setConfirmConfig] = useState<{isOpen: boolean, round: 'preliminary' | 'final' | null}>({
+  const [confirmConfig, setConfirmConfig] = useState<{isOpen: boolean, round: 'preliminary' | 'final' | 'minor_awards' | null}>({
     isOpen: false,
     round: null
   });
@@ -27,7 +27,7 @@ export const ReportsPage: React.FC = () => {
     }
   };
 
-  const handleComputeClick = (round: 'preliminary' | 'final') => {
+  const handleComputeClick = (round: 'preliminary' | 'final' | 'minor_awards') => {
     setConfirmConfig({ isOpen: true, round });
   };
 
@@ -106,6 +106,21 @@ export const ReportsPage: React.FC = () => {
             className="w-full py-3 bg-gold-500 hover:bg-gold-600 text-primary-900 font-bold rounded-lg transition-colors disabled:opacity-50 mt-4"
           >
             {loading === 'final' ? 'Computing...' : 'Compute Final Winners'}
+          </button>
+        </div>
+
+        {/* Minor Awards */}
+        <div className="bg-white p-6 rounded-xl shadow-panel border border-neutral-100 flex flex-col md:col-span-2">
+          <div className="mb-4">
+            <h3 className="text-lg font-bold text-neutral-800">Minor Awards</h3>
+            <p className="text-sm text-neutral-500 mt-1">Computes Best in Advocacy and Best in Ramp using Simple Average of judge scores.</p>
+          </div>
+          <button 
+            onClick={() => handleComputeClick('minor_awards')}
+            disabled={loading !== null}
+            className="w-full py-3 bg-neutral-800 hover:bg-black text-white font-semibold rounded-lg shadow-sm transition-colors disabled:opacity-80 mt-2"
+          >
+            {loading === 'minor_awards' ? 'Computing...' : 'Compute Special Awards'}
           </button>
         </div>
 

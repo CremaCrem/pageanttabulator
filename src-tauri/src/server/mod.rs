@@ -55,8 +55,8 @@ pub async fn start_server(app_state: AppState) {
             patch(candidate_routes::disqualify_candidate),
         )
         .route(
-            "/api/candidates/{id}/tiebreak",
-            patch(candidate_routes::toggle_tiebreak),
+            "/api/admin/resolve-tie",
+            post(admin_routes::resolve_tie),
         )
         .route("/api/judges", get(judge_routes::get_judges))
         .route("/api/judges/{id}", patch(judge_routes::update_judge))

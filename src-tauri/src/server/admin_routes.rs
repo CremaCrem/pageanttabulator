@@ -66,7 +66,7 @@ pub async fn compute_results(
             ];
 
             // Track composite ranks per candidate (weighted sum of segment final_ranks)
-            let mut candidate_prelim_ranks: HashMap<String, f64> = HashMap::new();
+            let mut candidate_prelim_ranks: HashMap<String, Vec<f64>> = HashMap::new();
 
             for segment in &prelim_segments {
                 // Group raw scores by judge
@@ -113,9 +113,8 @@ pub async fn compute_results(
                 let male_consolidated = crate::scoring::ranking::consolidate_segment_ranks(male_judge_ranks);
                 let female_consolidated = crate::scoring::ranking::consolidate_segment_ranks(female_judge_ranks);
 
-                for res in male_consolidated.into_iter().chain(female_consolidated.into_iter()) {
-                    // Each segment contributes 20% to the preliminary composite
-                    *candidate_prelim_ranks.entry(res.candidate_id.clone()).or_insert(0.0) += (res.final_rank as f64) * 0.20;
+                for res in male_consolidated.into_iter().chain(female_consolidated) {
+                    candidate_prelim_ranks.entry(res.candidate_id.clone()).or_default().push(res.final_rank as f64);
                 }
             }
 
@@ -123,16 +122,17 @@ pub async fn compute_results(
             let mut female_results: Vec<db::results::CandidateResult> = Vec::new();
 
             for c in &candidates {
-                let prelim_score = candidate_prelim_ranks.get(&c.id).copied().unwrap_or(0.0);
+                let ranks = candidate_prelim_ranks.get(&c.id).cloned().unwrap_or_default();
+                let prelim_score = crate::scoring::compute::compute_preliminary_score(&ranks);
 
                 let res = db::results::CandidateResult {
                     candidate_id: c.id.clone(),
                     segment_id: Some("".to_string()), // Empty string, not NULL — makes UNIQUE constraint work
                     preliminary_score: Some(prelim_score),
+                    preliminary_status: "pending".to_string(),
                     final_qa_score: None,
                     final_score: None,
                     rank: None,
-                    is_top3: false,
                     computed_at: now.clone(),
                 };
 
@@ -143,12 +143,22 @@ pub async fn compute_results(
                 }
             }
 
+            let resolutions = db::stage_resolutions::get_by_stage(&conn, "preliminary_boundary").unwrap_or_default();
+            let mut overrides = std::collections::HashMap::new();
+            for r in resolutions {
+                overrides.insert(r.candidate_id, r.resolution);
+            }
+
+            let apply_top3 = |results: &mut Vec<db::results::CandidateResult>| {
+                crate::scoring::ranking::select_top3(results, &overrides);
+            };
+
             // Sort and rank preliminary (ascending for Borda count) — within each gender
             crate::scoring::ranking::rank_candidates(&mut male_results);
-            crate::scoring::ranking::select_top3(&mut male_results);
+            apply_top3(&mut male_results);
 
             crate::scoring::ranking::rank_candidates(&mut female_results);
-            crate::scoring::ranking::select_top3(&mut female_results);
+            apply_top3(&mut female_results);
 
             // Save to DB
             for r in male_results.iter().chain(female_results.iter()) {
@@ -177,19 +187,45 @@ pub async fn compute_results(
             let mut results = db::results::get_overall_results(&conn).unwrap_or_default();
             let scores = db::scores::get_all(&conn).unwrap_or_default();
 
-            let mut score_map: HashMap<(String, String), Vec<f64>> = HashMap::new();
-            for score in &scores {
-                score_map
-                    .entry((score.candidate_id.clone(), score.segment_id.clone()))
-                    .or_insert_with(Vec::new)
-                    .push(score.computed_score);
-            }
-
             let mut male_results: Vec<db::results::CandidateResult> = Vec::new();
             let mut female_results: Vec<db::results::CandidateResult> = Vec::new();
 
+            let rank_final_qa = |gender_top3_ids: &[String]| {
+                let mut segment_scores_by_judge: HashMap<String, Vec<crate::scoring::ranking::JudgeRawScore>> = HashMap::new();
+                for score in &scores {
+                    if score.segment_id == "final_qa" && gender_top3_ids.contains(&score.candidate_id) {
+                        segment_scores_by_judge
+                            .entry(score.judge_id.clone())
+                            .or_default()
+                            .push(crate::scoring::ranking::JudgeRawScore {
+                                candidate_id: score.candidate_id.clone(),
+                                raw_score: score.computed_score,
+                            });
+                    }
+                }
+                let mut judge_ranks = Vec::new();
+                for (_, judge_raw_scores) in segment_scores_by_judge {
+                    if !judge_raw_scores.is_empty() {
+                        judge_ranks.push(crate::scoring::ranking::rank_segment_scores(judge_raw_scores));
+                    }
+                }
+                let consolidated = crate::scoring::ranking::consolidate_segment_ranks(judge_ranks);
+                let mut ranks_map = HashMap::new();
+                for res in consolidated {
+                    ranks_map.insert(res.candidate_id, res.final_rank);
+                }
+                ranks_map
+            };
+
+            let male_top3_ids: Vec<String> = results.iter().filter(|r| r.preliminary_status == "advancing" && candidates.iter().find(|c| c.id == r.candidate_id).is_some_and(|c| c.gender == "male")).map(|r| r.candidate_id.clone()).collect();
+            let female_top3_ids: Vec<String> = results.iter().filter(|r| r.preliminary_status == "advancing" && candidates.iter().find(|c| c.id == r.candidate_id).is_some_and(|c| c.gender == "female")).map(|r| r.candidate_id.clone()).collect();
+            
+            let mut final_qa_ranks: HashMap<String, u32> = HashMap::new();
+            final_qa_ranks.extend(rank_final_qa(&male_top3_ids));
+            final_qa_ranks.extend(rank_final_qa(&female_top3_ids));
+
             for res in results.iter_mut() {
-                if !res.is_top3 {
+                if res.preliminary_status != "advancing" {
                     continue;
                 }
 
@@ -200,23 +236,13 @@ pub async fn compute_results(
                     .map(|c| c.gender.as_str())
                     .unwrap_or("");
 
-                // Final QA avg
-                let mut final_qa_avg = 0.0;
-                if let Some(list) =
-                    score_map.get(&(res.candidate_id.clone(), "final_qa".to_string()))
-                {
-                    if !list.is_empty() {
-                        let sum: f64 = list.iter().sum();
-                        final_qa_avg = sum / list.len() as f64;
-                    }
-                }
+                let final_qa_rank_val = final_qa_ranks.get(&res.candidate_id).copied().unwrap_or(0);
+                res.final_qa_score = Some(final_qa_rank_val as f64);
 
-                res.final_qa_score = Some(final_qa_avg);
-
-                let prelim = res.preliminary_score.unwrap_or(0.0);
+                let prelim_rank = res.rank.unwrap_or(0) as f64;
                 res.final_score = Some(crate::scoring::compute::compute_final_score(
-                    prelim,
-                    final_qa_avg,
+                    prelim_rank,
+                    final_qa_rank_val as f64,
                 ));
                 res.computed_at = now.clone();
 
@@ -259,7 +285,7 @@ pub async fn compute_results(
                     }
 
                     // For each tie group, run Borda count on tiebreak Q&A scores
-                    for (_score_str, group_ids) in &tie_groups {
+                    for group_ids in tie_groups.values() {
                         let mut segment_scores_by_judge: HashMap<String, Vec<crate::scoring::ranking::JudgeRawScore>> = HashMap::new();
                         for score in &scores {
                             if score.segment_id == "tie_breaking_qa" && group_ids.contains(&score.candidate_id) {
@@ -409,11 +435,7 @@ pub async fn compute_results(
 
             let minor_segments = vec![
                 "best_advocacy", 
-                "school_uniform", 
-                "modern_barong", 
-                "best_in_ramp", 
-                "production_number", 
-                "professional_attire"
+                "best_in_ramp"
             ];
 
             for segment in minor_segments {
@@ -516,32 +538,56 @@ pub async fn get_special_awards(State(state): State<AppState>) -> Json<Value> {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct AdvanceTop3Payload {
-    pub is_top3: bool,
+pub struct ResolveTiePayload {
+    pub pin: String,
+    pub stage: String,
+    pub resolutions: Vec<CandidateResolution>,
 }
 
-pub async fn advance_top3(
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CandidateResolution {
+    pub candidate_id: String,
+    pub resolution: String,
+}
+
+pub async fn resolve_tie(
     State(state): State<AppState>,
-    axum::extract::Path(id): axum::extract::Path<String>,
-    Json(payload): Json<AdvanceTop3Payload>,
+    Json(payload): Json<ResolveTiePayload>,
 ) -> (axum::http::StatusCode, Json<Value>) {
     let conn = state.db.lock().unwrap();
-    if let Ok(_) = db::results::update_top3(&conn, &id, payload.is_top3) {
-        let _ = crate::db::logs::insert(
-            &conn,
-            &crate::db::logs::SystemLog {
-                id: uuid::Uuid::new_v4().to_string(),
-                level: "info".to_string(),
-                source: "admin".to_string(),
-                message: format!("Admin manually overrode Top 3 status to {} for candidate {}", payload.is_top3, id),
-                details: None,
-                created_at: chrono::Utc::now().to_rfc3339(),
-            },
-        );
-        (axum::http::StatusCode::OK, Json(json!({"status": "success"})))
+    if let Ok(Some(config)) = db::event::get(&conn) {
+        if config.admin_pin != payload.pin {
+            return (axum::http::StatusCode::UNAUTHORIZED, Json(json!({"error": "Invalid PIN"})));
+        }
     } else {
-        (axum::http::StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": "Failed to update top 3 status"})))
+        return (axum::http::StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": "Config error"})));
     }
+
+    let now = chrono::Utc::now().to_rfc3339();
+    for res in &payload.resolutions {
+        let sr = db::stage_resolutions::StageResolution {
+            candidate_id: res.candidate_id.clone(),
+            stage: payload.stage.clone(),
+            resolution: res.resolution.clone(),
+            created_at: now.clone(),
+        };
+        let _ = db::stage_resolutions::insert(&conn, &sr);
+    }
+    
+    let _ = crate::db::logs::insert(
+        &conn,
+        &crate::db::logs::SystemLog {
+            id: uuid::Uuid::new_v4().to_string(),
+            level: "info".to_string(),
+            source: "admin".to_string(),
+            message: format!("Admin resolved tie for stage {} for {} candidates", payload.stage, payload.resolutions.len()),
+            details: None,
+            created_at: now,
+        },
+    );
+    
+    (axum::http::StatusCode::OK, Json(json!({"status": "success"})))
 }
 
 
@@ -626,7 +672,7 @@ pub async fn get_results_breakdown(State(state): State<AppState>) -> Json<Value>
         let male_consolidated = crate::scoring::ranking::consolidate_segment_ranks(male_judge_ranks);
         let female_consolidated = crate::scoring::ranking::consolidate_segment_ranks(female_judge_ranks);
         
-        for res in male_consolidated.into_iter().chain(female_consolidated.into_iter()) {
+        for res in male_consolidated.into_iter().chain(female_consolidated) {
             breakdown.push(SegmentBreakdown {
                 candidate_id: res.candidate_id,
                 segment_id: segment.to_string(),

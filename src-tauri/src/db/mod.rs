@@ -1,4 +1,5 @@
 pub mod candidates;
+pub mod stage_resolutions;
 pub mod event;
 pub mod judges;
 pub mod logs;

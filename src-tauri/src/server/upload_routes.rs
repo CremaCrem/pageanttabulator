@@ -141,7 +141,7 @@ pub async fn cleanup_orphans(
     if let Ok(judges) = crate::db::judges::get_all(&conn) {
         for j in judges {
             if let Some(path) = j.photo_path {
-                if let Some(filename) = path.split('/').last() {
+                if let Some(filename) = path.split('/').next_back() {
                     valid_paths.insert(filename.to_string());
                 }
             }
@@ -151,7 +151,7 @@ pub async fn cleanup_orphans(
     if let Ok(candidates) = crate::db::candidates::get_all(&conn) {
         for c in candidates {
             if let Some(path) = c.photo_path {
-                if let Some(filename) = path.split('/').last() {
+                if let Some(filename) = path.split('/').next_back() {
                     valid_paths.insert(filename.to_string());
                 }
             }
@@ -163,11 +163,10 @@ pub async fn cleanup_orphans(
     if let Ok(entries) = std::fs::read_dir(&uploads_dir) {
         for entry in entries.flatten() {
             if let Ok(file_name) = entry.file_name().into_string() {
-                if !valid_paths.contains(&file_name) {
-                    if std::fs::remove_file(entry.path()).is_ok() {
+                if !valid_paths.contains(&file_name)
+                    && std::fs::remove_file(entry.path()).is_ok() {
                         deleted_count += 1;
                     }
-                }
             }
         }
     }

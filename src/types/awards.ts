@@ -8,3 +8,9 @@ export interface ISpecialAward {
   isAutoComputed:   boolean;
   notes?:           string;
 }
+
+export interface IMinorScore {
+  candidateId: string;
+  segmentId:   string;
+  averageScore: number;
+}

@@ -71,6 +71,7 @@ All endpoints are prefixed with `/api`. Requests and responses use JSON with `ca
 | `POST` | `/api/candidates` | Add a new candidate |
 | `PATCH` | `/api/candidates/:id` | Update candidate details |
 | `PATCH` | `/api/candidates/:id/disqualify` | Disqualify a candidate (admin only) |
+| `PATCH` | `/api/candidates/:id/advance-top3` | Admin manually advances a tied candidate to Top 3 (PIN required). Used for preliminary boundary ties resolved offline. |
 
 ### Judges & Sessions
 

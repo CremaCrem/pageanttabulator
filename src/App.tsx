@@ -22,6 +22,7 @@ import { ErrorBoundary } from './components/layout/ErrorBoundary';
 
 // Shared
 import { ProjectionPage } from './pages/shared/ProjectionPage';
+import { PrintReportPage } from './pages/shared/PrintReportPage';
 
 import './App.css';
 
@@ -47,7 +48,8 @@ function App() {
               <Route path="/history" element={<EventHistoryPage />} />
               <Route path="/reports" element={<ReportsPage />} />
               <Route path="/diagnostics" element={<DiagnosticsPage />} />
-              <Route path="/projection" element={<ProjectionPage />} />
+            <Route path="/projection" element={<ProjectionPage />} />
+              <Route path="/print-report" element={<PrintReportPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </AdminShell>
@@ -69,6 +71,7 @@ function App() {
                 </JudgeShell>
               </ErrorBoundary>
             } />
+            <Route path="/print-report" element={<PrintReportPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         )}

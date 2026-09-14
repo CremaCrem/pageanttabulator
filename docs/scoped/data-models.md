@@ -102,6 +102,7 @@ export interface ICandidate {
   department:           string;
   photoPath?:           string;   // Local file path (Tauri) or served URL
   isEligible:           boolean;
+  isInTiebreak:         boolean;  // Auto-set by server when finalist has a tied final_score
   disqualificationNote?: string;
   createdAt:            string;
 }
@@ -324,6 +325,11 @@ export interface IOpenRoundRequest {
 // POST /api/rounds/lock — request body (PIN required in X-Admin-PIN header)
 export interface ILockRoundRequest {
   segmentId: SegmentId;
+}
+
+// PATCH /api/candidates/:id/advance-top3 — request body (PIN in X-Admin-PIN header)
+export interface IAdvanceTop3Request {
+  isTop3: boolean;
 }
 
 // POST /api/results/compute — request body (PIN required)

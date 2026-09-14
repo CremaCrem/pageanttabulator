@@ -75,11 +75,13 @@ This is a **mission-critical system used at a live event with real students**. T
 | Main Pageant Scoring is **Ranking-Based (Borda Count)** | Official placement is by lowest sum of ranks |
 | Top 3 selection is by **composite preliminary ranking per gender** | Never mix male/female |
 | Final winners (Top 3) use the **50/50 formula only** | No other formula is valid |
-| Top 3 Boundary Ties trigger a **Dynamic Tie-Break Segment** | Admin opens it; judges score live |
-| Minor Awards (Advocacy/Ramp) use **Simple Average** scoring | Distinct path from main ranking engine |
+| Top 3 Boundary Ties (prelim) are resolved **OFFLINE** | Admin uses "Advance to Top 3" PIN override — no scoring segment |
+| Finals Ties (50/50 result) trigger the **Tie-Breaking Q&A** | System auto-flags tied finalists; admin opens segment |
+| `is_in_tiebreak` is set ONLY by `compute_results` "final" | Never set manually from any UI |
+| Minor Awards (Advocacy/Ramp) use **Ranking-Based** scoring | Uses the Borda count ranking system |
 | Submitted scores are **locked** — no edit without admin PIN + audit log | Data integrity |
 | Admin PIN required for all irreversible actions | Prevent accidental destruction |
-| Special awards scoring is **independent** from the main competition | Never combine them |
+| Special awards scoring is **concurrent** with main segments on the UI | Merged forms for judge efficiency |
 | All Rust DTO structs communicating with frontend use `#[serde(rename_all = "camelCase")]` | Prevent 422 deserialization crashes |
 | UI headers/titles/branding must **dynamically bind** to `eventConfig` | Zero hardcoded event strings |
 | Network IP badges fetched from `/api/network-info` | Zero hardcoded LAN IP placeholders |
@@ -204,7 +206,7 @@ Championship Final Score:
 
 Top 3 selection:   Best Preliminary Composite Ranking per gender
 Final winners:     Best Championship Final Rank per gender
-Minor awards:      Best in Advocacy & Ramp use Simple Average, completely independent
+Minor awards:      Best in Advocacy & Ramp use Ranking-Based (Borda Count) scoring, concurrently submitted with parent segments
 ```
 
 - All scores entered as 1–100 integers.
@@ -269,7 +271,6 @@ Minor awards:      Best in Advocacy & Ramp use Simple Average, completely indepe
 - TypeScript `any`
 - Auto-calculating winners without explicit admin trigger
 - Editing locked segment scores without admin PIN + audit log
-- Combining special award scores with main competition scores
 - Connecting to any external URL, CDN, or cloud service
 - Running scoring math in the browser (even for cosmetic preview that touches the DB)
 - Generating exports from the frontend — exports are Rust/Tauri-side only

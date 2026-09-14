@@ -85,11 +85,14 @@ PreliminaryScore(candidate) =
 ```
 - Candidates are sorted by lowest `PreliminaryScore` to highest.
 
-### 4.2 Top 3 Cutoff & Dynamic Tie-Break
-- The **Top 3 Male** and **Top 3 Female** candidates advance to the Final Q&A.
-- **Top 3 Boundary Tie:** If there is a tie exactly at the 3rd place cutoff (e.g., Candidate A and Candidate B both have the exact same `PreliminaryScore` and raw-score sum tiebreakers fail), the system will spawn a **Dynamic Tie-Break Segment** (`TieBreakingQA`).
-- This segment is scored live by the judges for the tied candidates only.
-- **Double-Tie Edge Case:** If the dynamic Tie-Break segment also results in a tie, it resolves via **Manual Admin Override**.
+### 4.2 Top 3 Cutoff & Preliminary Boundary Tie Handling
+
+If 3rd and 4th place share an identical `PreliminaryScore` AND raw-score tiebreaker:
+- The system displays a **Preliminary Boundary Tie Override** panel on the Results page.
+- The judges confer offline to determine who advances.
+- The admin uses the **"Advance to Top 3" override** (PIN-protected) to manually mark the winner.
+- The other tied candidate is simultaneously removed from Top 3.
+- No scoring segment is opened for preliminary ties.
 
 ---
 
@@ -105,6 +108,15 @@ ChampionshipScore(candidate) =
 - **Rank 1 → Mr. / Ms. IDSC 2026 (Champion)**
 - **Rank 2 → 1st Runner-Up**
 - **Rank 3 → 2nd Runner-Up**
+
+### 5.1 Finals Tie-Break
+
+After the 50/50 formula is computed for the 3 finalists, if two finalists share an identical `final_score`:
+- The system automatically sets `isInTiebreak = true` on those tied finalists.
+- The admin opens the **Tie-Breaking Q&A** segment from the Dashboard.
+- Judges score **only the flagged finalists**.
+- The tiebreak Q&A score (Borda-ranked among tied candidates only) determines final placement.
+- If the Tie-Breaking Q&A also ties: **Manual Admin Override** (admin picks winner with PIN).
 
 ---
 

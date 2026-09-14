@@ -32,6 +32,18 @@ pub async fn open_round(
         }
     }
 
+    if payload.segment_id == "tie_breaking_qa" {
+        if let Ok(candidates) = db::candidates::get_all(&conn) {
+            let any_in_tiebreak = candidates.iter().any(|c| c.is_in_tiebreak);
+            if !any_in_tiebreak {
+                return Json(json!({
+                    "error": "No finalists are flagged for a tie-break. Compute final results first. If a finals tie exists, candidates will be auto-flagged.",
+                    "code": "NO_TIEBREAK_CANDIDATES"
+                }));
+            }
+        }
+    }
+
     let r = db::rounds::RoundState {
         segment_id: payload.segment_id.clone(),
         status: "open".to_string(),
@@ -39,12 +51,43 @@ pub async fn open_round(
         locked_at: None,
     };
 
-    if let Ok(_) = db::rounds::upsert(&conn, &r) {
+    if db::rounds::upsert(&conn, &r).is_ok() {
+        // Auto-sync child segments
+        let mut child_segment = None;
+        if payload.segment_id == "school_uniform" {
+            child_segment = Some("best_advocacy");
+        } else if payload.segment_id == "modern_barong" {
+            child_segment = Some("best_in_ramp");
+        }
+
+        if let Some(child_id) = child_segment {
+            let child_r = db::rounds::RoundState {
+                segment_id: child_id.to_string(),
+                status: "open".to_string(),
+                opened_at: Some(Utc::now().to_rfc3339()),
+                locked_at: None,
+            };
+            let _ = db::rounds::upsert(&conn, &child_r);
+        }
+
         let _ = state.ws_sender.send(json!({
             "type": "SEGMENT_OPENED",
             "segmentId": payload.segment_id,
-            "segmentLabel": payload.segment_id // In a real app we might look up the real label, this is sufficient for frontend as it uses segmentId
+            "segmentLabel": payload.segment_id
         }));
+
+        let _ = crate::db::logs::insert(
+            &conn,
+            &crate::db::logs::SystemLog {
+                id: uuid::Uuid::new_v4().to_string(),
+                level: "info".to_string(),
+                source: "admin".to_string(),
+                message: format!("Admin opened segment: {}", payload.segment_id),
+                details: None,
+                created_at: Utc::now().to_rfc3339(),
+            },
+        );
+
         Json(json!({"status": "success"}))
     } else {
         Json(json!({"error": "Failed to open round"}))
@@ -63,11 +106,42 @@ pub async fn lock_round(
         locked_at: Some(Utc::now().to_rfc3339()),
     };
 
-    if let Ok(_) = db::rounds::upsert(&conn, &r) {
+    if db::rounds::upsert(&conn, &r).is_ok() {
+        // Auto-sync child segments
+        let mut child_segment = None;
+        if payload.segment_id == "school_uniform" {
+            child_segment = Some("best_advocacy");
+        } else if payload.segment_id == "modern_barong" {
+            child_segment = Some("best_in_ramp");
+        }
+
+        if let Some(child_id) = child_segment {
+            let child_r = db::rounds::RoundState {
+                segment_id: child_id.to_string(),
+                status: "locked".to_string(),
+                opened_at: None,
+                locked_at: Some(Utc::now().to_rfc3339()),
+            };
+            let _ = db::rounds::upsert(&conn, &child_r);
+        }
+
         let _ = state.ws_sender.send(json!({
             "type": "SEGMENT_LOCKED",
             "segmentId": payload.segment_id
         }));
+
+        let _ = crate::db::logs::insert(
+            &conn,
+            &crate::db::logs::SystemLog {
+                id: uuid::Uuid::new_v4().to_string(),
+                level: "info".to_string(),
+                source: "admin".to_string(),
+                message: format!("Admin locked segment: {}", payload.segment_id),
+                details: None,
+                created_at: Utc::now().to_rfc3339(),
+            },
+        );
+
         Json(json!({"status": "success"}))
     } else {
         Json(json!({"error": "Failed to lock round"}))

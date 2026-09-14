@@ -143,24 +143,62 @@ pub fn rank_candidates(candidates: &mut [CandidateResult]) {
 }
 
 /// Flags Top 3 candidates, with tie handling at the boundary.
-/// If the candidate at rank 3 shares the same preliminary_score as the
-/// candidate at rank 4 (or lower), all tied candidates are included.
-pub fn select_top3(candidates: &mut [CandidateResult]) {
-    if candidates.len() <= 3 {
+/// If a tie exists at the boundary and exceeds available slots, sets status to 'pending_override'.
+/// Returns true if ANY candidate needs an admin override.
+pub fn select_top3(candidates: &mut [CandidateResult], overrides: &HashMap<String, String>) -> bool {
+    let target_slots = 3;
+    if candidates.len() <= target_slots {
         for c in candidates.iter_mut() {
-            c.is_top3 = true;
+            c.preliminary_status = "advancing".to_string();
         }
-        return;
+        return false;
     }
 
-    // Find the preliminary score of the 3rd-place candidate (index 2)
-    let third_place_score = candidates[2].preliminary_score.unwrap_or(f64::MAX);
+    // Find the rank of the 3rd-place candidate
+    let boundary_rank = candidates[target_slots - 1].rank.unwrap_or(999);
+
+    let mut strictly_better = 0;
+    let mut at_boundary = 0;
+    
+    for c in candidates.iter() {
+        let rank = c.rank.unwrap_or(999);
+        if rank < boundary_rank {
+            strictly_better += 1;
+        } else if rank == boundary_rank {
+            at_boundary += 1;
+        }
+    }
+
+    let available_boundary_slots = target_slots - strictly_better;
+    let has_boundary_tie = at_boundary > available_boundary_slots;
+    
+    let mut needs_override_global = false;
 
     for candidate in candidates.iter_mut() {
-        let score = candidate.preliminary_score.unwrap_or(f64::MAX);
-        // Include if score is better than or equal to 3rd place (lower is better)
-        candidate.is_top3 = score <= third_place_score + f64::EPSILON;
+        let rank = candidate.rank.unwrap_or(999);
+        if rank < boundary_rank {
+            candidate.preliminary_status = "advancing".to_string();
+        } else if rank == boundary_rank {
+            if has_boundary_tie {
+                if let Some(decision) = overrides.get(&candidate.candidate_id) {
+                    if decision == "advance" {
+                        candidate.preliminary_status = "advancing".to_string();
+                    } else if decision == "exclude" {
+                        candidate.preliminary_status = "excluded".to_string();
+                    }
+                } else {
+                    candidate.preliminary_status = "pending_override".to_string();
+                    needs_override_global = true;
+                }
+            } else {
+                candidate.preliminary_status = "advancing".to_string();
+            }
+        } else {
+            candidate.preliminary_status = "excluded".to_string();
+        }
     }
+
+    needs_override_global
 }
 
 #[cfg(test)]

@@ -87,12 +87,13 @@ export const ResultsPage: React.FC = () => {
             {data.map((row, i) => (
               <tr 
                 key={row.candidate.id} 
-                className={`border-b border-neutral-50 hover:bg-gold-50 transition-colors ${row.result?.isTop3 ? 'bg-green-50/30' : (i % 2 === 0 ? 'bg-white' : 'bg-neutral-50/30')}`}
+                className={`border-b border-neutral-50 hover:bg-gold-50 transition-colors ${row.result?.preliminaryStatus === 'advancing' ? 'bg-green-50/30' : (row.result?.preliminaryStatus === 'excluded' ? 'bg-red-50/10' : (i % 2 === 0 ? 'bg-white' : 'bg-neutral-50/30'))}`}
               >
                 <td className="p-4 font-medium text-neutral-800 whitespace-nowrap">
                   <span className="text-primary-600 font-bold mr-2">#{row.candidate.candidateNumber}</span>
                   {row.candidate.fullName}
-                  {row.result?.isTop3 && <span className="ml-2 text-xs bg-green-200 text-green-800 px-2 py-0.5 rounded-full font-bold">Top 3</span>}
+                  {row.result?.preliminaryStatus === 'advancing' && <span className="ml-2 text-xs bg-green-200 text-green-800 px-2 py-0.5 rounded-full font-bold">Top 3</span>}
+                  {row.result?.preliminaryStatus === 'excluded' && <span className="ml-2 text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-bold">Excluded</span>}
                 </td>
                 {Object.values(SEGMENTS).filter(s => s.category !== 'minor_award').map(seg => {
                   const b = row.breakdown.find((x: any) => x.segmentId === seg.id);
@@ -179,52 +180,29 @@ export const ResultsPage: React.FC = () => {
         { title: 'Male', data: maleData },
         { title: 'Female', data: femaleData }
       ].map(group => {
-        // Find the preliminary score at position 3 (index 2 = 3rd place)
-        const c3 = group.data[2];
-        if (!c3 || c3.result?.preliminaryScore === undefined) return null;
+        const pendingCandidates = group.data.filter(row => row.result?.preliminaryStatus === 'pending_override');
+        if (pendingCandidates.length === 0) return null;
 
-        const boundaryScore = c3.result.preliminaryScore;
-
-        // Collect ALL candidates sharing that boundary score — this handles N-way ties
-        const tiedAtBoundary = group.data.filter(
-          row => row.result?.preliminaryScore !== undefined &&
-                 Math.abs((row.result.preliminaryScore) - boundaryScore) < 0.0001
-        );
-
-        // A boundary tie only matters if there are MORE tied candidates than available Top-3 slots
-        // Count how many are already safely in Top 3 (score strictly better than boundary)
-        const safelyIn = group.data.filter(
-          row => row.result?.preliminaryScore !== undefined &&
-                 row.result.preliminaryScore < boundaryScore - 0.0001
-        ).length;
-        const availableSlots = 3 - safelyIn;
-
-        // Only show the panel if the number tied at the boundary exceeds available slots
-        if (tiedAtBoundary.length <= availableSlots) return null;
-
-        const tiedNumbers = tiedAtBoundary.map(r => `#${r.candidate.candidateNumber}`).join(', ');
+        const tiedNumbers = pendingCandidates.map(r => `#${r.candidate.candidateNumber}`).join(', ');
 
         const handleAdvance = async (advanceId: string, retreatIds: string[]) => {
           setOverrideLoading(true);
           setOverrideError('');
           try {
-            const verifyRes = await fetchApi('/api/admin/verify-pin', {
+            const resolutions = [
+              { candidateId: advanceId, resolution: 'advance' },
+              ...retreatIds.map(id => ({ candidateId: id, resolution: 'exclude' }))
+            ];
+            
+            await fetchApi('/api/admin/resolve-tie', {
               method: 'POST',
-              body: JSON.stringify({ pin: overridePin })
+              body: JSON.stringify({ pin: overridePin, stage: 'preliminary_boundary', resolutions })
             });
-            if (!verifyRes.valid) throw new Error('Invalid Admin PIN');
 
-            await fetchApi(`/api/candidates/${advanceId}/advance-top3`, {
-              method: 'PATCH',
-              body: JSON.stringify({ isTop3: true })
-            });
-            for (const rid of retreatIds) {
-              await fetchApi(`/api/candidates/${rid}/advance-top3`, {
-                method: 'PATCH',
-                body: JSON.stringify({ isTop3: false })
-              });
-            }
-
+            // Recompute results immediately
+            await fetchApi('/api/results/compute', { method: 'POST', body: JSON.stringify({ round: 'preliminary' }) });
+            await fetchApi('/api/results/compute', { method: 'POST', body: JSON.stringify({ round: 'final' }) });
+            
             setOverridePin('');
             const [candRes, resRes, brkRes] = await Promise.all([
               fetchApi('/api/candidates'),
@@ -245,10 +223,8 @@ export const ResultsPage: React.FC = () => {
           <div key={`${group.title}-tie`} className="mb-8 p-6 bg-amber-50 rounded-xl border border-amber-200">
             <h2 className="text-lg font-bold text-amber-900 mb-2">⚠️ {group.title} Preliminary Boundary Tie Detected</h2>
             <p className="text-amber-800 mb-4">
-              Candidates <strong>{tiedNumbers}</strong> all have a preliminary rank sum of <strong>{boundaryScore.toFixed(2)}</strong>.{' '}
-              {availableSlots === 1
-                ? `Only 1 slot remains — the judges must decide offline who advances.`
-                : `Only ${availableSlots} slot(s) remain — the judges must decide offline who advances.`}
+              Candidates <strong>{tiedNumbers}</strong> have tied at the boundary, exceeding available Top 3 slots.
+              The judges must decide offline who advances.
               <br />Once decided, use the override below:
             </p>
 
@@ -261,8 +237,8 @@ export const ResultsPage: React.FC = () => {
                 className="p-2 border border-neutral-300 rounded focus:border-amber-500 outline-none w-32"
               />
 
-              {tiedAtBoundary.map(row => {
-                const retreatIds = tiedAtBoundary
+              {pendingCandidates.map(row => {
+                const retreatIds = pendingCandidates
                   .filter(r => r.candidate.id !== row.candidate.id)
                   .map(r => r.candidate.id);
                 return (

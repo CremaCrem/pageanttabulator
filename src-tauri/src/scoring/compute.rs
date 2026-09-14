@@ -65,9 +65,13 @@ pub fn compute_avg_segment_score(judge_scores: &[f64]) -> f64 {
     sum / (judge_scores.len() as f64)
 }
 
-pub fn compute_preliminary_score(preliminary_qa: f64) -> f64 {
-    // The Preliminary Score used to select the Top 3 is derived exclusively from the Preliminary Q&A segment.
-    preliminary_qa
+pub fn compute_preliminary_score(segment_ranks: &[f64]) -> f64 {
+    if segment_ranks.is_empty() {
+        return 0.0;
+    }
+    // Preliminary Score = sum of (Rank * 0.20) for each of the 5 segments
+    let sum: f64 = segment_ranks.iter().sum();
+    sum * 0.20
 }
 
 pub fn compute_final_score(prelim: f64, final_qa: f64) -> f64 {

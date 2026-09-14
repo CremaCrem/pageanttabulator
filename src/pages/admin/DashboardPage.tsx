@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { PageWrapper } from '../../components/layout/PageWrapper';
 import { fetchApi } from '../../api/client';
-import { IRoundState, SegmentId, RoundStatus } from '../../types';
+import { IRoundState, SegmentId, RoundStatus, ICandidate } from '../../types';
 import { SEGMENTS } from '../../utils/constants';
 import { useAppContext } from '../../context/AppContext';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
@@ -10,6 +10,7 @@ export const DashboardPage: React.FC = () => {
   const { state, dispatch } = useAppContext();
   const [error, setError] = useState('');
   const [actionLoading, setActionLoading] = useState<SegmentId | null>(null);
+  const [tieBreakNeeded, setTieBreakNeeded] = useState<{ male: boolean; female: boolean; reason: string } | null>(null);
 
   // Pin verification state
   const [pinPrompt, setPinPrompt] = useState<SegmentId | null>(null);
@@ -30,8 +31,32 @@ export const DashboardPage: React.FC = () => {
     }
   };
 
+  const checkTiebreakerNeeded = async () => {
+    try {
+      const candidates: ICandidate[] = await fetchApi('/api/candidates');
+      const flaggedCount = candidates.filter(c => c.isInTiebreak).length;
+      
+      if (flaggedCount > 0) {
+        setTieBreakNeeded({
+          male: true, // We don't distinguish by gender here, just if ANY are flagged
+          female: true,
+          reason: `Finals tie detected. ${flaggedCount} finalists are flagged.`
+        });
+      } else {
+        setTieBreakNeeded({
+          male: false,
+          female: false,
+          reason: 'No finals tie detected. Compute final results first. If a tie exists, finalists will be automatically flagged.'
+        });
+      }
+    } catch {
+      // Results not available yet
+    }
+  };
+
   useEffect(() => {
     loadRounds();
+    checkTiebreakerNeeded();
   }, [dispatch]);
 
   const handleOpenRoundClick = (segmentId: SegmentId) => {
@@ -119,16 +144,22 @@ export const DashboardPage: React.FC = () => {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {Object.values(SEGMENTS).map(segment => {
+        {Object.values(SEGMENTS).filter(s => s.id !== SegmentId.BestAdvocacy && s.id !== SegmentId.BestInRamp).map(segment => {
           const state = roundsMap[segment.id];
           const status = state?.status || RoundStatus.NotStarted;
           
           return (
-            <div key={segment.id} className="bg-white p-6 rounded-xl shadow-panel border border-neutral-100 flex flex-col">
+            <div key={segment.id} className={`bg-white p-6 rounded-xl shadow-panel border flex flex-col ${
+              segment.id === SegmentId.TieBreakingQA ? 'border-amber-200 bg-amber-50/40' : 'border-neutral-100'
+            }`}>
               <div className="flex justify-between items-start mb-4">
                 <div>
                   <h3 className="text-lg font-bold text-neutral-800">{segment.label}</h3>
-                  <div className="text-sm text-neutral-500 mt-1">Weight: {segment.preliminaryWeight * 100}%</div>
+                  <div className="text-sm text-neutral-500 mt-1">
+                    {segment.id === SegmentId.TieBreakingQA
+                      ? 'Emergency segment — only if a Top-3 boundary tie exists'
+                      : `Weight: ${segment.preliminaryWeight * 100}%`}
+                  </div>
                 </div>
                 <div>
                   {status === RoundStatus.NotStarted && <span className="px-3 py-1 bg-neutral-100 text-neutral-600 rounded-full text-xs font-bold uppercase tracking-wide">Not Started</span>}
@@ -137,23 +168,51 @@ export const DashboardPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex-1"></div>
+              {/* Tiebreak explainer banner */}
+              {segment.id === SegmentId.TieBreakingQA && tieBreakNeeded && status === RoundStatus.NotStarted && (
+                <div className={`mb-4 p-3 rounded-lg text-sm border ${
+                  (tieBreakNeeded.male || tieBreakNeeded.female)
+                    ? 'bg-red-50 border-red-200 text-red-800'
+                    : 'bg-neutral-50 border-neutral-200 text-neutral-600'
+                }`}>
+                  {(tieBreakNeeded.male || tieBreakNeeded.female) ? (
+                    <>
+                      <div className="font-bold mb-1">⚠️ Boundary Tie Detected</div>
+                      <div>{tieBreakNeeded.reason}</div>
+                      <div className="mt-1 text-xs">You must tag the tied candidates in the Candidates page before opening this segment.</div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="font-bold mb-1">✓ No Tie-Break Needed</div>
+                      <div className="text-xs">{tieBreakNeeded.reason}</div>
+                      <div className="mt-1 text-xs font-semibold">A tie-break is only required when 3rd and 4th place have the same preliminary rank sum. The Final Q&amp;A 50/50 formula resolves any ties within the top 3.</div>
+                    </>
+                  )}
+                </div>
+              )}
+
+              <div className="flex-1" />
 
               <div className="mt-6 pt-4 border-t border-neutral-100">
-                {status === RoundStatus.NotStarted && (
-                  <button 
-                    onClick={() => handleOpenRoundClick(segment.id)}
-                    disabled={actionLoading !== null || hasOpenSegment}
-                    className={`w-full py-2 font-semibold rounded transition-colors disabled:opacity-50 ${
-                      hasOpenSegment 
-                        ? 'bg-neutral-200 text-neutral-500 cursor-not-allowed'
-                        : 'bg-primary-600 hover:bg-primary-700 text-white'
-                    }`}
-                    title={hasOpenSegment ? 'Another segment is currently open. Please lock it first.' : ''}
-                  >
-                    {actionLoading === segment.id ? 'Opening...' : 'Open Segment for Judging'}
-                  </button>
-                )}
+                {status === RoundStatus.NotStarted && (() => {
+                  const isTiebreak = segment.id === SegmentId.TieBreakingQA;
+                  const tiebreakBlocked = isTiebreak && tieBreakNeeded && !tieBreakNeeded.male && !tieBreakNeeded.female;
+                  const isDisabled = actionLoading !== null || hasOpenSegment || !!tiebreakBlocked;
+                  return (
+                    <button
+                      onClick={() => handleOpenRoundClick(segment.id)}
+                      disabled={isDisabled}
+                      className={`w-full py-2 font-semibold rounded transition-colors disabled:opacity-50 ${
+                        isDisabled
+                          ? 'bg-neutral-200 text-neutral-500 cursor-not-allowed'
+                          : 'bg-primary-600 hover:bg-primary-700 text-white'
+                      }`}
+                      title={hasOpenSegment ? 'Another segment is currently open. Please lock it first.' : ''}
+                    >
+                      {actionLoading === segment.id ? 'Opening...' : 'Open Segment for Judging'}
+                    </button>
+                  );
+                })()}
 
                 {status === RoundStatus.Open && (
                   <div>

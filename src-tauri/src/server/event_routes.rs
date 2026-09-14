@@ -47,7 +47,18 @@ pub async fn update_event(
         created_at: now,
     };
 
-    if let Ok(_) = db::event::upsert(&conn, &config) {
+    if db::event::upsert(&conn, &config).is_ok() {
+        let _ = crate::db::logs::insert(
+            &conn,
+            &crate::db::logs::SystemLog {
+                id: uuid::Uuid::new_v4().to_string(),
+                level: "info".to_string(),
+                source: "admin".to_string(),
+                message: "Admin updated event configuration".to_string(),
+                details: None,
+                created_at: chrono::Utc::now().to_rfc3339(),
+            },
+        );
         Json(json!(config))
     } else {
         Json(json!({"error": "Failed to update event config"}))
@@ -84,9 +95,22 @@ pub async fn reset_event(
         return Json(json!({"error": "Failed to retrieve config"}));
     }
 
-    if let Ok(_) = db::event::reset_active_event(&conn) {
+    if db::event::reset_active_event(&conn).is_ok() {
         // Broadcast reset event
         let _ = state.ws_sender.send(json!({ "type": "EVENT_RESET" }));
+
+        let _ = crate::db::logs::insert(
+            &conn,
+            &crate::db::logs::SystemLog {
+                id: uuid::Uuid::new_v4().to_string(),
+                level: "warn".to_string(),
+                source: "admin".to_string(),
+                message: "Admin performed a hard reset of the active event".to_string(),
+                details: None,
+                created_at: chrono::Utc::now().to_rfc3339(),
+            },
+        );
+
         Json(json!({"success": true}))
     } else {
         Json(json!({"error": "Failed to reset event"}))
@@ -131,6 +155,18 @@ pub async fn save_close_event(
     if db::event::reset_active_event(&conn).is_err() {
         return Json(json!({"error": "Failed to reset active tables after saving"}));
     }
+
+    let _ = crate::db::logs::insert(
+        &conn,
+        &crate::db::logs::SystemLog {
+            id: uuid::Uuid::new_v4().to_string(),
+            level: "warn".to_string(),
+            source: "admin".to_string(),
+            message: "Admin saved and closed the active event".to_string(),
+            details: None,
+            created_at: chrono::Utc::now().to_rfc3339(),
+        },
+    );
 
     let _ = state.ws_sender.send(json!({ "type": "EVENT_RESET" }));
     Json(json!({"success": true}))

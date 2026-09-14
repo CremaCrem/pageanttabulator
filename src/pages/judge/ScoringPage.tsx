@@ -4,10 +4,13 @@ import { PageWrapper } from '../../components/layout/PageWrapper';
 import { useAppContext } from '../../context/AppContext';
 import { fetchApi, getApiBaseUrl } from '../../api/client';
 import { ICandidate, ISubmitScoreRequest, UserRole, IRoundState, RoundStatus, Gender } from '../../types';
+import { useToast } from '../../context/ToastContext';
 import { SEGMENTS } from '../../utils/constants';
+import { ConfirmModal } from '../../components/ui/ConfirmModal';
 
 export const ScoringPage: React.FC = () => {
   const { state, dispatch } = useAppContext();
+  const { success } = useToast();
   const navigate = useNavigate();
 
   const [allCandidates, setAllCandidates] = useState<ICandidate[]>([]);
@@ -17,6 +20,7 @@ export const ScoringPage: React.FC = () => {
   const [activeGenderTab, setActiveGenderTab] = useState<Gender>(Gender.Male);
   const [scores, setScores] = useState<Record<string, number | ''>>({});
   const [submitting, setSubmitting] = useState(false);
+  const [confirmSubmit, setConfirmSubmit] = useState(false);
   const [error, setError] = useState('');
   const [completedCandidates, setCompletedCandidates] = useState<Set<string>>(new Set());
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -136,24 +140,38 @@ export const ScoringPage: React.FC = () => {
 
   const activeSegment = state.activeSegmentId ? SEGMENTS[state.activeSegmentId] : null;
 
+  const secondarySegment = useMemo(() => {
+    if (state.activeSegmentId === 'school_uniform') return SEGMENTS['best_advocacy'];
+    if (state.activeSegmentId === 'modern_barong') return SEGMENTS['best_in_ramp'];
+    return null;
+  }, [state.activeSegmentId]);
+
   // Calculate live preview
   const currentTotal = useMemo(() => {
     if (!activeSegment) return 0;
     return activeSegment.criteria.reduce((total, crit) => {
-      const val = scores[crit.id] || 0;
+      const val = scores[`${activeSegment.id}_${crit.id}`] || 0;
       return total + (Number(val) * crit.weight);
     }, 0);
   }, [scores, activeSegment]);
 
-  const handleScoreChange = (criterionId: string, val: string) => {
+  const secondaryTotal = useMemo(() => {
+    if (!secondarySegment) return 0;
+    return secondarySegment.criteria.reduce((total, crit) => {
+      const val = scores[`${secondarySegment.id}_${crit.id}`] || 0;
+      return total + (Number(val) * crit.weight);
+    }, 0);
+  }, [scores, secondarySegment]);
+
+  const handleScoreChange = (segmentId: string, criterionId: string, val: string) => {
+    const key = `${segmentId}_${criterionId}`;
     if (val === '') {
-      setScores(prev => ({ ...prev, [criterionId]: '' }));
+      setScores(prev => ({ ...prev, [key]: '' }));
       return;
     }
     const num = parseInt(val, 10);
     if (!isNaN(num)) {
-      // Allow user to clear input temporarily or type, but we will validate on submit
-      setScores(prev => ({ ...prev, [criterionId]: num }));
+      setScores(prev => ({ ...prev, [key]: num }));
     }
   };
 
@@ -164,15 +182,20 @@ export const ScoringPage: React.FC = () => {
     let firstInvalidId: string | null = null;
     let newErrors: Record<string, string> = {};
 
-    activeSegment.criteria.forEach(crit => {
-      const val = scores[crit.id];
-      if (val === undefined || val === '') {
-        newErrors[crit.id] = 'Score is required';
-        if (!firstInvalidId) firstInvalidId = crit.id;
-      } else if (Number(val) < 1 || Number(val) > 100) {
-        newErrors[crit.id] = 'Score must be 1-100';
-        if (!firstInvalidId) firstInvalidId = crit.id;
-      }
+    const allSegments = secondarySegment ? [activeSegment, secondarySegment] : [activeSegment];
+
+    allSegments.forEach(seg => {
+      seg.criteria.forEach(crit => {
+        const key = `${seg.id}_${crit.id}`;
+        const val = scores[key];
+        if (val === undefined || val === '') {
+          newErrors[key] = 'Score is required';
+          if (!firstInvalidId) firstInvalidId = key;
+        } else if (Number(val) < 1 || Number(val) > 100) {
+          newErrors[key] = 'Score must be 1-100';
+          if (!firstInvalidId) firstInvalidId = key;
+        }
+      });
     });
 
     if (firstInvalidId) {
@@ -187,27 +210,60 @@ export const ScoringPage: React.FC = () => {
       return;
     }
 
+    setConfirmSubmit(true);
+  };
+
+  const executeSubmit = async () => {
+    if (!activeSegment || !selectedCandidateId || !state.session?.judgeId) return;
+
     try {
       setSubmitting(true);
       setError('');
       setFieldErrors({});
 
-      const criteriaEntries = activeSegment.criteria.map(c => ({
+      const primaryEntries = activeSegment.criteria.map(c => ({
         criterionId: c.id,
-        score: Number(scores[c.id])
+        score: Number(scores[`${activeSegment.id}_${c.id}`])
       }));
 
-      const payload: ISubmitScoreRequest = {
+      const primaryPayload: ISubmitScoreRequest = {
         judgeId: state.session.judgeId,
         candidateId: selectedCandidateId,
         segmentId: activeSegment.id,
-        criteriaEntries
+        criteriaEntries: primaryEntries
       };
 
-      await fetchApi('/api/scores', {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      });
+      const requests = [
+        fetchApi('/api/scores', {
+          method: 'POST',
+          body: JSON.stringify(primaryPayload)
+        })
+      ];
+
+      if (secondarySegment) {
+        const secondaryEntries = secondarySegment.criteria.map(c => ({
+          criterionId: c.id,
+          score: Number(scores[`${secondarySegment.id}_${c.id}`])
+        }));
+        
+        const secondaryPayload: ISubmitScoreRequest = {
+          judgeId: state.session.judgeId,
+          candidateId: selectedCandidateId,
+          segmentId: secondarySegment.id,
+          criteriaEntries: secondaryEntries
+        };
+        
+        requests.push(
+          fetchApi('/api/scores', {
+            method: 'POST',
+            body: JSON.stringify(secondaryPayload)
+          })
+        );
+      }
+
+      await Promise.all(requests);
+      
+      success(`Score submitted successfully for ${selectedCandidate?.fullName}`);
 
       // Mark completed
       setCompletedCandidates(prev => {
@@ -232,6 +288,7 @@ export const ScoringPage: React.FC = () => {
       setError(err.message || 'Failed to submit score');
     } finally {
       setSubmitting(false);
+      setConfirmSubmit(false);
     }
   };
 
@@ -395,69 +452,227 @@ export const ScoringPage: React.FC = () => {
                     </div>
                   ) : (
                     <>
-                      <div className="mb-8">
-                        <div className="flex justify-between items-end mb-4">
-                          <h3 className="text-lg font-semibold text-neutral-800">Criteria</h3>
-                          <div className="text-sm text-neutral-500">Rate from 1-100</div>
+                      {error && (
+                        <div className="mb-5 p-4 bg-red-50 text-red-700 rounded-lg text-sm font-medium border border-red-100">
+                          {error}
                         </div>
+                      )}
 
-                        {error && (
-                          <div className="mb-6 p-4 bg-red-50 text-red-700 rounded-lg text-sm font-medium border border-red-100">
-                            {error}
-                          </div>
-                        )}
+                      {secondarySegment ? (
+                        /* ── DUAL-SEGMENT: Two stacked panels, full-width rows ── */
+                        <div className="space-y-8 mb-6">
 
-                        <div className="space-y-6">
-                          {activeSegment.criteria.map(crit => (
-                            <div key={crit.id} className={`flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-lg border ${fieldErrors[crit.id] ? 'bg-red-50 border-red-200' : 'bg-neutral-50 border-neutral-100'
-                              }`}>
-                              <div className="mb-3 sm:mb-0">
-                                <div className="font-semibold text-neutral-800">{crit.label}</div>
-                                <div className="text-sm text-neutral-500">Weight: {crit.weight * 100}%</div>
-                                {fieldErrors[crit.id] && (
-                                  <div className="text-xs text-red-600 mt-1 font-medium">{fieldErrors[crit.id]}</div>
-                                )}
-                              </div>
-                              <div className="flex items-center space-x-4">
-                                <input
-                                  ref={el => { inputRefs.current[crit.id] = el; }}
-                                  type="number"
-                                  min="1"
-                                  max="100"
-                                  value={scores[crit.id] === undefined ? '' : scores[crit.id]}
-                                  onChange={(e) => handleScoreChange(crit.id, e.target.value)}
-                                  className={`w-24 text-center text-lg font-bold p-3 border-2 rounded-lg outline-none transition-all ${fieldErrors[crit.id]
-                                      ? 'border-red-400 focus:border-red-600 focus:ring-2 focus:ring-red-200 text-red-900'
-                                      : 'border-neutral-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-200'
-                                    }`}
-                                  placeholder="0"
-                                />
-                                <div className="w-16 text-right font-medium text-neutral-400">
-                                  / 100
-                                </div>
-                              </div>
+                          {/* Primary Segment Panel */}
+                          <div className="rounded-2xl border border-neutral-200 overflow-hidden">
+                            {/* Panel header */}
+                            <div className="flex items-center gap-3 px-5 py-4 bg-primary-900">
+                              <div className="w-2 h-2 rounded-full bg-primary-300 flex-shrink-0" />
+                              <span className="text-sm font-bold text-white uppercase tracking-widest">{activeSegment.label}</span>
                             </div>
-                          ))}
-                        </div>
-                      </div>
 
-                      {/* Footer / Total Preview */}
-                      <div className="mt-12 p-6 bg-primary-900 rounded-xl flex flex-col sm:flex-row items-center justify-between text-white shadow-lg">
-                        <div>
-                          <div className="text-primary-200 text-sm font-medium mb-1">Live Weighted Total</div>
-                          <div className="text-4xl font-black display-font tracking-wider">
-                            {currentTotal.toFixed(2)}
+                            {/* Criteria rows */}
+                            <div className="divide-y divide-neutral-100">
+                              {activeSegment.criteria.map((crit, idx) => {
+                                const key = `${activeSegment.id}_${crit.id}`;
+                                const hasError = !!fieldErrors[key];
+                                return (
+                                  <div
+                                    key={key}
+                                    className={`flex items-center gap-4 px-5 py-3.5 transition-colors ${
+                                      hasError ? 'bg-red-50' : idx % 2 === 0 ? 'bg-white' : 'bg-neutral-50/60'
+                                    }`}
+                                  >
+                                    {/* Index dot */}
+                                    <div className="w-6 h-6 rounded-full bg-primary-100 text-primary-700 text-xs font-bold flex items-center justify-center flex-shrink-0">
+                                      {idx + 1}
+                                    </div>
+
+                                    {/* Label + weight */}
+                                    <div className="flex-1 min-w-0">
+                                      <div className={`font-semibold text-sm leading-snug ${hasError ? 'text-red-800' : 'text-neutral-800'}`}>
+                                        {crit.label}
+                                      </div>
+                                      <div className="text-xs text-neutral-400 mt-0.5">Weight: {crit.weight * 100}%</div>
+                                      {hasError && (
+                                        <div className="text-xs text-red-600 font-medium mt-0.5">{fieldErrors[key]}</div>
+                                      )}
+                                    </div>
+
+                                    {/* Score input */}
+                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                      <input
+                                        ref={el => { inputRefs.current[key] = el; }}
+                                        type="number"
+                                        min="1"
+                                        max="100"
+                                        value={scores[key] === undefined ? '' : scores[key]}
+                                        onChange={(e) => handleScoreChange(activeSegment.id, crit.id, e.target.value)}
+                                        className={`w-20 text-center text-xl font-black p-2 border-2 rounded-xl outline-none transition-all ${
+                                          hasError
+                                            ? 'border-red-400 focus:border-red-600 focus:ring-2 focus:ring-red-100 text-red-800 bg-red-50'
+                                            : 'border-neutral-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-100 bg-white'
+                                        }`}
+                                        placeholder="—"
+                                      />
+                                      <span className="text-xs text-neutral-400 w-10">/100</span>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+
+                            {/* Primary total bar */}
+                            <div className="flex items-center justify-between px-5 py-4 bg-primary-900">
+                              <span className="text-primary-300 text-xs font-bold uppercase tracking-widest">Weighted Total</span>
+                              <span className="text-3xl font-black text-white display-font tracking-wide">{currentTotal.toFixed(2)}</span>
+                            </div>
                           </div>
+
+                          {/* Secondary Segment Panel */}
+                          <div className="rounded-2xl border border-amber-200 overflow-hidden">
+                            {/* Panel header */}
+                            <div className="flex items-center gap-3 px-5 py-4 bg-gradient-to-r from-amber-600 to-yellow-500">
+                              <div className="w-2 h-2 rounded-full bg-yellow-200 flex-shrink-0" />
+                              <span className="text-sm font-bold text-yellow-900 uppercase tracking-widest">{secondarySegment.label}</span>
+                              <span className="ml-auto text-xs font-semibold text-yellow-800 bg-yellow-200 px-2 py-0.5 rounded-full">Minor Award</span>
+                            </div>
+
+                            {/* Criteria rows */}
+                            <div className="divide-y divide-amber-100">
+                              {secondarySegment.criteria.map((crit, idx) => {
+                                const key = `${secondarySegment.id}_${crit.id}`;
+                                const hasError = !!fieldErrors[key];
+                                return (
+                                  <div
+                                    key={key}
+                                    className={`flex items-center gap-4 px-5 py-3.5 transition-colors ${
+                                      hasError ? 'bg-red-50' : idx % 2 === 0 ? 'bg-white' : 'bg-amber-50/40'
+                                    }`}
+                                  >
+                                    {/* Index dot */}
+                                    <div className="w-6 h-6 rounded-full bg-amber-100 text-amber-700 text-xs font-bold flex items-center justify-center flex-shrink-0">
+                                      {idx + 1}
+                                    </div>
+
+                                    {/* Label + weight */}
+                                    <div className="flex-1 min-w-0">
+                                      <div className={`font-semibold text-sm leading-snug ${hasError ? 'text-red-800' : 'text-neutral-800'}`}>
+                                        {crit.label}
+                                      </div>
+                                      <div className="text-xs text-neutral-400 mt-0.5">Weight: {crit.weight * 100}%</div>
+                                      {hasError && (
+                                        <div className="text-xs text-red-600 font-medium mt-0.5">{fieldErrors[key]}</div>
+                                      )}
+                                    </div>
+
+                                    {/* Score input */}
+                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                      <input
+                                        ref={el => { inputRefs.current[key] = el; }}
+                                        type="number"
+                                        min="1"
+                                        max="100"
+                                        value={scores[key] === undefined ? '' : scores[key]}
+                                        onChange={(e) => handleScoreChange(secondarySegment.id, crit.id, e.target.value)}
+                                        className={`w-20 text-center text-xl font-black p-2 border-2 rounded-xl outline-none transition-all ${
+                                          hasError
+                                            ? 'border-red-400 focus:border-red-600 focus:ring-2 focus:ring-red-100 text-red-800 bg-red-50'
+                                            : 'border-amber-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-100 bg-white'
+                                        }`}
+                                        placeholder="—"
+                                      />
+                                      <span className="text-xs text-neutral-400 w-10">/100</span>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+
+                            {/* Secondary total bar */}
+                            <div className="flex items-center justify-between px-5 py-4 bg-gradient-to-r from-amber-600 to-yellow-500">
+                              <span className="text-yellow-900 text-xs font-bold uppercase tracking-widest">Weighted Total</span>
+                              <span className="text-3xl font-black text-yellow-900 display-font tracking-wide">{secondaryTotal.toFixed(2)}</span>
+                            </div>
+                          </div>
+
+                          {/* Shared Submit button */}
+                          <button
+                            onClick={handleSubmit}
+                            disabled={submitting}
+                            className="w-full py-4 bg-primary-700 hover:bg-primary-800 text-white font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg text-lg flex items-center justify-center gap-3 active:scale-[0.99]"
+                          >
+                            {submitting ? (
+                              <>
+                                <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg>
+                                Submitting…
+                              </>
+                            ) : (
+                              <>
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                Submit Both Scores
+                              </>
+                            )}
+                          </button>
                         </div>
 
-                        <button
-                          onClick={handleSubmit}
-                          disabled={submitting}
-                          className="mt-6 sm:mt-0 px-8 py-4 bg-gold-500 hover:bg-gold-400 text-primary-900 font-bold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-md text-lg w-full sm:w-auto"
-                        >
-                          {submitting ? 'Submitting...' : 'Submit Score'}
-                        </button>
-                      </div>
+                      ) : (
+                        /* ── SINGLE-SEGMENT: Original single-column layout ── */
+                        <>
+                          <div className="mb-6">
+                            <div className="flex justify-between items-end mb-4">
+                              <h3 className="text-lg font-semibold text-neutral-800">{activeSegment.label} Criteria</h3>
+                              <div className="text-sm text-neutral-400">Rate 1–100</div>
+                            </div>
+                            <div className="space-y-4">
+                              {activeSegment.criteria.map(crit => {
+                                const key = `${activeSegment.id}_${crit.id}`;
+                                return (
+                                  <div key={key} className={`flex items-center justify-between p-4 rounded-lg border ${fieldErrors[key] ? 'bg-red-50 border-red-200' : 'bg-neutral-50 border-neutral-100'}`}>
+                                    <div>
+                                      <div className="font-semibold text-neutral-800">{crit.label}</div>
+                                      <div className="text-sm text-neutral-500">Weight: {crit.weight * 100}%</div>
+                                      {fieldErrors[key] && (
+                                        <div className="text-xs text-red-600 mt-1 font-medium">{fieldErrors[key]}</div>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center gap-3 flex-shrink-0">
+                                      <input
+                                        ref={el => { inputRefs.current[key] = el; }}
+                                        type="number"
+                                        min="1"
+                                        max="100"
+                                        value={scores[key] === undefined ? '' : scores[key]}
+                                        onChange={(e) => handleScoreChange(activeSegment.id, crit.id, e.target.value)}
+                                        className={`w-20 text-center text-lg font-bold p-3 border-2 rounded-lg outline-none transition-all ${fieldErrors[key]
+                                            ? 'border-red-400 focus:border-red-600 focus:ring-2 focus:ring-red-200 text-red-900'
+                                            : 'border-neutral-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-200'
+                                          }`}
+                                        placeholder="0"
+                                      />
+                                      <span className="text-neutral-400 font-medium w-12">/ 100</span>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          {/* Footer total + submit */}
+                          <div className="mt-8 p-6 bg-primary-900 rounded-xl flex flex-col sm:flex-row items-center justify-between text-white shadow-lg gap-4">
+                            <div>
+                              <div className="text-primary-200 text-sm font-medium mb-1">Live Weighted Total</div>
+                              <div className="text-4xl font-black display-font tracking-wider">{currentTotal.toFixed(2)}</div>
+                            </div>
+                            <button
+                              onClick={handleSubmit}
+                              disabled={submitting}
+                              className="px-8 py-4 bg-gold-500 hover:bg-gold-400 text-primary-900 font-bold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-md text-lg w-full sm:w-auto"
+                            >
+                              {submitting ? 'Submitting...' : 'Submit Score'}
+                            </button>
+                          </div>
+                        </>
+                      )}
                     </>
                   )}
                 </div>
@@ -497,6 +712,17 @@ export const ScoringPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={confirmSubmit}
+        title="Submit Scores?"
+        message={`Are you sure you want to submit your score for ${selectedCandidate?.fullName}? This action cannot be undone.`}
+        confirmText="Yes, Submit Score"
+        onConfirm={executeSubmit}
+        onCancel={() => setConfirmSubmit(false)}
+        loading={submitting}
+        isDestructive={false}
+      />
     </PageWrapper>
   );
 };

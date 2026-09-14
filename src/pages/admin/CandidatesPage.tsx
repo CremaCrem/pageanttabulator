@@ -11,6 +11,7 @@ export const CandidatesPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [adding, setAdding] = useState(false);
+
   const [confirmConfig, setConfirmConfig] = useState<{isOpen: boolean, candidateId: string | null, currentlyEligible: boolean}>({
     isOpen: false,
     candidateId: null,
@@ -30,6 +31,7 @@ export const CandidatesPage: React.FC = () => {
     try {
       const data = await fetchApi('/api/candidates');
       setCandidates(data.sort((a: any, b: any) => a.candidateNumber.localeCompare(b.candidateNumber)));
+
     } catch (err: any) {
       setError('Failed to load candidates.');
     } finally {
@@ -198,22 +200,7 @@ export const CandidatesPage: React.FC = () => {
                       </div>
                     </td>
                     <td className="p-4 text-right space-x-2">
-                      <button 
-                        onClick={async () => {
-                          try {
-                            await fetchApi(`/api/candidates/${candidate.id}/tiebreak`, {
-                              method: 'PATCH',
-                              body: JSON.stringify({ isInTiebreak: !candidate.isInTiebreak })
-                            });
-                            await loadCandidates();
-                          } catch (err: any) {
-                            setError(err.message || 'Failed to toggle tie-break');
-                          }
-                        }}
-                        className={`text-sm font-medium ${candidate.isInTiebreak ? 'text-neutral-500 hover:text-neutral-700' : 'text-yellow-600 hover:text-yellow-800'}`}
-                      >
-                        {candidate.isInTiebreak ? 'Remove Tie-Break' : 'Set Tie-Break'}
-                      </button>
+
                       <button 
                         onClick={() => handleDisqualifyClick(candidate.id, candidate.isEligible)}
                         className={`text-sm font-medium ${candidate.isEligible ? 'text-red-600 hover:text-red-800' : 'text-green-600 hover:text-green-800'}`}

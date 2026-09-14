@@ -92,18 +92,41 @@ pub fn init_db_with_path(db_path: &Path) -> Result<Connection, rusqlite::Error> 
         [],
     )?;
 
+    // Check if we need to reset the results table
+    let results_sql: String = conn.query_row(
+        "SELECT sql FROM sqlite_schema WHERE type='table' AND name='results'",
+        [],
+        |row| row.get(0),
+    ).unwrap_or_default();
+
+    if !results_sql.contains("preliminary_status") {
+        let _ = conn.execute("DROP TABLE IF EXISTS results", []);
+    }
+
     // Computed results
     conn.execute(
         "CREATE TABLE IF NOT EXISTS results (
             candidate_id        TEXT NOT NULL,
             segment_id          TEXT,
             preliminary_score   REAL,
+            preliminary_status  TEXT NOT NULL DEFAULT 'pending',
             final_qa_score      REAL,
             final_score         REAL,
             rank                INTEGER,
-            is_top3             INTEGER NOT NULL DEFAULT 0,
             computed_at         TEXT NOT NULL,
             UNIQUE(candidate_id, segment_id)
+        )",
+        [],
+    )?;
+
+    // Admin Overrides / Stage Resolutions
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS stage_resolutions (
+            candidate_id TEXT NOT NULL,
+            stage TEXT NOT NULL,
+            resolution TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            PRIMARY KEY (candidate_id, stage)
         )",
         [],
     )?;
@@ -146,8 +169,6 @@ pub fn init_db_with_path(db_path: &Path) -> Result<Connection, rusqlite::Error> 
     let _ = conn.execute("ALTER TABLE judges ADD COLUMN session_token TEXT", []);
     let _ = conn.execute("ALTER TABLE judges ADD COLUMN photo_path TEXT", []);
     let _ = conn.execute("ALTER TABLE judges ADD COLUMN password TEXT", []);
-    let _ = conn.execute("ALTER TABLE results RENAME COLUMN is_top5 TO is_top3", []);
-    let _ = conn.execute("ALTER TABLE candidates ADD COLUMN is_in_tiebreak INTEGER NOT NULL DEFAULT 0", []);
 
     // Special Awards
     conn.execute(
@@ -187,6 +208,9 @@ pub fn init_db_with_path(db_path: &Path) -> Result<Connection, rusqlite::Error> 
         )",
         [],
     )?;
+
+    // Clear stale tiebreak flags on startup (safe — only used for finals tie detection)
+    let _ = conn.execute("UPDATE candidates SET is_in_tiebreak = 0", []);
 
     Ok(conn)
 }

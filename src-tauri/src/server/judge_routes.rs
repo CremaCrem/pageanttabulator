@@ -45,14 +45,13 @@ pub async fn claim_session(
         // Password verification if one is set
         if let Some(ref db_pass) = existing.password {
             // Ignore empty string passwords as no password
-            if !db_pass.trim().is_empty() {
-                if payload.password.as_ref() != Some(db_pass) {
+            if !db_pass.trim().is_empty()
+                && payload.password.as_ref() != Some(db_pass) {
                     return (
                         axum::http::StatusCode::UNAUTHORIZED,
                         Json(json!({"error": "Incorrect password for this judge slot."})),
                     );
                 }
-            }
         }
 
         if existing.is_active {
@@ -87,7 +86,19 @@ pub async fn claim_session(
         last_seen: Some(now),
     };
 
-    if let Ok(_) = db::judges::upsert(&conn, &judge) {
+    if db::judges::upsert(&conn, &judge).is_ok() {
+        let _ = crate::db::logs::insert(
+            &conn,
+            &crate::db::logs::SystemLog {
+                id: uuid::Uuid::new_v4().to_string(),
+                level: "info".to_string(),
+                source: "judge".to_string(),
+                message: format!("Judge {} claimed a session", payload.judge_id),
+                details: None,
+                created_at: chrono::Utc::now().to_rfc3339(),
+            },
+        );
+
         (
             axum::http::StatusCode::OK,
             Json(json!({
@@ -123,15 +134,28 @@ pub async fn reset_session(
     let conn = state.db.lock().unwrap();
 
     // Also clear the session token so it's a completely clean slate
-    if let Ok(_) = conn.execute(
+    if conn.execute(
         "UPDATE judges SET is_active = 0, session_token = NULL WHERE id = ?1",
         rusqlite::params![judge_id],
-    ) {
+    ).is_ok() {
         // Broadcast SESSION_REVOKED
         let _ = state.ws_sender.send(json!({
             "type": "SESSION_REVOKED",
             "judgeId": judge_id
         }));
+
+        let _ = crate::db::logs::insert(
+            &conn,
+            &crate::db::logs::SystemLog {
+                id: uuid::Uuid::new_v4().to_string(),
+                level: "warn".to_string(),
+                source: "admin".to_string(),
+                message: format!("Admin reset session for Judge {}", judge_id),
+                details: None,
+                created_at: chrono::Utc::now().to_rfc3339(),
+            },
+        );
+
         Json(json!({"status": "success"}))
     } else {
         Json(json!({"error": "Failed to reset session"}))
@@ -174,13 +198,13 @@ pub async fn update_judge(
     Json(payload): Json<UpdateJudgePayload>,
 ) -> Json<Value> {
     let conn = state.db.lock().unwrap();
-    if let Ok(_) = db::judges::update_judge_profile(
+    if db::judges::update_judge_profile(
         &conn,
         &id,
         payload.name.as_deref(),
         payload.photo_path.as_deref(),
         payload.password.as_deref(),
-    ) {
+    ).is_ok() {
         Json(json!({"status": "success"}))
     } else {
         Json(json!({"error": "Failed to update judge profile"}))

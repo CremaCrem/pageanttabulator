@@ -13,7 +13,7 @@ pub async fn get_logs(State(state): State<AppState>) -> Json<Value> {
 
 pub async fn clear_logs(State(state): State<AppState>) -> Json<Value> {
     let conn = state.db.lock().unwrap();
-    if let Ok(_) = db::logs::clear_all(&conn) {
+    if db::logs::clear_all(&conn).is_ok() {
         Json(json!({"success": true}))
     } else {
         Json(json!({"error": "Failed to clear logs"}))
