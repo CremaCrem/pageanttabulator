@@ -42,6 +42,6 @@ chrono = "0.4.45"
 uuid = { version = "1.24.1", features = ["v4"] }
 futures-util = "0.3.34"
 tauri-plugin-dialog = "2"
-genpdf = "0.2.0"
+
 tower = "0.5.3"
 

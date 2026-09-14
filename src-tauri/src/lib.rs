@@ -3,7 +3,7 @@ use local_ip_address::local_ip;
 pub mod db;
 pub mod scoring;
 pub mod server;
-pub mod commands;
+
 
 #[tauri::command]
 fn get_server_url() -> String {
@@ -42,7 +42,7 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_server_url, commands::export::generate_pdf])
+        .invoke_handler(tauri::generate_handler![get_server_url])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
