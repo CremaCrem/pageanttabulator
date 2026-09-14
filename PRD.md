@@ -60,7 +60,9 @@ Event tabulations are mission-critical. Errors or delays in calculations affect 
 - **Phase 2 (Final Round - 50% of Final Score):** 
   - Final Q&A for the Top 3 (also scored via Borda count).
 - **Championship Rule:** Final Winners (Top 3) are determined by `(Preliminary Rank * 0.5) + (Final Q&A Rank * 0.5)`.
-- **Dynamic Tie-Breaking:** If there is a tie at the Top 3 boundary, the system automatically exposes a new conditionally-created scoring segment (`TieBreakingQA`) scoped only to the tied candidates. Judges score live. If the tie-break round itself ties, it resolves via manual Admin override.
+- **Dynamic Tie-Breaking:** Tie-breaking is handled via two strictly distinct mechanisms:
+  - **Preliminary Boundary Ties (Top 3 Selection):** If a mathematical tie occurs at the Top 3 cutoff boundary (any number of tied candidates), the system pauses and forces an offline, PIN-protected manual admin override to select who advances. This decision is saved permanently to the `stage_resolutions` table. No scoring segment is opened.
+  - **Championship/Finals Ties:** If the confirmed Top 3 finalists perfectly tie on their 50/50 Championship score, the system automatically flags them and exposes a conditional scoring segment (`TieBreakingQA`) scoped only to the tied finalists.
 - **Event Day Contingencies:** The Admin dashboard must feature a "Manual Score Entry" screen to input scores from paper backups if a judge's device disconnects and cannot be recovered.
 
 ### 3.3 Special Awards Requirements
@@ -100,7 +102,7 @@ Event tabulations are mission-critical. Errors or delays in calculations affect 
 
 ### 4.4 Top 3 & Final Winner Flow (Admin)
 1. After the 5 Preliminary segments conclude, Admin triggers Top 3 calculation.
-2. System filters Top 3 Male and Female based on Borda count. If a tie occurs at the 3rd position, Admin opens a dynamic `TieBreakingQA` segment for the tied candidates.
+2. System filters Top 3 Male and Female based on Borda count. If a mathematical tie occurs at the 3rd position boundary, the system pauses and forces a PIN-protected manual admin override to select who advances (persisted to `stage_resolutions`).
 3. Top 3 proceed to Final Q&A segment.
 4. Judges score Final Q&A.
 5. Admin triggers Final Results computation (50/50 rule).
@@ -114,8 +116,8 @@ Event tabulations are mission-critical. Errors or delays in calculations affect 
 - **AC2:** Scores submitted by judges are successfully written to the SQLite database and survive a hard crash of the admin app.
 - **AC3:** A judge cannot submit a score outside the 1-100 range, nor can they submit if a segment is locked.
 - **AC4:** The Preliminary rank correctly combines the 5 segments at 20% each to calculate the composite preliminary rank.
-- **AC5:** The Top 3 selection strictly isolates Male and Female categories, uses Borda count scoring, and provides dynamic tie-breaking segments for Top 3 boundary ties.
-- **AC6:** The Final Champion calculation strictly adheres to the `(Prelim Rank * 0.5) + (Final Q&A Rank * 0.5)` formula.
+- **AC5:** The Top 3 selection strictly isolates Male and Female categories, uses Borda count scoring, and forces a PIN-protected manual admin override (persisted permanently) to resolve Top 3 boundary ties offline without a scoring segment.
+- **AC6:** The Final Champion calculation strictly adheres to the `(Prelim Rank * 0.5) + (Final Q&A Rank * 0.5)` formula. Any ties at this championship level trigger a dynamic `TieBreakingQA` segment scoped only to the tied finalists.
 - **AC7:** "Best in Advocacy" and "Best in Ramp" are concurrently scored with their parent segments and use Ranking-Based scoring, completely isolated from the preliminary ranking composite.
 - **AC8:** The "Manual Score Entry" feature successfully allows the admin to input a full set of criteria scores on behalf of a disconnected judge.
 - **AC9:** Admin irreversible actions (locking segments, manual score overrides, tie-breaking) prompt for and successfully validate the Admin PIN.
