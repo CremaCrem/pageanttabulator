@@ -5,9 +5,10 @@ import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { PrintReport } from '../../components/admin/PrintReport';
 import { useExport } from '../../hooks/useExport';
 import { useToast } from '../../context/ToastContext';
+import { SEGMENTS } from '../../utils/constants';
 
 export const ReportsPage: React.FC = () => {
-  const { exportPdf, isExporting } = useExport();
+  const { exportPdf, exportBlankScoreSheets, isExporting } = useExport();
   const { toast } = useToast();
   const [loading, setLoading] = useState<string | null>(null);
   const [message, setMessage] = useState('');
@@ -17,6 +18,37 @@ export const ReportsPage: React.FC = () => {
     isOpen: false,
     round: null
   });
+
+  const [judges, setJudges] = useState<{id: string, name: string}[]>([]);
+  const [selectedJudges, setSelectedJudges] = useState<Set<string>>(new Set());
+  const [selectedSegments, setSelectedSegments] = useState<Set<string>>(new Set());
+
+  React.useEffect(() => {
+    fetchApi('/api/judges').then(setJudges).catch(console.error);
+  }, []);
+
+  const toggleJudge = (id: string) => {
+    const next = new Set(selectedJudges);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedJudges(next);
+  };
+
+  const toggleSegment = (id: string) => {
+    const next = new Set(selectedSegments);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedSegments(next);
+  };
+
+  const handleExportBlank = async () => {
+    try {
+      const res = await exportBlankScoreSheets(Array.from(selectedJudges), Array.from(selectedSegments));
+      toast(res, 'success');
+    } catch (err: any) {
+      toast(err.message || 'Export failed', 'error');
+    }
+  };
 
   const handleExport = async () => {
     try {
@@ -149,6 +181,47 @@ export const ReportsPage: React.FC = () => {
           <div className="bg-neutral-50 p-8 rounded-lg border-2 border-dashed border-neutral-200 overflow-y-auto max-h-[600px]">
             <PrintReport />
           </div>
+        </div>
+
+        {/* Print Blank Score Sheets */}
+        <div className="bg-white p-6 rounded-xl shadow-panel border border-neutral-100 flex flex-col md:col-span-2 print:hidden">
+          <div className="mb-6">
+            <h3 className="text-lg font-bold text-neutral-800">Print Blank Score Sheets</h3>
+            <p className="text-sm text-neutral-500">Generate printable physical score sheets for manual tabulation backup.</p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-6">
+            <div>
+              <h4 className="font-semibold text-sm mb-3">Select Judges</h4>
+              <div className="space-y-2 max-h-48 overflow-y-auto border border-neutral-200 p-3 rounded-lg">
+                {judges.length === 0 ? <p className="text-sm text-neutral-400">Loading...</p> : judges.map(j => (
+                  <label key={j.id} className="flex items-center space-x-2 text-sm cursor-pointer hover:bg-neutral-50 p-1 rounded">
+                    <input type="checkbox" checked={selectedJudges.has(j.id)} onChange={() => toggleJudge(j.id)} className="rounded border-neutral-300 text-primary-600 focus:ring-primary-500" />
+                    <span>{j.name}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div>
+              <h4 className="font-semibold text-sm mb-3">Select Segments</h4>
+              <div className="space-y-2 max-h-48 overflow-y-auto border border-neutral-200 p-3 rounded-lg">
+                {Object.values(SEGMENTS).map(s => (
+                  <label key={s.id} className="flex items-center space-x-2 text-sm cursor-pointer hover:bg-neutral-50 p-1 rounded">
+                    <input type="checkbox" checked={selectedSegments.has(s.id)} onChange={() => toggleSegment(s.id)} className="rounded border-neutral-300 text-primary-600 focus:ring-primary-500" />
+                    <span>{s.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+          
+          <button 
+            onClick={handleExportBlank}
+            disabled={isExporting || selectedJudges.size === 0 || selectedSegments.size === 0}
+            className="w-full py-3 bg-neutral-800 hover:bg-black text-white font-semibold rounded-lg shadow-sm transition-colors disabled:opacity-80 disabled:cursor-not-allowed mt-auto flex items-center justify-center"
+          >
+            {isExporting ? 'Exporting...' : 'Print Selected Sheets'}
+          </button>
         </div>
 
       </div>

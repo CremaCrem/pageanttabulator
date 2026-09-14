@@ -24,6 +24,7 @@ import { ErrorBoundary } from './components/layout/ErrorBoundary';
 // Shared
 import { ProjectionPage } from './pages/shared/ProjectionPage';
 import { PrintReportPage } from './pages/shared/PrintReportPage';
+import { PrintBlankScoreSheetsPage } from './pages/shared/PrintBlankScoreSheetsPage';
 
 import './App.css';
 
@@ -52,6 +53,7 @@ function App() {
               <Route path="/diagnostics" element={<DiagnosticsPage />} />
             <Route path="/projection" element={<ProjectionPage />} />
               <Route path="/print-report" element={<PrintReportPage />} />
+              <Route path="/print-blank-scoresheets" element={<PrintBlankScoreSheetsPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </AdminShell>
@@ -74,6 +76,7 @@ function App() {
               </ErrorBoundary>
             } />
             <Route path="/print-report" element={<PrintReportPage />} />
+            <Route path="/print-blank-scoresheets" element={<PrintBlankScoreSheetsPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         )}

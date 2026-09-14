@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { isTauri } from '@tauri-apps/api/core';
 import { openUrl } from '@tauri-apps/plugin-opener';
+import { fetchApi } from '../api/client';
 
 export const useExport = () => {
   const [isExporting, setIsExporting] = useState(false);
@@ -9,9 +10,8 @@ export const useExport = () => {
     setIsExporting(true);
     try {
       if (isTauri()) {
-        // Use the current application origin (e.g., http://localhost:1420 in dev, or 3000 in prod)
-        // This ensures the new route is found by the live Vite server in development.
-        const baseUrl = window.location.origin;
+        const networkInfo = await fetchApi('/api/network-info');
+        const baseUrl = networkInfo.serverUrl;
         await openUrl(`${baseUrl}/print-report`);
         return 'Opened report in default browser for printing.';
       } else {
@@ -25,5 +25,26 @@ export const useExport = () => {
     }
   };
 
-  return { exportPdf, isExporting };
+  const exportBlankScoreSheets = async (judgeIds: string[], segmentIds: string[]): Promise<string> => {
+    setIsExporting(true);
+    try {
+      if (isTauri()) {
+        const networkInfo = await fetchApi('/api/network-info');
+        const baseUrl = networkInfo.serverUrl;
+        const jParams = judgeIds.join(',');
+        const sParams = segmentIds.join(',');
+        await openUrl(`${baseUrl}/print-blank-scoresheets?judgeIds=${jParams}&segmentIds=${sParams}`);
+        return 'Opened blank score sheets in default browser for printing.';
+      } else {
+        throw new Error('PDF Export is only available in the Admin Desktop App.');
+      }
+    } catch (error: any) {
+      console.error('Failed to export blank score sheets', error);
+      throw error;
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  return { exportPdf, exportBlankScoreSheets, isExporting };
 };
