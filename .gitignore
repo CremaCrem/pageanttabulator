@@ -32,3 +32,9 @@ pageant_data.db*
 
 # Dev/Test Data
 .dev-data/
+
+# Scratch files
+patch_*.py
+rewrite.py
+tmp_*.rs
+tmp_*.py
