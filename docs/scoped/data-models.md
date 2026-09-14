@@ -179,14 +179,14 @@ export interface ISegmentRanking {
 
 export interface ICandidateResult {
   candidateId:       string;
-  gender:            Gender;
-  segmentRankings:   ISegmentRanking[];
-  preliminaryRank:   number;          // Weighted composite rank
-  isTop3:            boolean;
-  finalQARank?:      number;          // Set after final round
-  finalRank?:        number;          // Set after championship computation
-  placement?:        number;          // 1, 2, 3 (per category)
-  awardTitle?:       string;          // "Mr. IDSC 2026", "1st Runner-Up", etc.
+  segmentId?:        string;
+  preliminaryScore?: number;
+  preliminaryRank?:  number;
+  preliminaryStatus: 'advancing' | 'excluded' | 'pending_override' | 'pending';
+  finalQaScore?:     number;
+  finalScore?:       number;
+  rank?:             number;
+  computedAt:        string;
 }
 ```
 
@@ -334,7 +334,7 @@ export interface IAdvanceTop3Request {
 
 // POST /api/results/compute — request body (PIN required)
 export interface IComputeResultsRequest {
-  round: 'preliminary' | 'final';
+  round: 'preliminary' | 'final' | 'minor_awards';
 }
 
 // POST /api/admin/verify-pin — request body
