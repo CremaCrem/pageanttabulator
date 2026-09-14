@@ -7,6 +7,7 @@ pub struct CandidateResult {
     pub candidate_id: String,
     pub segment_id: Option<String>,
     pub preliminary_score: Option<f64>,
+    pub preliminary_rank: Option<i64>,
     pub preliminary_status: String, // 'advancing', 'excluded', 'pending_override', 'pending'
     pub final_qa_score: Option<f64>,
     pub final_score: Option<f64>,
@@ -17,17 +18,18 @@ pub struct CandidateResult {
 pub fn insert(conn: &Connection, res: &CandidateResult) -> Result<()> {
     let segment_id = res.segment_id.as_deref().unwrap_or("");
     conn.execute(
-        "INSERT INTO results (candidate_id, segment_id, preliminary_score, preliminary_status, final_qa_score, final_score, rank, computed_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+        "INSERT INTO results (candidate_id, segment_id, preliminary_score, preliminary_rank, preliminary_status, final_qa_score, final_score, rank, computed_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
          ON CONFLICT(candidate_id, segment_id) DO UPDATE SET 
             preliminary_score=excluded.preliminary_score,
+            preliminary_rank=excluded.preliminary_rank,
             preliminary_status=excluded.preliminary_status,
             final_qa_score=excluded.final_qa_score,
             final_score=excluded.final_score,
             rank=excluded.rank,
             computed_at=excluded.computed_at",
         params![
-            res.candidate_id, segment_id, res.preliminary_score, res.preliminary_status, res.final_qa_score, res.final_score, res.rank, res.computed_at
+            res.candidate_id, segment_id, res.preliminary_score, res.preliminary_rank, res.preliminary_status, res.final_qa_score, res.final_score, res.rank, res.computed_at
         ],
     )?;
     Ok(())
@@ -42,6 +44,7 @@ pub fn get_overall_results(conn: &Connection) -> Result<Vec<CandidateResult>> {
             candidate_id: row.get("candidate_id")?,
             segment_id: row.get("segment_id")?,
             preliminary_score: row.get("preliminary_score")?,
+            preliminary_rank: row.get("preliminary_rank")?,
             preliminary_status: row.get("preliminary_status")?,
             final_qa_score: row.get("final_qa_score")?,
             final_score: row.get("final_score")?,

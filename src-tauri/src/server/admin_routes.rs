@@ -115,6 +115,7 @@ fn compute_preliminary_results(conn: &rusqlite::Connection, now: &str) -> Result
             candidate_id: c.id.clone(),
             segment_id: Some("".to_string()),
             preliminary_score: Some(prelim_score),
+            preliminary_rank: None,
             preliminary_status: "pending".to_string(),
             final_qa_score: None,
             final_score: None,
@@ -141,9 +142,17 @@ fn compute_preliminary_results(conn: &rusqlite::Connection, now: &str) -> Result
 
     crate::scoring::ranking::rank_candidates(&mut male_results);
     apply_top3(&mut male_results);
+    for res in &mut male_results {
+        res.preliminary_rank = res.rank;
+        res.rank = None;
+    }
 
     crate::scoring::ranking::rank_candidates(&mut female_results);
     apply_top3(&mut female_results);
+    for res in &mut female_results {
+        res.preliminary_rank = res.rank;
+        res.rank = None;
+    }
 
     let mut all_results = Vec::new();
     all_results.extend(male_results);
@@ -357,7 +366,7 @@ fn compute_finals_results(conn: &rusqlite::Connection, now: &str) -> Result<(), 
         let final_qa_rank_val = final_qa_ranks.get(&res.candidate_id).copied().unwrap_or(0);
         res.final_qa_score = Some(final_qa_rank_val as f64);
 
-        let prelim_rank = res.rank.unwrap_or(0) as f64;
+        let prelim_rank = res.preliminary_rank.unwrap_or(0) as f64;
         res.final_score = Some(crate::scoring::compute::compute_final_score(
             prelim_rank,
             final_qa_rank_val as f64,

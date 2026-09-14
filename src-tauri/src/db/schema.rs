@@ -106,18 +106,22 @@ pub fn init_db_with_path(db_path: &Path) -> Result<Connection, rusqlite::Error> 
     // Computed results
     conn.execute(
         "CREATE TABLE IF NOT EXISTS results (
-            candidate_id        TEXT NOT NULL,
-            segment_id          TEXT,
-            preliminary_score   REAL,
-            preliminary_status  TEXT NOT NULL DEFAULT 'pending',
-            final_qa_score      REAL,
-            final_score         REAL,
-            rank                INTEGER,
-            computed_at         TEXT NOT NULL,
+            candidate_id TEXT NOT NULL,
+            segment_id TEXT,
+            preliminary_score REAL,
+            preliminary_rank INTEGER,
+            preliminary_status TEXT NOT NULL,
+            final_qa_score REAL,
+            final_score REAL,
+            rank INTEGER,
+            computed_at TEXT NOT NULL,
             UNIQUE(candidate_id, segment_id)
         )",
         [],
     )?;
+
+    // Safe migration: Add preliminary_rank column if it doesn't exist
+    let _ = conn.execute("ALTER TABLE results ADD COLUMN preliminary_rank INTEGER", []);
 
     // Fix NULL segment_ids for unique constraints
     // First, delete duplicates keeping only the most recent row per candidate

@@ -18,6 +18,7 @@ export interface ICandidateResult {
   candidateId:       string;
   segmentId?:        string;
   preliminaryScore?: number;
+  preliminaryRank?:  number;
   preliminaryStatus: 'advancing' | 'excluded' | 'pending_override' | 'pending';
   finalQaScore?:     number;
   finalScore?:       number;

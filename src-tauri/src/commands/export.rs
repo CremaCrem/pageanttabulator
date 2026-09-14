@@ -109,7 +109,7 @@ pub async fn generate_pdf(app: AppHandle, state: State<'_, AppState>) -> Result<
             row.push_element(elements::Paragraph::new(&c.candidate_number));
             row.push_element(elements::Paragraph::new(&c.full_name));
             
-            let p_rank = prelim_ranks.get(&c.id).copied().unwrap_or(999);
+            let p_rank = res.preliminary_rank.unwrap_or(999);
             row.push_element(elements::Paragraph::new(format!("{:.0}", p_rank)));
             
             row.push_element(elements::Paragraph::new(res.final_qa_score.map(|s| format!("{:.0}", s)).unwrap_or_else(|| "-".to_string())));
@@ -144,7 +144,7 @@ pub async fn generate_pdf(app: AppHandle, state: State<'_, AppState>) -> Result<
             row2.push_element(elements::Paragraph::new(&c.full_name));
             row2.push_element(elements::Paragraph::new(res.preliminary_score.map(|s| format!("{:.2}", s)).unwrap_or_else(|| "-".to_string())));
             
-            let p_rank = prelim_ranks.get(&c.id).copied().unwrap_or(999);
+            let p_rank = res.preliminary_rank.unwrap_or(999);
             row2.push_element(elements::Paragraph::new(p_rank.to_string()));
             
             row2.push_element(elements::Paragraph::new(if res.preliminary_status == "advancing" { "Yes" } else { "No" }));
