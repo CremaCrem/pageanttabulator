@@ -14,6 +14,7 @@ import { ReportsPage } from './pages/admin/ReportsPage';
 import { ResultsPage } from './pages/admin/ResultsPage';
 import { EventHistoryPage } from './pages/admin/EventHistoryPage';
 import { DiagnosticsPage } from './pages/admin/DiagnosticsPage';
+import { ManualScoreEntryPage } from './pages/admin/ManualScoreEntryPage';
 
 // Judge Pages
 import { JudgeSelectPage } from './pages/judge/JudgeSelectPage';
@@ -45,6 +46,7 @@ function App() {
               <Route path="/criteria" element={<CriteriaPage />} />
               <Route path="/judges" element={<JudgeStatusPage />} />
               <Route path="/results" element={<ResultsPage />} />
+              <Route path="/manual-score-entry" element={<ManualScoreEntryPage />} />
               <Route path="/history" element={<EventHistoryPage />} />
               <Route path="/reports" element={<ReportsPage />} />
               <Route path="/diagnostics" element={<DiagnosticsPage />} />

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, ClipboardList, UserCheck, FileText, Trophy, QrCode, X, Copy, Activity } from 'lucide-react';
+import { LayoutDashboard, Users, ClipboardList, UserCheck, FileText, Trophy, QrCode, X, Copy, Activity, Edit3 } from 'lucide-react';
 import { cn } from '../ui/Button';
 import { useAppContext } from '../../context/AppContext';
 import { fetchApi } from '../../api/client';
@@ -27,6 +27,7 @@ export const AdminShell: React.FC<{ children: React.ReactNode }> = ({ children }
     { label: 'Results', path: '/results', icon: Trophy },
     { label: 'Reports', path: '/reports', icon: FileText },
     { label: 'History', path: '/history', icon: ClipboardList },
+    { label: 'Manual Entry', path: '/manual-score-entry', icon: Edit3 },
     { label: 'Diagnostics', path: '/diagnostics', icon: Activity },
   ];
 

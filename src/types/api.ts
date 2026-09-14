@@ -13,6 +13,10 @@ export interface ISubmitScoreRequest {
   criteriaEntries: ICriterionEntry[];
 }
 
+export interface IManualScoreEntryRequest extends ISubmitScoreRequest {
+  pin: string;
+}
+
 export interface ISubmitScoreResponse {
   scoreId:       string;
   computedScore: number;

@@ -58,6 +58,10 @@ pub async fn start_server(app_state: AppState) {
             "/api/admin/resolve-tie",
             post(admin_routes::resolve_tie),
         )
+        .route(
+            "/api/admin/manual-score-entry",
+            post(admin_routes::manual_score_entry),
+        )
         .route("/api/judges", get(judge_routes::get_judges))
         .route("/api/judges/{id}", patch(judge_routes::update_judge))
         .route("/api/judges/session", post(judge_routes::claim_session))

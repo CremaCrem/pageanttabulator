@@ -1,35 +1,9 @@
-use crate::db::{self, AppState};
-use axum::{extract::State, Json};
-use serde::Deserialize;
-use serde_json::{json, Value};
-use std::collections::HashMap;
+import re
 
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct VerifyPinPayload {
-    pub pin: String,
-}
+with open("src-tauri/src/server/admin_routes.rs", "r") as f:
+    content = f.read()
 
-pub async fn verify_pin(
-    State(state): State<AppState>,
-    Json(payload): Json<VerifyPinPayload>,
-) -> Json<Value> {
-    let conn = state.db.lock().unwrap();
-    if let Ok(Some(config)) = db::event::get(&conn) {
-        if config.admin_pin == payload.pin {
-            return Json(json!({"valid": true}));
-        }
-    }
-    Json(json!({"valid": false}))
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ComputeResultsPayload {
-    pub round: String,
-}
-
-
+new_code = """
 fn save_computation_results(conn: &rusqlite::Connection, results: &[db::results::CandidateResult]) -> Result<(), Box<dyn std::error::Error>> {
     for r in results {
         db::results::insert(conn, r)?;
@@ -115,7 +89,6 @@ fn compute_preliminary_results(conn: &rusqlite::Connection, now: &str) -> Result
             candidate_id: c.id.clone(),
             segment_id: Some("".to_string()),
             preliminary_score: Some(prelim_score),
-            preliminary_rank: None,
             preliminary_status: "pending".to_string(),
             final_qa_score: None,
             final_score: None,
@@ -142,17 +115,9 @@ fn compute_preliminary_results(conn: &rusqlite::Connection, now: &str) -> Result
 
     crate::scoring::ranking::rank_candidates(&mut male_results);
     apply_top3(&mut male_results);
-    for res in &mut male_results {
-        res.preliminary_rank = res.rank;
-        res.rank = None;
-    }
 
     crate::scoring::ranking::rank_candidates(&mut female_results);
     apply_top3(&mut female_results);
-    for res in &mut female_results {
-        res.preliminary_rank = res.rank;
-        res.rank = None;
-    }
 
     let mut all_results = Vec::new();
     all_results.extend(male_results);
@@ -184,7 +149,7 @@ fn compute_tiebreak_results(conn: &rusqlite::Connection, scores: &[db::scores::S
         }
     }
 
-    let process_finals = |gender_results: &mut Vec<db::results::CandidateResult>| {
+    let mut process_finals = |gender_results: &mut Vec<db::results::CandidateResult>| {
         let mut tb_rank_map: HashMap<String, u32> = HashMap::new();
 
         if tiebreak_scores_exist {
@@ -366,7 +331,7 @@ fn compute_finals_results(conn: &rusqlite::Connection, now: &str) -> Result<(), 
         let final_qa_rank_val = final_qa_ranks.get(&res.candidate_id).copied().unwrap_or(0);
         res.final_qa_score = Some(final_qa_rank_val as f64);
 
-        let prelim_rank = res.preliminary_rank.unwrap_or(0) as f64;
+        let prelim_rank = res.rank.unwrap_or(0) as f64;
         res.final_score = Some(crate::scoring::compute::compute_final_score(
             prelim_rank,
             final_qa_rank_val as f64,
@@ -529,274 +494,18 @@ pub async fn compute_results(
         })),
     }
 }
+"""
 
-pub async fn get_results(State(state): State<AppState>) -> Json<Value> {
-    let conn = state.db.lock().unwrap();
-    if let Ok(results) = db::results::get_overall_results(&conn) {
-        Json(json!(results))
-    } else {
-        Json(json!([]))
-    }
-}
+start_token = "pub async fn compute_results("
+end_token = "pub async fn get_results(State(state): State<AppState>) -> Json<Value> {"
 
-pub async fn get_special_awards(State(state): State<AppState>) -> Json<Value> {
-    let conn = state.db.lock().unwrap();
-    if let Ok(awards) = db::special_awards::get_all(&conn) {
-        Json(json!(awards))
-    } else {
-        Json(json!([]))
-    }
-}
+start_idx = content.find(start_token)
+end_idx = content.find(end_token)
 
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ResolveTiePayload {
-    pub pin: String,
-    pub stage: String,
-    pub resolutions: Vec<CandidateResolution>,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CandidateResolution {
-    pub candidate_id: String,
-    pub resolution: String,
-}
-
-pub async fn resolve_tie(
-    State(state): State<AppState>,
-    Json(payload): Json<ResolveTiePayload>,
-) -> (axum::http::StatusCode, Json<Value>) {
-    let conn = state.db.lock().unwrap();
-    if let Ok(Some(config)) = db::event::get(&conn) {
-        if config.admin_pin != payload.pin {
-            return (axum::http::StatusCode::UNAUTHORIZED, Json(json!({"error": "Invalid PIN"})));
-        }
-    } else {
-        return (axum::http::StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": "Config error"})));
-    }
-
-    let now = chrono::Utc::now().to_rfc3339();
-    for res in &payload.resolutions {
-        let sr = db::stage_resolutions::StageResolution {
-            candidate_id: res.candidate_id.clone(),
-            stage: payload.stage.clone(),
-            resolution: res.resolution.clone(),
-            created_at: now.clone(),
-        };
-        let _ = db::stage_resolutions::insert(&conn, &sr);
-    }
-    
-    let _ = crate::db::logs::insert(
-        &conn,
-        &crate::db::logs::SystemLog {
-            id: uuid::Uuid::new_v4().to_string(),
-            level: "info".to_string(),
-            source: "admin".to_string(),
-            message: format!("Admin resolved tie for stage {} for {} candidates", payload.stage, payload.resolutions.len()),
-            details: None,
-            created_at: now,
-        },
-    );
-    
-    (axum::http::StatusCode::OK, Json(json!({"status": "success"})))
-}
-
-
-#[derive(serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SegmentBreakdown {
-    pub candidate_id: String,
-    pub segment_id: String,
-    pub rank_sum: u32,
-    pub raw_score_sum: f64,
-    pub final_rank: u32,
-}
-
-pub async fn get_results_breakdown(State(state): State<AppState>) -> Json<Value> {
-    let conn = state.db.lock().unwrap();
-    let scores = db::scores::get_all(&conn).unwrap_or_default();
-    let candidates = db::candidates::get_all(&conn).unwrap_or_default();
-    
-    let mut candidate_genders = std::collections::HashMap::new();
-    for candidate in candidates {
-        candidate_genders.insert(candidate.id, candidate.gender);
-    }
-    
-    let segments = vec![
-        "production_number",
-        "school_uniform",
-        "professional_attire",
-        "modern_barong",
-        "preliminary_qa",
-        "final_qa",
-        "tie_breaking_qa",
-        "best_advocacy",
-        "best_in_ramp"
-    ];
-    
-    let mut breakdown: Vec<SegmentBreakdown> = Vec::new();
-    
-    for segment in segments {
-        let mut segment_scores_by_judge: std::collections::HashMap<String, Vec<crate::scoring::ranking::JudgeRawScore>> = std::collections::HashMap::new();
-        
-        for score in &scores {
-            if score.segment_id == segment {
-                segment_scores_by_judge
-                    .entry(score.judge_id.clone())
-                    .or_default()
-                    .push(crate::scoring::ranking::JudgeRawScore {
-                        candidate_id: score.candidate_id.clone(),
-                        raw_score: score.computed_score,
-                    });
-            }
-        }
-        
-        if segment_scores_by_judge.is_empty() {
-            continue;
-        }
-        
-        let mut male_judge_ranks = Vec::new();
-        let mut female_judge_ranks = Vec::new();
-        
-        for (_, judge_raw_scores) in segment_scores_by_judge {
-            let mut male_scores = Vec::new();
-            let mut female_scores = Vec::new();
-            
-            for score in judge_raw_scores {
-                if let Some(gender) = candidate_genders.get(&score.candidate_id) {
-                    if gender.to_lowercase() == "male" {
-                        male_scores.push(score);
-                    } else if gender.to_lowercase() == "female" {
-                        female_scores.push(score);
-                    }
-                }
-            }
-            
-            if !male_scores.is_empty() {
-                male_judge_ranks.push(crate::scoring::ranking::rank_segment_scores(male_scores));
-            }
-            if !female_scores.is_empty() {
-                female_judge_ranks.push(crate::scoring::ranking::rank_segment_scores(female_scores));
-            }
-        }
-        
-        let male_consolidated = crate::scoring::ranking::consolidate_segment_ranks(male_judge_ranks);
-        let female_consolidated = crate::scoring::ranking::consolidate_segment_ranks(female_judge_ranks);
-        
-        for res in male_consolidated.into_iter().chain(female_consolidated) {
-            breakdown.push(SegmentBreakdown {
-                candidate_id: res.candidate_id,
-                segment_id: segment.to_string(),
-                rank_sum: res.rank_sum,
-                raw_score_sum: res.raw_score_sum,
-                final_rank: res.final_rank,
-            });
-        }
-    }
-    
-    Json(json!(breakdown))
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ManualScoreEntryPayload {
-    pub pin: String,
-    pub judge_id: String,
-    pub candidate_id: String,
-    pub segment_id: String,
-    pub criteria_entries: Vec<crate::server::score_routes::CriterionEntry>,
-}
-
-pub async fn manual_score_entry(
-    State(state): State<AppState>,
-    Json(payload): Json<ManualScoreEntryPayload>,
-) -> (axum::http::StatusCode, Json<Value>) {
-    let conn = state.db.lock().unwrap();
-    
-    // a. Validate PIN
-    if let Ok(Some(config)) = db::event::get(&conn) {
-        if config.admin_pin != payload.pin {
-            return (axum::http::StatusCode::UNAUTHORIZED, Json(json!({"error": "Invalid PIN"})));
-        }
-    } else {
-        return (axum::http::StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": "Config error"})));
-    }
-
-    // b. Validate criteria completeness
-    let expected_criteria = crate::scoring::compute::get_segment_criteria_ids(&payload.segment_id);
-    if expected_criteria.is_empty() {
-        return (axum::http::StatusCode::BAD_REQUEST, Json(json!({"error": "Invalid segment"})));
-    }
-    
-    if payload.criteria_entries.len() != expected_criteria.len() {
-        return (axum::http::StatusCode::BAD_REQUEST, Json(json!({"error": "All criteria are required for this segment"})));
-    }
-    
-    let mut submitted_criteria = std::collections::HashSet::new();
-    for entry in &payload.criteria_entries {
-        submitted_criteria.insert(entry.criterion_id.as_str());
-    }
-    
-    let expected_set: std::collections::HashSet<&str> = expected_criteria.into_iter().collect();
-    if submitted_criteria != expected_set {
-         return (axum::http::StatusCode::BAD_REQUEST, Json(json!({"error": "All criteria are required for this segment"})));
-    }
-
-    // c. Validate score ranges
-    for entry in &payload.criteria_entries {
-        if entry.score < 1 || entry.score > 100 {
-            return (axum::http::StatusCode::BAD_REQUEST, Json(json!({"error": "Scores must be between 1 and 100"})));
-        }
-    }
-
-    // d. Duplicate check
-    if let Ok(existing_scores) = db::scores::get_by_judge(&conn, &payload.judge_id) {
-        let is_duplicate = existing_scores
-            .iter()
-            .any(|s| s.segment_id == payload.segment_id && s.candidate_id == payload.candidate_id);
-            
-        if is_duplicate {
-            return (axum::http::StatusCode::BAD_REQUEST, Json(json!({"error": "Score already submitted for this candidate in this segment."})));
-        }
-    }
-    
-    // e. Compute score and insert
-    let computed = crate::scoring::compute::compute_segment_score(&payload.segment_id, &payload.criteria_entries);
-    let now = chrono::Utc::now().to_rfc3339();
-    let score_id = uuid::Uuid::new_v4().to_string();
-    
-    let score = db::scores::Score {
-        id: score_id.clone(),
-        judge_id: payload.judge_id.clone(),
-        candidate_id: payload.candidate_id.clone(),
-        segment_id: payload.segment_id.clone(),
-        criteria_json: serde_json::to_string(&payload.criteria_entries).unwrap_or_else(|_| "[]".to_string()),
-        computed_score: computed,
-        submitted_at: now.clone(),
-    };
-    
-    if let Err(_) = db::scores::insert(&conn, &score) {
-        return (axum::http::StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": "Failed to save score"})));
-    }
-    
-    // f. Write log
-    let _ = db::logs::insert(&conn, &db::logs::SystemLog {
-        id: uuid::Uuid::new_v4().to_string(),
-        level: "info".to_string(),
-        source: "admin".to_string(),
-        message: format!("Admin manually entered score for Judge {} \u{2014} Candidate {} (Segment: {})", payload.judge_id, payload.candidate_id, payload.segment_id),
-        details: None,
-        created_at: now.clone(),
-    });
-    
-    // g. Return success
-    (
-        axum::http::StatusCode::OK,
-        Json(json!({
-            "scoreId": score_id,
-            "computedScore": computed,
-            "submittedAt": now
-        }))
-    )
-}
+if start_idx != -1 and end_idx != -1:
+    result = content[:start_idx] + new_code + "\n" + content[end_idx:]
+    with open("src-tauri/src/server/admin_routes.rs", "w") as f:
+        f.write(result)
+    print("Replaced successfully")
+else:
+    print("Could not find boundaries")

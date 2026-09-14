@@ -77,3 +77,16 @@ pub fn compute_preliminary_score(segment_ranks: &[f64]) -> f64 {
 pub fn compute_final_score(prelim: f64, final_qa: f64) -> f64 {
     (prelim * 0.50) + (final_qa * 0.50)
 }
+
+pub fn get_segment_criteria_ids(segment_id: &str) -> Vec<&'static str> {
+    match segment_id {
+        "production_number" => vec!["stage_presence", "energy", "audience_engagement", "overall_appeal"],
+        "school_uniform" => vec!["neatness", "confidence_bearing", "advocacy", "overall_impact"],
+        "professional_attire" => vec!["elegance_professionalism", "suitability", "confidence_stage", "overall_impact"],
+        "modern_barong" => vec!["elegance_poise", "suitability_creativity", "confidence_stage", "overall_impact"],
+        "preliminary_qa" | "final_qa" | "tie_breaking_qa" => vec!["content_substance", "clarity_organization", "confidence_delivery", "relevance"],
+        "best_advocacy" => vec!["relevance_alignment", "content_substance", "clarity_organization", "delivery_impact"],
+        "best_in_ramp" => vec!["poise_posture", "confidence_stage", "runway_technique", "overall_impact"],
+        _ => vec![],
+    }
+}
