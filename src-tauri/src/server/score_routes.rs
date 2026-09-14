@@ -47,9 +47,17 @@ pub async fn submit_score(
         &payload.criteria_entries,
     );
 
+    // Get current judge name for historical snapshotting
+    let judge_name = if let Ok(Some(judge)) = db::judges::get_by_id(&conn, &payload.judge_id) {
+        judge.name
+    } else {
+        None
+    };
+
     let score = db::scores::Score {
         id: Uuid::new_v4().to_string(),
         judge_id: payload.judge_id,
+        judge_name,
         candidate_id: payload.candidate_id,
         segment_id: payload.segment_id,
         criteria_json,

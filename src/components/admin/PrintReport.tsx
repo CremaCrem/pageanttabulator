@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { fetchApi } from '../../api/client';
-import { ICandidate, ICandidateResult, ISpecialAward } from '../../types';
+import { ICandidate, ICandidateResult, ISpecialAward, IJudge } from '../../types';
 import { useAppContext } from '../../context/AppContext';
 
 export const PrintReport: React.FC<{ onLoaded?: () => void }> = ({ onLoaded }) => {
@@ -8,19 +8,22 @@ export const PrintReport: React.FC<{ onLoaded?: () => void }> = ({ onLoaded }) =
   const [candidates, setCandidates] = useState<ICandidate[]>([]);
   const [results, setResults] = useState<ICandidateResult[]>([]);
   const [awards, setAwards] = useState<ISpecialAward[]>([]);
+  const [judges, setJudges] = useState<IJudge[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [cData, rData, aData] = await Promise.all([
+        const [cData, rData, aData, jData] = await Promise.all([
           fetchApi('/api/candidates'),
           fetchApi('/api/results'),
           fetchApi('/api/results/special-awards'),
+          fetchApi('/api/judges'),
         ]);
         setCandidates(cData);
         setResults(rData);
         setAwards(aData);
+        setJudges(jData);
       } catch (err) {
         console.error('Failed to load report data', err);
       } finally {
@@ -166,44 +169,33 @@ export const PrintReport: React.FC<{ onLoaded?: () => void }> = ({ onLoaded }) =
       {renderTable(femaleResults, "Female Category Rankings")}
       {renderAwards()}
       
-      <div className="mt-16 pt-8 border-t border-neutral-300 grid grid-cols-5 gap-4 text-center text-sm">
-        <div>
-          <div className="border-b border-black mb-1 mx-2 h-10"></div>
-          <p className="font-bold leading-tight">Athena Barbie Porcalla</p>
-        </div>
-        <div>
-          <div className="border-b border-black mb-1 mx-2 h-10"></div>
-          <p className="font-bold leading-tight">Shereen Marie Gubot</p>
-        </div>
-        <div>
-          <div className="border-b border-black mb-1 mx-2 h-10"></div>
-          <p className="font-bold leading-tight">Aeon Francine Bao</p>
-        </div>
-        <div>
-          <div className="border-b border-black mb-1 mx-2 h-10"></div>
-          <p className="font-bold leading-tight">Justin Anthony P. Realubit</p>
-        </div>
-        <div>
-          <div className="border-b border-black mb-1 mx-2 h-10"></div>
-          <p className="font-bold leading-tight">Ievo Gielo Ala Señadan</p>
-        </div>
+      <div 
+        className="mt-16 pt-8 border-t border-neutral-300 grid gap-4 text-center text-sm"
+        style={{ gridTemplateColumns: `repeat(${state.eventConfig?.judgeCount || 5}, minmax(0, 1fr))` }}
+      >
+        {judges.slice(0, state.eventConfig?.judgeCount || 5).map((judge) => (
+          <div key={judge.id}>
+            <div className="border-b border-black mb-1 mx-2 h-10"></div>
+            <p className="font-bold leading-tight">{judge.name || '\u00A0'}</p>
+          </div>
+        ))}
       </div>
 
       <div className="mt-10 grid grid-cols-3 gap-8 text-center text-sm">
         <div>
           <div className="border-b border-black mb-1 mx-8 h-10"></div>
-          <p className="font-bold leading-tight">Jeremy Zion L. Jamer</p>
+          <p className="font-bold leading-tight">{state.eventConfig?.headTabulator || '\u00A0'}</p>
           <p className="font-semibold text-xs text-neutral-600">Head Tabulator</p>
         </div>
         <div>
           <div className="border-b border-black mb-1 mx-8 h-10"></div>
-          <p className="font-bold leading-tight">Dr. Marilou B. Lansangan</p>
-          <p className="font-semibold text-xs text-neutral-600">Head Auditor</p>
+          <p className="font-bold leading-tight">{state.eventConfig?.coordinator || '\u00A0'}</p>
+          <p className="font-semibold text-xs text-neutral-600">Coordinator</p>
         </div>
         <div>
           <div className="border-b border-black mb-1 mx-8 h-10"></div>
-          <p className="font-bold leading-tight">Ma. Lalaine Serrano</p>
-          <p className="font-semibold text-xs text-neutral-600">Event Chairman</p>
+          <p className="font-bold leading-tight">{state.eventConfig?.auditor || '\u00A0'}</p>
+          <p className="font-semibold text-xs text-neutral-600">Auditor</p>
         </div>
       </div>
     </div>

@@ -28,6 +28,9 @@ pub fn init_db_with_path(db_path: &Path) -> Result<Connection, rusqlite::Error> 
             venue       TEXT,
             judge_count INTEGER NOT NULL DEFAULT 5,
             admin_pin   TEXT NOT NULL,
+            head_tabulator TEXT,
+            coordinator    TEXT,
+            auditor        TEXT,
             created_at  TEXT NOT NULL
         )",
         [],
@@ -82,6 +85,7 @@ pub fn init_db_with_path(db_path: &Path) -> Result<Connection, rusqlite::Error> 
         "CREATE TABLE IF NOT EXISTS scores (
             id              TEXT PRIMARY KEY,
             judge_id        TEXT NOT NULL,
+            judge_name      TEXT,
             candidate_id    TEXT NOT NULL,
             segment_id      TEXT NOT NULL,
             criteria_json   TEXT NOT NULL,
@@ -184,6 +188,14 @@ pub fn init_db_with_path(db_path: &Path) -> Result<Connection, rusqlite::Error> 
     let _ = conn.execute("ALTER TABLE judges ADD COLUMN session_token TEXT", []);
     let _ = conn.execute("ALTER TABLE judges ADD COLUMN photo_path TEXT", []);
     let _ = conn.execute("ALTER TABLE judges ADD COLUMN password TEXT", []);
+
+    // Safe migration: Add new official columns to event_config
+    let _ = conn.execute("ALTER TABLE event_config ADD COLUMN head_tabulator TEXT", []);
+    let _ = conn.execute("ALTER TABLE event_config ADD COLUMN coordinator TEXT", []);
+    let _ = conn.execute("ALTER TABLE event_config ADD COLUMN auditor TEXT", []);
+
+    // Safe migration: Add judge_name to scores
+    let _ = conn.execute("ALTER TABLE scores ADD COLUMN judge_name TEXT", []);
 
     // Special Awards
     conn.execute(

@@ -766,9 +766,17 @@ pub async fn manual_score_entry(
     let now = chrono::Utc::now().to_rfc3339();
     let score_id = uuid::Uuid::new_v4().to_string();
     
+    // Get current judge name for historical snapshotting
+    let judge_name = if let Ok(Some(judge)) = db::judges::get_by_id(&conn, &payload.judge_id) {
+        judge.name
+    } else {
+        None
+    };
+
     let score = db::scores::Score {
         id: score_id.clone(),
         judge_id: payload.judge_id.clone(),
+        judge_name,
         candidate_id: payload.candidate_id.clone(),
         segment_id: payload.segment_id.clone(),
         criteria_json: serde_json::to_string(&payload.criteria_entries).unwrap_or_else(|_| "[]".to_string()),

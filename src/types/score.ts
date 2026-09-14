@@ -8,6 +8,7 @@ export interface ICriterionEntry {
 export interface ISegmentScore {
   id:             string;
   judgeId:        string;
+  judgeName?:     string;
   candidateId:    string;
   segmentId:      SegmentId;
   criteriaEntries: ICriterionEntry[];

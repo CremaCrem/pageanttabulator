@@ -5,5 +5,8 @@ export interface IEventConfig {
   eventDate:   string;
   venue:       string;
   judgeCount:  number;
+  headTabulator?: string;
+  coordinator?:   string;
+  auditor?:       string;
   createdAt:   string;
 }

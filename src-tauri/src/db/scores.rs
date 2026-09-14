@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 pub struct Score {
     pub id: String,
     pub judge_id: String,
+    pub judge_name: Option<String>,
     pub candidate_id: String,
     pub segment_id: String,
     pub criteria_json: String, // Stored as JSON string
@@ -15,9 +16,9 @@ pub struct Score {
 
 pub fn insert(conn: &Connection, s: &Score) -> Result<()> {
     conn.execute(
-        "INSERT INTO scores (id, judge_id, candidate_id, segment_id, criteria_json, computed_score, submitted_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-        params![s.id, s.judge_id, s.candidate_id, s.segment_id, s.criteria_json, s.computed_score, s.submitted_at],
+        "INSERT INTO scores (id, judge_id, judge_name, candidate_id, segment_id, criteria_json, computed_score, submitted_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+        params![s.id, s.judge_id, s.judge_name, s.candidate_id, s.segment_id, s.criteria_json, s.computed_score, s.submitted_at],
     )?;
     Ok(())
 }
@@ -28,6 +29,7 @@ pub fn get_by_judge(conn: &Connection, judge_id: &str) -> Result<Vec<Score>> {
         Ok(Score {
             id: row.get("id")?,
             judge_id: row.get("judge_id")?,
+            judge_name: row.get("judge_name")?,
             candidate_id: row.get("candidate_id")?,
             segment_id: row.get("segment_id")?,
             criteria_json: row.get("criteria_json")?,
@@ -49,6 +51,7 @@ pub fn get_by_segment(conn: &Connection, segment_id: &str) -> Result<Vec<Score>>
         Ok(Score {
             id: row.get("id")?,
             judge_id: row.get("judge_id")?,
+            judge_name: row.get("judge_name")?,
             candidate_id: row.get("candidate_id")?,
             segment_id: row.get("segment_id")?,
             criteria_json: row.get("criteria_json")?,
@@ -76,6 +79,7 @@ pub fn get_all(conn: &Connection) -> Result<Vec<Score>> {
         Ok(Score {
             id: row.get("id")?,
             judge_id: row.get("judge_id")?,
+            judge_name: row.get("judge_name")?,
             candidate_id: row.get("candidate_id")?,
             segment_id: row.get("segment_id")?,
             criteria_json: row.get("criteria_json")?,

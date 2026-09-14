@@ -11,6 +11,9 @@ pub struct EventConfig {
     pub venue: Option<String>,
     pub judge_count: i64,
     pub admin_pin: String,
+    pub head_tabulator: Option<String>,
+    pub coordinator: Option<String>,
+    pub auditor: Option<String>,
     pub created_at: String,
 }
 
@@ -25,6 +28,9 @@ pub fn get(conn: &Connection) -> Result<Option<EventConfig>> {
             venue: row.get("venue")?,
             judge_count: row.get("judge_count")?,
             admin_pin: row.get("admin_pin")?,
+            head_tabulator: row.get("head_tabulator")?,
+            coordinator: row.get("coordinator")?,
+            auditor: row.get("auditor")?,
             created_at: row.get("created_at")?,
         })
     })
@@ -33,17 +39,20 @@ pub fn get(conn: &Connection) -> Result<Option<EventConfig>> {
 
 pub fn upsert(conn: &Connection, config: &EventConfig) -> Result<()> {
     conn.execute(
-        "INSERT INTO event_config (id, name, subtitle, event_date, venue, judge_count, admin_pin, created_at)
-         VALUES (1, ?1, ?2, ?3, ?4, ?5, ?6, ?7)
+        "INSERT INTO event_config (id, name, subtitle, event_date, venue, judge_count, admin_pin, head_tabulator, coordinator, auditor, created_at)
+         VALUES (1, ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
          ON CONFLICT(id) DO UPDATE SET 
             name=excluded.name, 
             subtitle=excluded.subtitle, 
             event_date=excluded.event_date, 
             venue=excluded.venue, 
             judge_count=excluded.judge_count, 
-            admin_pin=excluded.admin_pin",
+            admin_pin=excluded.admin_pin,
+            head_tabulator=excluded.head_tabulator,
+            coordinator=excluded.coordinator,
+            auditor=excluded.auditor",
         params![
-            config.name, config.subtitle, config.event_date, config.venue, config.judge_count, config.admin_pin, config.created_at
+            config.name, config.subtitle, config.event_date, config.venue, config.judge_count, config.admin_pin, config.head_tabulator, config.coordinator, config.auditor, config.created_at
         ],
     )?;
     Ok(())

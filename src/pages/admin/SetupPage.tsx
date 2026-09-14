@@ -35,6 +35,9 @@ export const SetupPage: React.FC = () => {
     eventDate: '2026-09-10',
     venue: 'IDSC Gymnasium',
     judgeCount: 5,
+    headTabulator: '',
+    coordinator: '',
+    auditor: '',
   });
 
   useEffect(() => {
@@ -50,6 +53,9 @@ export const SetupPage: React.FC = () => {
             eventDate: config.eventDate,
             venue: config.venue,
             judgeCount: config.judgeCount,
+            headTabulator: config.headTabulator || '',
+            coordinator: config.coordinator || '',
+            auditor: config.auditor || '',
           });
         }
       } catch (err: any) {
@@ -216,6 +222,47 @@ export const SetupPage: React.FC = () => {
                     onChange={handleChange}
                     required
                     className="w-full p-3 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-200 outline-none transition-all"
+                  />
+                </div>
+
+                <div className="space-y-2 md:col-span-2 pt-4 border-t border-neutral-100">
+                  <h3 className="text-sm font-bold text-neutral-800 uppercase tracking-wider mb-2">Event Officials</h3>
+                  <p className="text-xs text-neutral-500 mb-4">These names will appear at the bottom of official tabulation reports.</p>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-neutral-700">Head Tabulator</label>
+                  <input
+                    type="text"
+                    name="headTabulator"
+                    value={formData.headTabulator}
+                    onChange={handleChange}
+                    className="w-full p-3 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-200 outline-none transition-all"
+                    placeholder="e.g. Jeremy Zion L. Jamer"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-neutral-700">Coordinator</label>
+                  <input
+                    type="text"
+                    name="coordinator"
+                    value={formData.coordinator}
+                    onChange={handleChange}
+                    className="w-full p-3 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-200 outline-none transition-all"
+                    placeholder="e.g. Ma. Lalaine Serrano"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-neutral-700">Auditor</label>
+                  <input
+                    type="text"
+                    name="auditor"
+                    value={formData.auditor}
+                    onChange={handleChange}
+                    className="w-full p-3 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-200 outline-none transition-all"
+                    placeholder="e.g. Dr. Marilou B. Lansangan"
                   />
                 </div>
               </div>

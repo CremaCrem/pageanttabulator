@@ -12,6 +12,9 @@ pub struct UpdateEventPayload {
     pub venue: Option<String>,
     pub judge_count: Option<i64>,
     pub admin_pin: Option<String>,
+    pub head_tabulator: Option<String>,
+    pub coordinator: Option<String>,
+    pub auditor: Option<String>,
 }
 
 pub async fn get_event(State(state): State<AppState>) -> Json<Value> {
@@ -42,8 +45,11 @@ pub async fn update_event(
         judge_count: payload.judge_count.unwrap_or(5),
         admin_pin: payload
             .admin_pin
-            .or_else(|| existing.map(|e| e.admin_pin))
+            .or_else(|| existing.as_ref().map(|e| e.admin_pin.clone()))
             .unwrap_or_else(|| "1234".to_string()),
+        head_tabulator: payload.head_tabulator.or_else(|| existing.as_ref().and_then(|e| e.head_tabulator.clone())),
+        coordinator: payload.coordinator.or_else(|| existing.as_ref().and_then(|e| e.coordinator.clone())),
+        auditor: payload.auditor.or_else(|| existing.as_ref().and_then(|e| e.auditor.clone())),
         created_at: now,
     };
 
