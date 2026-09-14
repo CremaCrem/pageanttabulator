@@ -57,13 +57,3 @@ pub fn get_overall_results(conn: &Connection) -> Result<Vec<CandidateResult>> {
     Ok(results)
 }
 
-pub fn cleanup_duplicate_overall_results(conn: &Connection) -> Result<usize> {
-    let deleted = conn.execute(
-        "DELETE FROM results WHERE (segment_id IS NULL OR segment_id = '') AND rowid NOT IN (
-            SELECT MAX(rowid) FROM results WHERE (segment_id IS NULL OR segment_id = '') GROUP BY candidate_id
-        )",
-        [],
-    )?;
-    conn.execute("UPDATE results SET segment_id = '' WHERE segment_id IS NULL", [])?;
-    Ok(deleted)
-}

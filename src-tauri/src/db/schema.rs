@@ -119,6 +119,17 @@ pub fn init_db_with_path(db_path: &Path) -> Result<Connection, rusqlite::Error> 
         [],
     )?;
 
+    // Fix NULL segment_ids for unique constraints
+    // First, delete duplicates keeping only the most recent row per candidate
+    let _ = conn.execute(
+        "DELETE FROM results WHERE (segment_id IS NULL OR segment_id = '') AND rowid NOT IN (
+            SELECT MAX(rowid) FROM results WHERE (segment_id IS NULL OR segment_id = '') GROUP BY candidate_id
+        )",
+        [],
+    );
+    // Then normalize remaining NULLs to ''
+    let _ = conn.execute("UPDATE results SET segment_id = '' WHERE segment_id IS NULL", []);
+
     // Admin Overrides / Stage Resolutions
     conn.execute(
         "CREATE TABLE IF NOT EXISTS stage_resolutions (
