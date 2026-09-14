@@ -61,7 +61,7 @@ export const ScoringPage: React.FC = () => {
           const res: any[] = await fetchApi('/api/results');
           const top3 = new Set<string>();
           res.forEach(r => {
-            if (r.isTop3) top3.add(r.candidateId);
+            if (r.preliminaryStatus === 'advancing') top3.add(r.candidateId);
           });
           setTop3Ids(top3);
         } catch (err) {

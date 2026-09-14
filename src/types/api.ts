@@ -50,7 +50,3 @@ export interface IVerifyPinRequest {
 export interface IVerifyPinResponse {
   valid: boolean;
 }
-
-export interface IAdvanceTop3Request {
-  isTop3: boolean;
-}
