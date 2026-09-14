@@ -327,9 +327,16 @@ export interface ILockRoundRequest {
   segmentId: SegmentId;
 }
 
-// PATCH /api/candidates/:id/advance-top3 — request body (PIN in X-Admin-PIN header)
-export interface IAdvanceTop3Request {
-  isTop3: boolean;
+// POST /api/admin/resolve-tie — request body
+export interface ICandidateResolution {
+  candidateId: string;
+  resolution:  string; // 'advancing' | 'excluded'
+}
+
+export interface IResolveTieRequest {
+  pin:         string;
+  stage:       string;
+  resolutions: ICandidateResolution[];
 }
 
 // POST /api/results/compute — request body (PIN required)
