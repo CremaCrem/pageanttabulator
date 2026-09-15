@@ -256,7 +256,7 @@ export const JudgeStatusPage: React.FC = () => {
               type="text" 
               value={editForm.name} 
               onChange={e => setEditForm({...editForm, name: e.target.value})} 
-              className="w-full p-3 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-shadow" 
+              className="w-full form-control" 
               placeholder="e.g. Dr. Jane Smith" 
             />
           </div>
@@ -267,7 +267,7 @@ export const JudgeStatusPage: React.FC = () => {
               type="text" 
               value={editForm.password} 
               onChange={e => setEditForm({...editForm, password: e.target.value})} 
-              className="w-full p-3 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-shadow" 
+              className="w-full form-control" 
               placeholder="Leave empty for no password" 
             />
             <p className="text-xs text-neutral-500 mt-1">If set, the judge must enter this password to claim their slot.</p>

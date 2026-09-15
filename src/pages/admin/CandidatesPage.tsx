@@ -191,19 +191,19 @@ export const CandidatesPage: React.FC = () => {
             <div className="flex flex-wrap gap-4 items-end flex-1">
               <div className="flex-1 min-w-[120px]">
                 <label className="block text-xs font-semibold text-neutral-600 mb-1">Number</label>
-                <input type="text" required value={newCandidate.candidateNumber} onChange={e => setNewCandidate({...newCandidate, candidateNumber: e.target.value})} className="w-full p-2 border border-neutral-300 rounded focus:border-primary-500 outline-none" placeholder="e.g. 01" />
+                <input type="text" required value={newCandidate.candidateNumber} onChange={e => setNewCandidate({...newCandidate, candidateNumber: e.target.value})} className="w-full form-control" placeholder="e.g. 01" />
               </div>
           <div className="flex-[3] min-w-[200px]">
             <label className="block text-xs font-semibold text-neutral-600 mb-1">Full Name</label>
-            <input ref={fullNameInputRef} type="text" required value={newCandidate.fullName} onChange={e => setNewCandidate({...newCandidate, fullName: e.target.value})} className="w-full p-2 border border-neutral-300 rounded focus:border-primary-500 outline-none" placeholder="Juan dela Cruz" />
+            <input ref={fullNameInputRef} type="text" required value={newCandidate.fullName} onChange={e => setNewCandidate({...newCandidate, fullName: e.target.value})} className="w-full form-control" placeholder="Juan dela Cruz" />
           </div>
           <div className="flex-[2] min-w-[150px]">
             <label className="block text-xs font-semibold text-neutral-600 mb-1">Department/College</label>
-            <input type="text" required value={newCandidate.department} onChange={e => setNewCandidate({...newCandidate, department: e.target.value})} className="w-full p-2 border border-neutral-300 rounded focus:border-primary-500 outline-none" placeholder="CAS" />
+            <input type="text" required value={newCandidate.department} onChange={e => setNewCandidate({...newCandidate, department: e.target.value})} className="w-full form-control" placeholder="CAS" />
           </div>
               <div className="flex-1 min-w-[120px]">
                 <label className="block text-xs font-semibold text-neutral-600 mb-1">Category</label>
-                <select value={newCandidate.gender} onChange={e => setNewCandidate({...newCandidate, gender: e.target.value as Gender})} className="w-full p-2 border border-neutral-300 rounded focus:border-primary-500 outline-none bg-white">
+                <select value={newCandidate.gender} onChange={e => setNewCandidate({...newCandidate, gender: e.target.value as Gender})} className="w-full form-control">
                   <option value={Gender.Female}>Female (Ms.)</option>
                   <option value={Gender.Male}>Male (Mr.)</option>
                 </select>
@@ -211,7 +211,7 @@ export const CandidatesPage: React.FC = () => {
             </div>
           </div>
           <div className="flex justify-end">
-            <Button type="submit" disabled={adding || imageUploading} isLoading={adding} loadingText="Adding..." className="h-[42px]">
+            <Button type="submit" disabled={adding || imageUploading} isLoading={adding} loadingText="Adding...">
               Add Candidate
             </Button>
           </div>

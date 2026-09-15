@@ -231,7 +231,7 @@ export const DiagnosticsPage: React.FC = () => {
             placeholder="Admin PIN"
             value={pin}
             onChange={e => setPin(e.target.value)}
-            className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:outline-none transition-shadow ${cleanupError ? 'border-red-300 focus:ring-red-200' : 'border-neutral-200 focus:ring-primary-200'}`}
+            className={`w-full form-control ${cleanupError ? '!border-red-500 !ring-red-500' : ''}`}
             autoFocus
           />
           {cleanupError && <div className="mt-2 text-xs text-red-600 font-semibold">{cleanupError}</div>}

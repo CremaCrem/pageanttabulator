@@ -246,7 +246,7 @@ export const ManualScoreEntryPage: React.FC = () => {
             type="password"
             value={pinInput}
             onChange={(e) => setPinInput(e.target.value)}
-            className="flex-1 px-4 py-2 border border-neutral-300 rounded-lg text-lg text-center tracking-widest outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+            className="flex-1 form-control text-center tracking-widest text-lg"
             placeholder="PIN"
             autoFocus
           />
@@ -274,7 +274,7 @@ export const ManualScoreEntryPage: React.FC = () => {
             <select
               value={selectedJudgeId}
               onChange={e => setSelectedJudgeId(e.target.value)}
-              className="w-full p-2 border border-neutral-300 rounded-lg outline-none focus:border-primary-500"
+              className="w-full form-control"
             >
               <option value="">-- Select Judge --</option>
               {judges.map(j => (
@@ -287,7 +287,7 @@ export const ManualScoreEntryPage: React.FC = () => {
             <select
               value={selectedSegmentId}
               onChange={handleSegmentChange}
-              className="w-full p-2 border border-neutral-300 rounded-lg outline-none focus:border-primary-500"
+              className="w-full form-control"
             >
               <option value="">-- Select Segment --</option>
               {Object.values(SEGMENTS).map(s => (
@@ -303,7 +303,7 @@ export const ManualScoreEntryPage: React.FC = () => {
             <select
               value={selectedCandidateId}
               onChange={handleCandidateChange}
-              className="w-full p-2 border border-neutral-300 rounded-lg outline-none focus:border-primary-500"
+              className="w-full form-control"
             >
               <option value="">-- Select Candidate --</option>
               {candidates.map(c => (
@@ -346,7 +346,7 @@ export const ManualScoreEntryPage: React.FC = () => {
                       max="100"
                       value={scores[crit.id] === undefined ? '' : scores[crit.id]}
                       onChange={(e) => handleScoreChange(crit.id, e.target.value)}
-                      className="w-20 text-center text-lg p-2 border border-neutral-300 rounded outline-none focus:border-primary-500"
+                      className="w-20 text-center form-control font-mono text-lg"
                       placeholder="—"
                     />
                     <span className="text-sm text-neutral-400">/100</span>

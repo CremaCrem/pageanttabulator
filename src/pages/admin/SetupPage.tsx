@@ -182,7 +182,7 @@ export const SetupPage: React.FC = () => {
                     value={formData.name}
                     onChange={handleChange}
                     required
-                    className="w-full p-3 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-200 outline-none transition-all"
+                    className="w-full form-control"
                   />
                 </div>
 
@@ -193,7 +193,7 @@ export const SetupPage: React.FC = () => {
                     name="subtitle"
                     value={formData.subtitle}
                     onChange={handleChange}
-                    className="w-full p-3 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-200 outline-none transition-all"
+                    className="w-full form-control"
                   />
                 </div>
 
@@ -205,7 +205,7 @@ export const SetupPage: React.FC = () => {
                     value={formData.eventDate}
                     onChange={handleChange}
                     required
-                    className="w-full p-3 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-200 outline-none transition-all"
+                    className="w-full form-control"
                   />
                 </div>
 
@@ -219,7 +219,7 @@ export const SetupPage: React.FC = () => {
                     value={formData.judgeCount}
                     onChange={handleChange}
                     required
-                    className="w-full p-3 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-200 outline-none transition-all"
+                    className="w-full form-control"
                   />
                 </div>
 
@@ -231,7 +231,7 @@ export const SetupPage: React.FC = () => {
                     value={formData.venue}
                     onChange={handleChange}
                     required
-                    className="w-full p-3 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-200 outline-none transition-all"
+                    className="w-full form-control"
                   />
                 </div>
 
@@ -247,7 +247,7 @@ export const SetupPage: React.FC = () => {
                     name="headTabulator"
                     value={formData.headTabulator}
                     onChange={handleChange}
-                    className="w-full p-3 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-200 outline-none transition-all"
+                    className="w-full form-control"
                     placeholder="e.g. Jeremy Zion L. Jamer"
                   />
                 </div>
@@ -259,7 +259,7 @@ export const SetupPage: React.FC = () => {
                     name="coordinator"
                     value={formData.coordinator}
                     onChange={handleChange}
-                    className="w-full p-3 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-200 outline-none transition-all"
+                    className="w-full form-control"
                     placeholder="e.g. Ma. Lalaine Serrano"
                   />
                 </div>
@@ -271,7 +271,7 @@ export const SetupPage: React.FC = () => {
                     name="auditor"
                     value={formData.auditor}
                     onChange={handleChange}
-                    className="w-full p-3 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-200 outline-none transition-all"
+                    className="w-full form-control"
                     placeholder="e.g. Dr. Marilou B. Lansangan"
                   />
                 </div>
@@ -425,7 +425,7 @@ export const SetupPage: React.FC = () => {
           <label className="block text-sm font-semibold text-neutral-700 mb-2">Enter Admin PIN to confirm</label>
           <input 
             type="password"
-            className="w-full p-3 border border-neutral-300 rounded-lg outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500"
+            className="w-full form-control focus:!border-red-500 focus:!ring-red-500"
             value={confirmModal.pin}
             onChange={(e) => setConfirmModal({...confirmModal, pin: e.target.value})}
             placeholder="****"
