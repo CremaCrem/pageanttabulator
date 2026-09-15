@@ -120,7 +120,7 @@ export const ReportsPage: React.FC = () => {
                 disabled={loading !== null && loading !== 'preliminary'}
                 isLoading={loading === 'preliminary'}
                 loadingText="Computing..."
-                className="shrink-0"
+                className="w-[300px] shrink-0"
               >
                 Compute Preliminary & Select Top 3
               </Button>
@@ -140,7 +140,7 @@ export const ReportsPage: React.FC = () => {
                 disabled={loading !== null && loading !== 'final'}
                 isLoading={loading === 'final'}
                 loadingText="Computing..."
-                className="shrink-0"
+                className="w-[300px] shrink-0"
               >
                 Compute Final Winners
               </Button>
@@ -160,7 +160,7 @@ export const ReportsPage: React.FC = () => {
                 disabled={loading !== null && loading !== 'minor_awards'}
                 isLoading={loading === 'minor_awards'}
                 loadingText="Computing..."
-                className="shrink-0"
+                className="w-[300px] shrink-0"
               >
                 Compute Special Awards
               </Button>
@@ -179,7 +179,7 @@ export const ReportsPage: React.FC = () => {
                 onClick={handleExport}
                 isLoading={isExporting}
                 loadingText="Exporting..."
-                className="!bg-neutral-800 hover:!bg-black shrink-0"
+                className="!bg-neutral-800 hover:!bg-black w-[300px] shrink-0"
               >
                 Generate PDF Report
               </Button>
