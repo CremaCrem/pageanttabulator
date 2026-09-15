@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { PageWrapper } from '../../components/layout/PageWrapper';
 import { fetchApi } from '../../api/client';
 import { ICandidate, Gender } from '../../types';
@@ -14,6 +14,25 @@ export const CandidatesPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [adding, setAdding] = useState(false);
+  const [imageUploading, setImageUploading] = useState(false);
+  const numberInputRef = useRef<HTMLInputElement>(null);
+
+  const getNextCandidateNumber = (currentList: ICandidate[]): string => {
+    let max = 0;
+    let foundNumeric = false;
+    for (const c of currentList) {
+      const num = parseInt(c.candidateNumber, 10);
+      if (!isNaN(num) && num.toString() === c.candidateNumber.replace(/^0+/, '')) {
+        foundNumeric = true;
+        if (num > max) max = num;
+      } else if (!isNaN(num)) {
+        foundNumeric = true;
+        if (num > max) max = num;
+      }
+    }
+    if (!foundNumeric) return '01';
+    return String(max + 1).padStart(2, '0');
+  };
 
   const [confirmConfig, setConfirmConfig] = useState<{isOpen: boolean, candidateId: string | null, currentlyEligible: boolean}>({
     isOpen: false,
@@ -33,21 +52,32 @@ export const CandidatesPage: React.FC = () => {
     setLoading(true);
     try {
       const data = await fetchApi('/api/candidates');
-      setCandidates(data.sort((a: any, b: any) => a.candidateNumber.localeCompare(b.candidateNumber)));
-
+      const sorted = data.sort((a: any, b: any) => a.candidateNumber.localeCompare(b.candidateNumber));
+      setCandidates(sorted);
+      return sorted;
     } catch (err: any) {
       setError('Failed to load candidates.');
+      return [];
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadCandidates();
+    loadCandidates().then((data) => {
+      if (data) {
+        setNewCandidate(prev => ({
+          ...prev,
+          candidateNumber: getNextCandidateNumber(data)
+        }));
+      }
+    });
   }, []);
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (adding || imageUploading) return;
+    
     setAdding(true);
     setError('');
     
@@ -63,8 +93,14 @@ export const CandidatesPage: React.FC = () => {
           isEligible: true
         })
       });
-      setNewCandidate({ candidateNumber: '', fullName: '', department: '', gender: Gender.Female, photoPath: '' });
-      await loadCandidates();
+      const latestCandidates = await loadCandidates();
+      setNewCandidate(prev => ({ 
+        ...prev, 
+        candidateNumber: getNextCandidateNumber(latestCandidates || []), 
+        fullName: '', 
+        photoPath: '' 
+      }));
+      numberInputRef.current?.focus();
     } catch (err: any) {
       setError(err.message || 'Failed to add candidate');
     } finally {
@@ -117,11 +153,12 @@ export const CandidatesPage: React.FC = () => {
             <ImageUpload 
               value={newCandidate.photoPath} 
               onChange={(url) => setNewCandidate({...newCandidate, photoPath: url})} 
+              onUploadingChange={setImageUploading}
             />
             <div className="flex flex-wrap gap-4 items-end flex-1">
               <div className="flex-1 min-w-[120px]">
                 <label className="block text-xs font-semibold text-neutral-600 mb-1">Number</label>
-                <input type="text" required value={newCandidate.candidateNumber} onChange={e => setNewCandidate({...newCandidate, candidateNumber: e.target.value})} className="w-full p-2 border border-neutral-300 rounded focus:border-primary-500 outline-none" placeholder="e.g. 01" />
+                <input ref={numberInputRef} type="text" required value={newCandidate.candidateNumber} onChange={e => setNewCandidate({...newCandidate, candidateNumber: e.target.value})} className="w-full p-2 border border-neutral-300 rounded focus:border-primary-500 outline-none" placeholder="e.g. 01" />
               </div>
           <div className="flex-[3] min-w-[200px]">
             <label className="block text-xs font-semibold text-neutral-600 mb-1">Full Name</label>
@@ -141,7 +178,7 @@ export const CandidatesPage: React.FC = () => {
             </div>
           </div>
           <div className="flex justify-end">
-            <Button type="submit" isLoading={adding} loadingText="Adding..." className="h-[42px]">
+            <Button type="submit" disabled={adding || imageUploading} isLoading={adding} loadingText="Adding..." className="h-[42px]">
               Add Candidate
             </Button>
           </div>

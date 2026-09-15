@@ -4,10 +4,11 @@ import { uploadFile, getApiBaseUrl } from '../../api/client';
 interface ImageUploadProps {
   value?: string;
   onChange: (url: string) => void;
+  onUploadingChange?: (isUploading: boolean) => void;
   className?: string;
 }
 
-export const ImageUpload: React.FC<ImageUploadProps> = ({ value, onChange, className = '' }) => {
+export const ImageUpload: React.FC<ImageUploadProps> = ({ value, onChange, onUploadingChange, className = '' }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -29,6 +30,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({ value, onChange, class
     }
 
     setIsUploading(true);
+    onUploadingChange?.(true);
     setError(null);
 
     try {
@@ -38,6 +40,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({ value, onChange, class
       setError(err.message || 'Failed to upload image');
     } finally {
       setIsUploading(false);
+      onUploadingChange?.(false);
       // Reset input so the same file can be selected again if needed
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
