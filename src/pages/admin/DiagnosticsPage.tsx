@@ -126,7 +126,7 @@ export const DiagnosticsPage: React.FC = () => {
         
         {/* Judge Status Overview (Live) */}
         <div className="lg:col-span-1 space-y-6">
-          <div className="bg-white p-6 rounded-xl shadow-card border border-neutral-200/60">
+          <div className="bg-white p-6 rounded-xl shadow-panel border border-neutral-100">
             <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider mb-4 flex items-center">
               <Activity className="w-4 h-4 mr-2" />
               Live Judge Status

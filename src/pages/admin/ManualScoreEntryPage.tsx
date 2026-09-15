@@ -5,6 +5,9 @@ import { useToast } from '../../context/ToastContext';
 import { SEGMENTS } from '../../utils/constants';
 import { useDirtyState } from '../../hooks/useDirtyState';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
+import { PageWrapper } from '../../components/layout/PageWrapper';
+import { Button } from '../../components/ui/Button';
+import { Alert } from '../../components/ui/Alert';
 
 export const ManualScoreEntryPage: React.FC = () => {
   const { success } = useToast();
@@ -238,40 +241,54 @@ export const ManualScoreEntryPage: React.FC = () => {
 
   if (!isUnlocked) {
     return (
-      <div className="p-6 max-w-sm mx-auto mt-12 bg-white rounded-xl shadow-panel text-center">
-        <h2 className="text-xl font-bold mb-4">Manual Score Entry</h2>
-        <p className="text-sm text-neutral-500 mb-6">Enter admin PIN to unlock.</p>
-        <form onSubmit={handleUnlock} className="flex gap-2">
-          <input
-            type="password"
-            value={pinInput}
-            onChange={(e) => setPinInput(e.target.value)}
-            className="flex-1 form-control text-center tracking-widest text-lg"
-            placeholder="PIN"
-            autoFocus
-          />
-          <button
-            type="submit"
-            disabled={verifying || !pinInput}
-            className="px-4 py-2 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700 disabled:opacity-50"
-          >
-            {verifying ? '...' : 'Unlock'}
-          </button>
-        </form>
-        {pinError && <p className="text-red-500 text-sm mt-3">{pinError}</p>}
-      </div>
+      <PageWrapper>
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h1 className="text-heading-1 text-primary-900">Manual Score Entry</h1>
+            <p className="text-neutral-500">Secure operator fallback and rapid data entry</p>
+          </div>
+        </div>
+        <div className="p-6 max-w-sm mx-auto mt-12 bg-white rounded-xl shadow-panel text-center border border-neutral-100">
+          <p className="text-sm text-neutral-500 mb-6">Enter admin PIN to unlock.</p>
+          <form onSubmit={handleUnlock} className="flex gap-2">
+            <input
+              type="password"
+              value={pinInput}
+              onChange={(e) => setPinInput(e.target.value)}
+              className="flex-1 form-control text-center tracking-widest text-lg"
+              placeholder="PIN"
+              autoFocus
+            />
+            <Button
+              type="submit"
+              disabled={verifying || !pinInput}
+              isLoading={verifying}
+              loadingText="..."
+            >
+              Unlock
+            </Button>
+          </form>
+          {pinError && <p className="text-red-500 text-sm mt-3">{pinError}</p>}
+        </div>
+      </PageWrapper>
     );
   }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
-      <div className="bg-white rounded-xl shadow-panel overflow-hidden">
-        
-        {/* SCORING CONTEXT */}
-        <div className="bg-neutral-50 p-6 border-b border-neutral-200">
-          <h1 className="text-xl font-bold text-primary-900 mb-6">Manual Score Entry</h1>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+    <PageWrapper>
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-heading-1 text-primary-900">Manual Score Entry</h1>
+          <p className="text-neutral-500">Secure operator fallback and rapid data entry</p>
+        </div>
+      </div>
+      <div className="space-y-6">
+        <div className="bg-white rounded-xl shadow-panel overflow-hidden border border-neutral-100">
+          
+          {/* SCORING CONTEXT */}
+          <div className="bg-neutral-50 p-6 border-b border-neutral-200">
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <div>
             <label className="block text-sm font-medium text-neutral-700 mb-1">Judge</label>
             <select
@@ -340,9 +357,9 @@ export const ManualScoreEntryPage: React.FC = () => {
               </div>
             
             {error && (
-              <div className="mb-4 p-3 bg-red-50 text-red-700 rounded text-sm border border-red-200">
+              <Alert variant="error" className="mb-4">
                 {error}
-              </div>
+              </Alert>
             )}
 
             <div className="space-y-3 mb-6">
@@ -369,16 +386,19 @@ export const ManualScoreEntryPage: React.FC = () => {
               ))}
             </div>
 
-            <button
+            <Button
               type="submit"
               disabled={submitting || !selectedJudgeId}
-              className="w-full py-4 bg-primary-600 text-white font-bold rounded-lg hover:bg-primary-700 disabled:opacity-50 text-lg transition-colors shadow-sm"
+              isLoading={submitting}
+              loadingText="Submitting..."
+              className="w-full py-4 text-lg mt-2"
             >
-              {submitting ? 'Submitting...' : 'Submit Score'}
-            </button>
+              Submit Score
+            </Button>
           </form>
         </div>
         )}
+      </div>
       </div>
 
       <ConfirmModal
@@ -391,6 +411,6 @@ export const ManualScoreEntryPage: React.FC = () => {
         onCancel={cancelDiscard}
         variant="destructive"
       />
-    </div>
+    </PageWrapper>
   );
 };

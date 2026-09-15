@@ -163,7 +163,7 @@ export const SetupPage: React.FC = () => {
         
         {/* Left Column */}
         <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white rounded-xl shadow-panel overflow-hidden flex flex-col">
+          <div className="bg-white rounded-xl shadow-panel border border-neutral-100 overflow-hidden flex flex-col">
             <div className="p-8 flex-grow">
           {loading ? (
             <PageLoader label="Loading configuration..." />

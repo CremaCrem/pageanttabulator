@@ -195,7 +195,7 @@ export const CriteriaPage: React.FC = () => {
 
       {/* Rules and Protocol Information */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white p-5 rounded-xl border border-neutral-100 shadow-card flex gap-3">
+        <div className="bg-white p-6 rounded-xl border border-neutral-100 shadow-card flex gap-3">
           <Scale className="w-5 h-5 text-primary-600 shrink-0 mt-0.5" />
           <div>
             <h4 className="text-sm font-bold text-neutral-800">Integer Input (1–100)</h4>
@@ -205,7 +205,7 @@ export const CriteriaPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-xl border border-neutral-100 shadow-card flex gap-3">
+        <div className="bg-white p-6 rounded-xl border border-neutral-100 shadow-card flex gap-3">
           <Layers className="w-5 h-5 text-gold-600 shrink-0 mt-0.5" />
           <div>
             <h4 className="text-sm font-bold text-neutral-800">High Precision Tabulation</h4>
@@ -215,7 +215,7 @@ export const CriteriaPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-xl border border-neutral-100 shadow-card flex gap-3">
+        <div className="bg-white p-6 rounded-xl border border-neutral-100 shadow-card flex gap-3">
           <Award className="w-5 h-5 text-primary-600 shrink-0 mt-0.5" />
           <div>
             <h4 className="text-sm font-bold text-neutral-800">Independent Special Awards</h4>
