@@ -8,6 +8,7 @@ import { Alert } from '../../components/ui/Alert';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ImageUpload } from '../../components/ui/ImageUpload';
 import { getApiBaseUrl } from '../../api/client';
+import { useDirtyState } from '../../hooks/useDirtyState';
 
 export const CandidatesPage: React.FC = () => {
   const [candidates, setCandidates] = useState<ICandidate[]>([]);
@@ -40,6 +41,14 @@ export const CandidatesPage: React.FC = () => {
     currentlyEligible: true
   });
   
+  const [baselineCandidate, setBaselineCandidate] = useState({
+    candidateNumber: '',
+    fullName: '',
+    department: '',
+    gender: Gender.Female,
+    photoPath: '',
+  });
+
   const [newCandidate, setNewCandidate] = useState({
     candidateNumber: '',
     fullName: '',
@@ -47,6 +56,19 @@ export const CandidatesPage: React.FC = () => {
     gender: Gender.Female,
     photoPath: '',
   });
+
+  const isDirty = React.useMemo(() => {
+    if (imageUploading) return true;
+    return (
+      newCandidate.candidateNumber !== baselineCandidate.candidateNumber ||
+      newCandidate.fullName !== baselineCandidate.fullName ||
+      newCandidate.department !== baselineCandidate.department ||
+      newCandidate.gender !== baselineCandidate.gender ||
+      newCandidate.photoPath !== baselineCandidate.photoPath
+    );
+  }, [newCandidate, baselineCandidate, imageUploading]);
+
+  useDirtyState(isDirty);
 
   const loadCandidates = async () => {
     setLoading(true);
@@ -66,9 +88,14 @@ export const CandidatesPage: React.FC = () => {
   useEffect(() => {
     loadCandidates().then((data) => {
       if (data) {
+        const nextNum = getNextCandidateNumber(data);
         setNewCandidate(prev => ({
           ...prev,
-          candidateNumber: getNextCandidateNumber(data)
+          candidateNumber: nextNum
+        }));
+        setBaselineCandidate(prev => ({
+          ...prev,
+          candidateNumber: nextNum
         }));
       }
     });
@@ -94,12 +121,18 @@ export const CandidatesPage: React.FC = () => {
         })
       });
       const latestCandidates = await loadCandidates();
-      setNewCandidate(prev => ({ 
-        ...prev, 
-        candidateNumber: getNextCandidateNumber(latestCandidates || []), 
-        fullName: '', 
-        photoPath: '' 
-      }));
+      const nextNum = getNextCandidateNumber(latestCandidates || []);
+      
+      const updatedCleanState = {
+        candidateNumber: nextNum,
+        fullName: '',
+        department: newCandidate.department,
+        gender: newCandidate.gender,
+        photoPath: ''
+      };
+      
+      setNewCandidate(updatedCleanState);
+      setBaselineCandidate(updatedCleanState);
       numberInputRef.current?.focus();
     } catch (err: any) {
       setError(err.message || 'Failed to add candidate');

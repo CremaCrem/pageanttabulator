@@ -37,6 +37,29 @@ export const JudgeStatusPage: React.FC = () => {
   const [editJudge, setEditJudge] = useState<IJudge | null>(null);
   const [editForm, setEditForm] = useState({ name: '', photoPath: '', password: '' });
   const [saving, setSaving] = useState(false);
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+
+  const isJudgeEditDirty = React.useMemo(() => {
+    if (!editJudge) return false;
+    return (
+      editForm.name !== (editJudge.name || '') ||
+      editForm.photoPath !== (editJudge.photoPath || '') ||
+      editForm.password !== (editJudge.password || '')
+    );
+  }, [editForm, editJudge]);
+
+  const handleCloseModal = () => {
+    if (isJudgeEditDirty) {
+      setShowDiscardConfirm(true);
+    } else {
+      setEditJudge(null);
+    }
+  };
+
+  const handleDiscardChanges = () => {
+    setShowDiscardConfirm(false);
+    setEditJudge(null);
+  };
 
   const loadStatus = async () => {
     try {
@@ -214,7 +237,7 @@ export const JudgeStatusPage: React.FC = () => {
       {/* Edit Judge Modal */}
       <Modal
         isOpen={!!editJudge}
-        onClose={() => setEditJudge(null)}
+        onClose={handleCloseModal}
         title={editJudge ? `Edit ${editJudge.id} Profile` : ''}
       >
         <form onSubmit={handleSaveProfile} className="flex flex-col gap-6">
@@ -250,7 +273,7 @@ export const JudgeStatusPage: React.FC = () => {
           </div>
 
           <div className="flex gap-3 justify-end mt-4">
-            <Button type="button" variant="secondary" onClick={() => setEditJudge(null)}>
+            <Button type="button" variant="secondary" onClick={handleCloseModal}>
               Cancel
             </Button>
             <Button type="submit" isLoading={saving} loadingText="Saving...">
@@ -259,6 +282,17 @@ export const JudgeStatusPage: React.FC = () => {
           </div>
         </form>
       </Modal>
+
+      <ConfirmModal
+        isOpen={showDiscardConfirm}
+        title="Discard Unsaved Changes?"
+        message="You have unsaved changes to this judge profile. If you leave now, those changes will be lost."
+        confirmText="Discard Changes"
+        cancelText="Stay"
+        onConfirm={handleDiscardChanges}
+        onCancel={() => setShowDiscardConfirm(false)}
+        variant="destructive"
+      />
     </PageWrapper>
   );
 };
