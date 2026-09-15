@@ -188,21 +188,21 @@ export const CandidatesPage: React.FC = () => {
               onChange={(url) => setNewCandidate({...newCandidate, photoPath: url})} 
               onUploadingChange={setImageUploading}
             />
-            <div className="flex flex-wrap gap-4 items-end flex-1">
-              <div className="flex-1 min-w-[120px]">
-                <label className="block text-xs font-semibold text-neutral-600 mb-1">Number</label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 flex-1 w-full">
+              <div className="space-y-1 lg:col-span-1">
+                <label className="block text-xs font-semibold text-neutral-600">Number</label>
                 <input type="text" required value={newCandidate.candidateNumber} onChange={e => setNewCandidate({...newCandidate, candidateNumber: e.target.value})} className="w-full form-control" placeholder="e.g. 01" />
               </div>
-          <div className="flex-[3] min-w-[200px]">
-            <label className="block text-xs font-semibold text-neutral-600 mb-1">Full Name</label>
-            <input ref={fullNameInputRef} type="text" required value={newCandidate.fullName} onChange={e => setNewCandidate({...newCandidate, fullName: e.target.value})} className="w-full form-control" placeholder="Juan dela Cruz" />
-          </div>
-          <div className="flex-[2] min-w-[150px]">
-            <label className="block text-xs font-semibold text-neutral-600 mb-1">Department/College</label>
-            <input type="text" required value={newCandidate.department} onChange={e => setNewCandidate({...newCandidate, department: e.target.value})} className="w-full form-control" placeholder="CAS" />
-          </div>
-              <div className="flex-1 min-w-[120px]">
-                <label className="block text-xs font-semibold text-neutral-600 mb-1">Category</label>
+              <div className="space-y-1 sm:col-span-2 lg:col-span-2">
+                <label className="block text-xs font-semibold text-neutral-600">Full Name</label>
+                <input ref={fullNameInputRef} type="text" required value={newCandidate.fullName} onChange={e => setNewCandidate({...newCandidate, fullName: e.target.value})} className="w-full form-control" placeholder="Juan dela Cruz" />
+              </div>
+              <div className="space-y-1 sm:col-span-2 lg:col-span-2">
+                <label className="block text-xs font-semibold text-neutral-600">Department/College</label>
+                <input type="text" required value={newCandidate.department} onChange={e => setNewCandidate({...newCandidate, department: e.target.value})} className="w-full form-control" placeholder="CAS" />
+              </div>
+              <div className="space-y-1 lg:col-span-1">
+                <label className="block text-xs font-semibold text-neutral-600">Category</label>
                 <select value={newCandidate.gender} onChange={e => setNewCandidate({...newCandidate, gender: e.target.value as Gender})} className="w-full form-control">
                   <option value={Gender.Female}>Female (Ms.)</option>
                   <option value={Gender.Male}>Male (Mr.)</option>

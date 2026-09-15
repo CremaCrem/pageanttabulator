@@ -161,9 +161,10 @@ export const SetupPage: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         
-        {/* Main Panel */}
-        <div className="lg:col-span-2 bg-white rounded-xl shadow-panel overflow-hidden flex flex-col">
-          <div className="p-8 flex-grow">
+        {/* Left Column */}
+        <div className="lg:col-span-2 space-y-6">
+          <div className="bg-white rounded-xl shadow-panel overflow-hidden flex flex-col">
+            <div className="p-8 flex-grow">
           {loading ? (
             <PageLoader label="Loading configuration..." />
           ) : (
@@ -309,6 +310,34 @@ export const SetupPage: React.FC = () => {
             </div>
           </div>
         </div>
+        
+        {/* Danger Zone */}
+        <div className="bg-red-50 p-6 rounded-xl shadow-card border border-red-200">
+          <h3 className="text-sm font-bold text-red-700 uppercase tracking-wider mb-4 flex items-center">
+            Danger Zone
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Button 
+              variant="destructive"
+              fullWidth
+              onClick={() => setConfirmModal({ isOpen: true, type: 'save', pin: '' })}
+            >
+              Save & Close Event
+            </Button>
+            <Button 
+              variant="secondary"
+              fullWidth
+              className="!text-red-600 !border-red-200 hover:!bg-red-50"
+              onClick={() => setConfirmModal({ isOpen: true, type: 'reset', pin: '' })}
+            >
+              Emergency Reset
+            </Button>
+          </div>
+          <p className="text-xs text-red-500 mt-4 leading-relaxed">
+            These actions modify the database. "Save & Close" archives the event. "Emergency Reset" wipes current scores permanently.
+          </p>
+        </div>
+      </div>
 
         {/* Live Hub Panel */}
         <div className="lg:col-span-1 space-y-6">
@@ -378,33 +407,6 @@ export const SetupPage: React.FC = () => {
             )}
           </div>
           
-          {/* Event Actions */}
-          <div className="bg-red-50 p-6 rounded-xl shadow-card border border-red-200">
-            <h3 className="text-sm font-bold text-red-700 uppercase tracking-wider mb-4 flex items-center">
-              Danger Zone
-            </h3>
-            <div className="space-y-4">
-              <Button 
-                variant="destructive"
-                fullWidth
-                onClick={() => setConfirmModal({ isOpen: true, type: 'save', pin: '' })}
-              >
-                Save & Close Event
-              </Button>
-              <Button 
-                variant="secondary"
-                fullWidth
-                className="!text-red-600 !border-red-200 hover:!bg-red-50"
-                onClick={() => setConfirmModal({ isOpen: true, type: 'reset', pin: '' })}
-              >
-                Emergency Reset
-              </Button>
-            </div>
-            <p className="text-xs text-red-500 mt-4 leading-relaxed">
-              These actions modify the database. "Save & Close" archives the event. "Emergency Reset" wipes current scores permanently.
-            </p>
-          </div>
-
         </div>
 
       </div>

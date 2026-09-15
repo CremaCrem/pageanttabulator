@@ -99,129 +99,147 @@ export const ReportsPage: React.FC = () => {
         <Alert variant="error" className="mb-6">{error}</Alert>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 print:hidden">
+      <div className="space-y-8 print:hidden">
         
-        {/* Preliminary Tabulation */}
-        <div className="bg-white p-6 rounded-xl shadow-panel border border-neutral-100 flex flex-col">
-          <div className="mb-4">
-            <h3 className="text-lg font-bold text-neutral-800">Preliminary Results (Top 3)</h3>
-            <p className="text-sm text-neutral-500 mb-4">Compute Borda ranks and determine the Top 3 candidates.</p>
-          </div>
-          <div className="flex-1"></div>
-          <Button 
-            fullWidth
-            onClick={() => handleComputeClick('preliminary')}
-            disabled={loading !== null && loading !== 'preliminary'}
-            isLoading={loading === 'preliminary'}
-            loadingText="Computing..."
-            className="mt-4"
-          >
-            Compute Preliminary & Select Top 3
-          </Button>
-        </div>
-
-        {/* Final Tabulation */}
-        <div className="bg-white p-6 rounded-xl shadow-panel border border-neutral-100 flex flex-col">
-          <div className="mb-4">
-            <h3 className="text-lg font-bold text-neutral-800">Final Championship</h3>
-            <p className="text-sm text-neutral-500 mt-1">Computes Final Q&A and combines with Preliminary Score (50/50).</p>
-          </div>
-          <div className="flex-1"></div>
-          <Button 
-            fullWidth
-            onClick={() => handleComputeClick('final')}
-            disabled={loading !== null && loading !== 'final'}
-            isLoading={loading === 'final'}
-            loadingText="Computing..."
-            className="mt-4"
-          >
-            Compute Final Winners
-          </Button>
-        </div>
-
-        {/* Minor Awards */}
-        <div className="bg-white p-6 rounded-xl shadow-panel border border-neutral-100 flex flex-col md:col-span-2">
-          <div className="mb-4">
-            <h3 className="text-lg font-bold text-neutral-800">Minor Awards</h3>
-            <p className="text-sm text-neutral-500 mt-1">Computes Best in Advocacy and Best in Ramp using Simple Average of judge scores.</p>
-          </div>
-          <Button 
-            fullWidth
-            onClick={() => handleComputeClick('minor_awards')}
-            disabled={loading !== null && loading !== 'minor_awards'}
-            isLoading={loading === 'minor_awards'}
-            loadingText="Computing..."
-            className="mt-2 !bg-neutral-800 hover:!bg-black"
-          >
-            Compute Special Awards
-          </Button>
-        </div>
-
-        {/* Export and Preview */}
-        <div className="bg-white p-6 rounded-xl shadow-panel border border-neutral-100 flex flex-col md:col-span-2 print:hidden">
-          <div className="flex justify-between items-center mb-6">
-            <div>
-              <h3 className="text-lg font-bold text-neutral-800">Export & Print</h3>
-              <p className="text-sm text-neutral-500">Download official score sheets for auditors.</p>
+        {/* Tabulation Workflow */}
+        <section>
+          <h2 className="text-xl font-bold text-primary-900 mb-4">Tabulation Workflow</h2>
+          <div className="bg-white rounded-xl shadow-panel border border-neutral-100 overflow-hidden divide-y divide-neutral-100">
+            
+            {/* Step 1: Preliminary */}
+            <div className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-neutral-50 transition-colors">
+              <div className="flex items-start gap-4">
+                <div className="w-8 h-8 rounded-full bg-primary-100 text-primary-700 font-bold flex items-center justify-center shrink-0">1</div>
+                <div>
+                  <h3 className="text-lg font-bold text-neutral-800">Preliminary Results (Top 3)</h3>
+                  <p className="text-sm text-neutral-500 mt-1 max-w-xl">Compute Borda ranks and determine the Top 3 candidates.</p>
+                </div>
+              </div>
+              <Button 
+                onClick={() => handleComputeClick('preliminary')}
+                disabled={loading !== null && loading !== 'preliminary'}
+                isLoading={loading === 'preliminary'}
+                loadingText="Computing..."
+                className="shrink-0"
+              >
+                Compute Preliminary & Select Top 3
+              </Button>
             </div>
+
+            {/* Step 2: Final Q&A */}
+            <div className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-neutral-50 transition-colors">
+              <div className="flex items-start gap-4">
+                <div className="w-8 h-8 rounded-full bg-primary-100 text-primary-700 font-bold flex items-center justify-center shrink-0">2</div>
+                <div>
+                  <h3 className="text-lg font-bold text-neutral-800">Final Championship</h3>
+                  <p className="text-sm text-neutral-500 mt-1 max-w-xl">Computes Final Q&A and combines with Preliminary Score (50/50).</p>
+                </div>
+              </div>
+              <Button 
+                onClick={() => handleComputeClick('final')}
+                disabled={loading !== null && loading !== 'final'}
+                isLoading={loading === 'final'}
+                loadingText="Computing..."
+                className="shrink-0"
+              >
+                Compute Final Winners
+              </Button>
+            </div>
+
+            {/* Step 3: Special Awards */}
+            <div className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-neutral-50 transition-colors">
+              <div className="flex items-start gap-4">
+                <div className="w-8 h-8 rounded-full bg-primary-100 text-primary-700 font-bold flex items-center justify-center shrink-0">3</div>
+                <div>
+                  <h3 className="text-lg font-bold text-neutral-800">Special / Minor Awards</h3>
+                  <p className="text-sm text-neutral-500 mt-1 max-w-xl">Computes Best in Advocacy and Best in Ramp using Simple Average of judge scores.</p>
+                </div>
+              </div>
+              <Button 
+                onClick={() => handleComputeClick('minor_awards')}
+                disabled={loading !== null && loading !== 'minor_awards'}
+                isLoading={loading === 'minor_awards'}
+                loadingText="Computing..."
+                className="shrink-0"
+              >
+                Compute Special Awards
+              </Button>
+            </div>
+
+            {/* Step 4: Export */}
+            <div className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-neutral-50 transition-colors">
+              <div className="flex items-start gap-4">
+                <div className="w-8 h-8 rounded-full bg-primary-100 text-primary-700 font-bold flex items-center justify-center shrink-0">4</div>
+                <div>
+                  <h3 className="text-lg font-bold text-neutral-800">Export & Print</h3>
+                  <p className="text-sm text-neutral-500 mt-1 max-w-xl">Generate the official PDF report containing all computed results.</p>
+                </div>
+              </div>
+              <Button 
+                onClick={handleExport}
+                isLoading={isExporting}
+                loadingText="Exporting..."
+                className="!bg-neutral-800 hover:!bg-black shrink-0"
+              >
+                Generate PDF Report
+              </Button>
+            </div>
+            
+            <div className="p-6 bg-neutral-50">
+              <h4 className="text-sm font-bold text-neutral-600 mb-4 uppercase tracking-wider">Report Preview</h4>
+              <div className="bg-white p-8 rounded-lg border-2 border-dashed border-neutral-200 overflow-y-auto max-h-[600px]">
+                <PrintReport />
+              </div>
+            </div>
+
+          </div>
+        </section>
+
+        {/* Additional Tools */}
+        <section>
+          <h2 className="text-xl font-bold text-primary-900 mb-4">Additional Tools</h2>
+          <div className="bg-white p-6 rounded-xl shadow-panel border border-neutral-100 flex flex-col">
+            <div className="mb-6">
+              <h3 className="text-lg font-bold text-neutral-800">Print Blank Score Sheets</h3>
+              <p className="text-sm text-neutral-500">Generate printable physical score sheets for manual tabulation backup.</p>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-6">
+              <div>
+                <h4 className="font-semibold text-sm mb-3">Select Judges</h4>
+                <div className="space-y-2 max-h-48 overflow-y-auto border border-neutral-200 p-3 rounded-lg">
+                  {judges.length === 0 ? <p className="text-sm text-neutral-400">Loading...</p> : judges.map(j => (
+                    <label key={j.id} className="flex items-center space-x-2 text-sm cursor-pointer hover:bg-neutral-50 p-1 rounded">
+                      <input type="checkbox" checked={selectedJudges.has(j.id)} onChange={() => toggleJudge(j.id)} className="rounded border-neutral-300 text-primary-600 focus:ring-primary-500" />
+                      <span>{j.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <h4 className="font-semibold text-sm mb-3">Select Segments</h4>
+                <div className="space-y-2 max-h-48 overflow-y-auto border border-neutral-200 p-3 rounded-lg">
+                  {Object.values(SEGMENTS).map(s => (
+                    <label key={s.id} className="flex items-center space-x-2 text-sm cursor-pointer hover:bg-neutral-50 p-1 rounded">
+                      <input type="checkbox" checked={selectedSegments.has(s.id)} onChange={() => toggleSegment(s.id)} className="rounded border-neutral-300 text-primary-600 focus:ring-primary-500" />
+                      <span>{s.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+            
             <Button 
-              onClick={handleExport}
+              onClick={handleExportBlank}
+              disabled={selectedJudges.size === 0 || selectedSegments.size === 0}
               isLoading={isExporting}
               loadingText="Exporting..."
-              className="!bg-neutral-800 hover:!bg-black"
+              className="mt-auto !bg-neutral-800 hover:!bg-black self-start"
             >
-              Generate PDF Report
+              Print Selected Sheets
             </Button>
           </div>
-          
-          <div className="bg-neutral-50 p-8 rounded-lg border-2 border-dashed border-neutral-200 overflow-y-auto max-h-[600px]">
-            <PrintReport />
-          </div>
-        </div>
-
-        {/* Print Blank Score Sheets */}
-        <div className="bg-white p-6 rounded-xl shadow-panel border border-neutral-100 flex flex-col md:col-span-2 print:hidden">
-          <div className="mb-6">
-            <h3 className="text-lg font-bold text-neutral-800">Print Blank Score Sheets</h3>
-            <p className="text-sm text-neutral-500">Generate printable physical score sheets for manual tabulation backup.</p>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-6">
-            <div>
-              <h4 className="font-semibold text-sm mb-3">Select Judges</h4>
-              <div className="space-y-2 max-h-48 overflow-y-auto border border-neutral-200 p-3 rounded-lg">
-                {judges.length === 0 ? <p className="text-sm text-neutral-400">Loading...</p> : judges.map(j => (
-                  <label key={j.id} className="flex items-center space-x-2 text-sm cursor-pointer hover:bg-neutral-50 p-1 rounded">
-                    <input type="checkbox" checked={selectedJudges.has(j.id)} onChange={() => toggleJudge(j.id)} className="rounded border-neutral-300 text-primary-600 focus:ring-primary-500" />
-                    <span>{j.name}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-            <div>
-              <h4 className="font-semibold text-sm mb-3">Select Segments</h4>
-              <div className="space-y-2 max-h-48 overflow-y-auto border border-neutral-200 p-3 rounded-lg">
-                {Object.values(SEGMENTS).map(s => (
-                  <label key={s.id} className="flex items-center space-x-2 text-sm cursor-pointer hover:bg-neutral-50 p-1 rounded">
-                    <input type="checkbox" checked={selectedSegments.has(s.id)} onChange={() => toggleSegment(s.id)} className="rounded border-neutral-300 text-primary-600 focus:ring-primary-500" />
-                    <span>{s.label}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          </div>
-          
-          <Button 
-            fullWidth
-            onClick={handleExportBlank}
-            disabled={selectedJudges.size === 0 || selectedSegments.size === 0}
-            isLoading={isExporting}
-            loadingText="Exporting..."
-            className="mt-auto !bg-neutral-800 hover:!bg-black"
-          >
-            Print Selected Sheets
-          </Button>
-        </div>
+        </section>
 
       </div>
       

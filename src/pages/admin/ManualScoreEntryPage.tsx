@@ -265,8 +265,11 @@ export const ManualScoreEntryPage: React.FC = () => {
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
-      <div className="bg-white p-6 rounded-xl shadow-panel">
-        <h1 className="text-2xl font-bold text-primary-900 mb-6">Manual Score Entry</h1>
+      <div className="bg-white rounded-xl shadow-panel overflow-hidden">
+        
+        {/* SCORING CONTEXT */}
+        <div className="bg-neutral-50 p-6 border-b border-neutral-200">
+          <h1 className="text-xl font-bold text-primary-900 mb-6">Manual Score Entry</h1>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <div>
@@ -297,33 +300,44 @@ export const ManualScoreEntryPage: React.FC = () => {
           </div>
         </div>
 
-        {selectedSegmentId && candidates.length > 0 && (
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-neutral-700 mb-1">Candidate</label>
-            <select
-              value={selectedCandidateId}
-              onChange={handleCandidateChange}
-              className="w-full form-control"
-            >
-              <option value="">-- Select Candidate --</option>
-              {candidates.map(c => (
-                <option key={c.id} value={c.id}>
-                  {c.candidateNumber} - {c.fullName} ({c.gender})
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
+          {selectedSegmentId && candidates.length > 0 && (
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-neutral-700 mb-1">Candidate</label>
+              <select
+                value={selectedCandidateId}
+                onChange={handleCandidateChange}
+                className="w-full form-control text-lg font-semibold py-3"
+              >
+                <option value="">-- Select Candidate --</option>
+                {candidates.map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.candidateNumber} - {c.fullName} ({c.gender})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
-        {selectedSegmentId && candidates.length === 0 && (
-          <div className="text-sm text-neutral-500 italic mb-6">
-            No eligible candidates for this segment.
-          </div>
-        )}
+          {selectedSegmentId && candidates.length === 0 && (
+            <div className="text-sm text-neutral-500 italic mt-4">
+              No eligible candidates for this segment.
+            </div>
+          )}
+        </div>
 
+        {/* SCORE ENTRY */}
         {activeSegment && selectedCandidateId && (
-          <form onSubmit={handleSubmit} className="mt-8 border-t border-neutral-100 pt-6">
-            <h3 className="text-lg font-semibold mb-4">Criteria</h3>
+          <div className="p-6">
+            <form onSubmit={handleSubmit}>
+              <div className="flex items-center justify-between mb-6 pb-4 border-b border-neutral-100">
+                <h3 className="text-lg font-bold text-neutral-800">Criteria Scoring</h3>
+                <div className="text-right">
+                  <div className="text-xs font-bold text-neutral-400 uppercase tracking-wider">Active Candidate</div>
+                  <div className="text-sm font-semibold text-primary-700">
+                    {selectedCandidate?.candidateNumber} - {selectedCandidate?.fullName}
+                  </div>
+                </div>
+              </div>
             
             {error && (
               <div className="mb-4 p-3 bg-red-50 text-red-700 rounded text-sm border border-red-200">
@@ -358,11 +372,12 @@ export const ManualScoreEntryPage: React.FC = () => {
             <button
               type="submit"
               disabled={submitting || !selectedJudgeId}
-              className="w-full py-3 bg-primary-600 text-white font-semibold rounded-lg hover:bg-primary-700 disabled:opacity-50"
+              className="w-full py-4 bg-primary-600 text-white font-bold rounded-lg hover:bg-primary-700 disabled:opacity-50 text-lg transition-colors shadow-sm"
             >
               {submitting ? 'Submitting...' : 'Submit Score'}
             </button>
           </form>
+        </div>
         )}
       </div>
 
