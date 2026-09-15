@@ -81,9 +81,10 @@ font-family: 'Playfair Display', Georgia, serif;
 font-family: 'Inter', system-ui, -apple-system, sans-serif;
 ```
 
-> **Google Fonts Import:**  
-> `@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@600;700;800&display=swap');`
-
+> **Font Delivery (Offline Architecture):**
+> Inter and Playfair Display are the project fonts.
+> Font delivery must remain compatible with the offline/local-LAN-first architecture.
+> Do not introduce external runtime font dependencies or CDN loading (e.g., Google Fonts).
 ### Type Scale
 
 | Token | Size | Line Height | Weight | Usage |
@@ -365,7 +366,7 @@ Container:
   - Animation: scale-in 200ms ease
 
 Header:
-  - Font: Playfair Display 20px, color-neutral-900
+  - Font: Inter 20px, color-neutral-900, font-weight 600
 ```
 
 ### 8.9 Toast Notification (Global System Feedback)

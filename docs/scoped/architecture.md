@@ -226,10 +226,10 @@ pageanttabulator/
 | `/candidates` | `CandidatesPage` | Add, edit, manage all candidates |
 | `/criteria` | `CriteriaPage` | Read-only criteria and weights reference |
 | `/judges` | `JudgeStatusPage` | Per-judge scoring progress matrix |
-| `/results` | `ResultsPage` | **[NEW]** Raw scores table and racing bar charts |
+| `/results` | `ResultsPage` | Event context, tie resolution status, championship/Top 3/minor awards presentation, detailed official results |
 | `/reports` | `ReportsPage` | Final results, winner determination, export |
-| `/history` | `HistoryPage` | **[NEW]** View past events and create new ones |
-| `/diagnostics`| `DiagnosticsPage`| **[NEW]** System health, logs, and connection status |
+| `/history` | `EventHistoryPage` | View past events and create new ones |
+| `/diagnostics`| `DiagnosticsPage`| System health, logs, and connection status |
 
 ### Judge Routes (Browser, served by axum)
 
@@ -391,6 +391,8 @@ Developer (macOS)
 | Resizable | Yes |
 | Title | "PageantTabulator — Mr. & Ms. IDSC 2026" |
 | Decorations | Yes (native Windows chrome) |
+
+*Note: 1280x800 is the supported native Admin window minimum. CSS breakpoints (such as `1024px`) found in the design system represent responsive layout boundaries for web views, not necessarily supported native desktop window sizes.*
 
 ---
 

@@ -1,6 +1,8 @@
 # Admin UX/UI Specification (Audit & Action Plan)
 
-This document serves as the definitive source of truth for the UX/UI design system and implementation plan for the Admin interface of the PageantTabulator application.
+This document is authoritative for Admin interaction, workflow behavior, safety, accessibility, usability, and operator experience.
+*   `design-system.md` is authoritative for visual design tokens and appearance.
+*   `architecture.md` is authoritative for system architecture.
 
 ## 1. Goal and Philosophy
 The PageantTabulator Admin interface is a mission-critical tool used by event operators under high pressure. The design must embody a **calm, precise, ceremonial, and trustworthy** aesthetic. It must be highly functional, minimizing cognitive load and interaction costs. 
@@ -112,16 +114,16 @@ Never silently discard meaningful user input. When navigating away from forms wi
 
 ## 6. Workflows & Ergonomics
 
-### 6.1 Candidate Workflow
-Optimize for repetitive entry without making assumptions that candidate numbers are always sequential.
-*   **Primary Action**: Save Candidate
-*   **Secondary Action**: Save & Add Another
-*   *Save & Add Another Flow*:
+### 6.1 Repeated Candidate Entry Workflow
+Optimize for repetitive entry.
+*   *Repeated Candidate Entry Flow*:
     1. Save current candidate and show success toast.
-    2. Keep creation interface open and clear candidate-specific fields.
-    3. Suggest next candidate number (must remain editable) and preserve useful repeated fields.
+    2. Keep creation interface open and clear candidate-specific fields while preserving useful context such as Department/Gender.
+    3. Suggest next candidate number (must remain editable).
     4. Clear the photo field (never carry previous photo).
     5. Focus the next logical field (e.g., Candidate Name).
+
+*(Future functional requirement / pending workflow refinement: Candidate number suggestions should eventually be scoped appropriately by candidate category/gender where that is the intended event workflow).*
 
 ### 6.2 Image Upload State Machine & Layout
 The photo field must behave like a normal form field, not an independent floating object (contained, predictable aspect ratio, consistent border radius, no overflow).
@@ -152,7 +154,9 @@ Keyboard shortcuts should make the interface faster without increasing accidenta
 
 ---
 
-## 7. Implementation Phasing
+## 7. Implementation Phasing (COMPLETE)
+
+The project has now completed the following UX/UI refinement phases:
 
 ### Phase 1 — Foundation
 *Focus on reusable design/interaction primitives without redesigning every page.*
@@ -165,14 +169,25 @@ Keyboard shortcuts should make the interface faster without increasing accidenta
 
 ### Phase 2 — Admin Consistency
 *Apply the foundation consistently across all views.*
-*   Setup, Candidates, Judge Status, Criteria, Dashboard, Reports, Results, History, Diagnostics.
+*   Setup, Candidates, Judge Status, Criteria, Dashboard, Reports, Results, Event History, Diagnostics.
 
-### Phase 3 — Workflow Optimization
+### Phase 3 — Workflow Optimization / Safety
 *Focus on operational ergonomics.*
-*   Implement "Save & Add Another" and candidate number suggestions.
+*   Implement repeated candidate entry and candidate number suggestions.
 *   Enforce the image upload state machine (upload failure/retry, submission locking).
 *   Implement dirty-state handling where justified.
 *   Optimize Manual Score Entry for keyboard and rapid data-entry.
+
+### Phase 4 — Visual/UX Refinement
+*   Shared visual normalization.
+*   Admin page refinement.
+*   Setup refinement.
+*   Candidates refinement.
+*   Reports workflow refinement.
+*   Manual Score Entry refinement.
+*   Results information architecture redesign.
+*   Final cross-page normalization.
+*   Final UI/UX acceptance.
 
 ---
 *Note: Confirmed (observed in repo), Inferred (suggested by code but needs verification), Recommendation (proposed future improvement).*

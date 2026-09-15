@@ -33,8 +33,13 @@ pageant_data.db*
 # Dev/Test Data
 .dev-data/
 
-# Scratch files
+# Temporary/scratch files
+/uploads
+Mr_and_Ms_IDSC_2026_Official_Guidelines.md
 patch_*.py
 rewrite.py
 tmp_*.rs
 tmp_*.py
+
+# Temporary/scratch files
+/uploads
