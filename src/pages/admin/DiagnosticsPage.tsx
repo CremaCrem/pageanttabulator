@@ -209,7 +209,7 @@ export const DiagnosticsPage: React.FC = () => {
         onConfirm={handleClearLogs}
         onCancel={() => setClearModalOpen(false)}
         confirmText="Clear Logs"
-        isDestructive={true}
+        variant="destructive"
       />
 
       <ConfirmModal
@@ -219,7 +219,7 @@ export const DiagnosticsPage: React.FC = () => {
         onConfirm={handleCleanupMediaConfirm}
         onCancel={() => setCleanupModalOpen(false)}
         confirmText="Clean Up"
-        isDestructive={false}
+        variant="normal"
       >
         <div className="mt-4">
           <input

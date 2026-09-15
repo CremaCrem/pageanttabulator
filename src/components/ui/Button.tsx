@@ -1,26 +1,31 @@
 import React, { ButtonHTMLAttributes } from 'react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { Spinner } from './Spinner';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'gold' | 'outline' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'destructive' | 'warning' | 'ghost' | 'gold';
   size?: 'sm' | 'md' | 'lg';
   fullWidth?: boolean;
+  isLoading?: boolean;
+  loadingText?: string;
 }
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = 'primary', size = 'md', fullWidth = false, ...props }, ref) => {
-    const baseStyles = 'inline-flex items-center justify-center rounded-md font-medium transition-all focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed';
+  ({ className, variant = 'primary', size = 'md', fullWidth = false, isLoading = false, loadingText, children, disabled, ...props }, ref) => {
+    const baseStyles = 'inline-flex items-center justify-center rounded-md font-medium transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
     
     const variants = {
-      primary: 'bg-primary-800 text-white hover:bg-primary-700 hover:-translate-y-[1px] hover:shadow-green active:translate-y-0 active:bg-primary-900',
+      primary: 'bg-action-primary text-white hover:bg-action-primary-hover active:bg-primary-900',
+      secondary: 'bg-action-secondary text-action-secondary-text hover:bg-action-secondary-hover',
+      destructive: 'bg-action-destructive text-white hover:bg-action-destructive-hover',
+      warning: 'bg-action-warning text-white hover:bg-action-warning-hover',
+      ghost: 'bg-transparent text-action-ghost-text hover:bg-action-ghost-hover',
       gold: 'bg-gold-500 text-neutral-900 font-bold hover:bg-gold-400 shadow-gold hover:shadow-[0_0_24px_rgba(201,168,76,0.50)]',
-      outline: 'border border-neutral-300 bg-white text-neutral-900 hover:bg-neutral-50',
-      ghost: 'bg-transparent text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900',
     };
 
     const sizes = {
@@ -32,6 +37,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     return (
       <button
         ref={ref}
+        disabled={disabled || isLoading}
         className={cn(
           baseStyles,
           variants[variant],
@@ -40,7 +46,16 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
           className
         )}
         {...props}
-      />
+      >
+        {isLoading && (
+          <Spinner 
+            size="sm" 
+            variant={variant === 'secondary' || variant === 'ghost' ? 'primary' : 'white'} 
+            className="mr-2" 
+          />
+        )}
+        {isLoading && loadingText ? loadingText : children}
+      </button>
     );
   }
 );

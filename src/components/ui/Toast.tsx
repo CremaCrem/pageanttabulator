@@ -15,10 +15,10 @@ interface ToastProps extends ToastMessage {
 }
 
 const variantStyles: Record<ToastVariant, { border: string; iconColor: string; icon: React.ReactNode }> = {
-  success: { border: 'border-l-green-500', iconColor: 'text-green-600', icon: <CheckCircle className="w-5 h-5" /> },
-  error: { border: 'border-l-red-500', iconColor: 'text-red-600', icon: <AlertOctagon className="w-5 h-5" /> },
-  warning: { border: 'border-l-yellow-500', iconColor: 'text-yellow-600', icon: <AlertTriangle className="w-5 h-5" /> },
-  info: { border: 'border-l-blue-500', iconColor: 'text-blue-600', icon: <Info className="w-5 h-5" /> },
+  success: { border: 'border-l-status-success', iconColor: 'text-status-success', icon: <CheckCircle className="w-5 h-5" /> },
+  error: { border: 'border-l-status-error', iconColor: 'text-status-error', icon: <AlertOctagon className="w-5 h-5" /> },
+  warning: { border: 'border-l-status-warning', iconColor: 'text-status-warning', icon: <AlertTriangle className="w-5 h-5" /> },
+  info: { border: 'border-l-status-info', iconColor: 'text-status-info', icon: <Info className="w-5 h-5" /> },
 };
 
 export const Toast: React.FC<ToastProps> = ({ id, message, variant, duration = 4000, onDismiss }) => {

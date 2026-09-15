@@ -22,6 +22,20 @@ export default {
           100: '#FBF5E6',
         },
         parchment: '#F9F6F0',
+        status: {
+          success: { DEFAULT: '#10B981', light: '#D1FAE5', dark: '#047857', border: '#6EE7B7' },
+          error: { DEFAULT: '#EF4444', light: '#FEE2E2', dark: '#B91C1C', border: '#FCA5A5' },
+          warning: { DEFAULT: '#F59E0B', light: '#FEF3C7', dark: '#B45309', border: '#FCD34D' },
+          info: { DEFAULT: '#3B82F6', light: '#DBEAFE', dark: '#1D4ED8', border: '#93C5FD' },
+          neutral: { DEFAULT: '#9CA3AF', light: '#F3F4F6', dark: '#4B5563', border: '#D1D5DB' },
+        },
+        action: {
+          primary: { DEFAULT: '#1B5E37', hover: '#154B2C' },
+          secondary: { DEFAULT: '#E5E7EB', hover: '#D1D5DB', text: '#374151' },
+          destructive: { DEFAULT: '#DC2626', hover: '#B91C1C' },
+          warning: { DEFAULT: '#D97706', hover: '#B45309' },
+          ghost: { hover: '#F3F4F6', text: '#374151' }
+        }
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],

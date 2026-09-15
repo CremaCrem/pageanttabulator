@@ -405,7 +405,7 @@ export const SetupPage: React.FC = () => {
         onConfirm={handleActionConfirm}
         onCancel={() => setConfirmModal({ ...confirmModal, isOpen: false })}
         confirmText={confirmModal.type === 'save' ? 'Confirm Save & Close' : 'CONFIRM RESET'}
-        isDestructive={true}
+        variant={confirmModal.type === 'save' ? 'positive' : 'destructive'}
         loading={actionLoading}
       >
         <div className="mt-4">

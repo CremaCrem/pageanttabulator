@@ -7,11 +7,11 @@ export interface BadgeProps extends React.HTMLAttributes<HTMLDivElement> {
 
 export const Badge: React.FC<BadgeProps> = ({ className, variant = 'neutral', children, ...props }) => {
   const variants = {
-    success: 'bg-green-100 text-green-700 border-green-300',
-    warning: 'bg-yellow-100 text-yellow-700 border-yellow-300',
-    error: 'bg-red-100 text-red-700 border-red-300',
-    info: 'bg-blue-100 text-blue-700 border-blue-300',
-    neutral: 'bg-gray-100 text-gray-600 border-gray-300',
+    success: 'bg-status-success-light text-status-success-dark border-status-success-border',
+    warning: 'bg-status-warning-light text-status-warning-dark border-status-warning-border',
+    error: 'bg-status-error-light text-status-error-dark border-status-error-border',
+    info: 'bg-status-info-light text-status-info-dark border-status-info-border',
+    neutral: 'bg-status-neutral-light text-status-neutral-dark border-status-neutral-border',
     gold: 'bg-gold-100 text-gold-600 border-gold-500',
   };
 

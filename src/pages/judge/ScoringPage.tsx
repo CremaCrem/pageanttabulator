@@ -721,7 +721,7 @@ export const ScoringPage: React.FC = () => {
         onConfirm={executeSubmit}
         onCancel={() => setConfirmSubmit(false)}
         loading={submitting}
-        isDestructive={false}
+        variant="normal"
       />
     </PageWrapper>
   );
