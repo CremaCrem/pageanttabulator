@@ -38,7 +38,7 @@ pub async fn get_network_info() -> Json<NetworkInfoResponse> {
         local_ip: ip.clone(),
         port,
         server_url: server_url.clone(),
-        judge_url: format!("{}/judge", server_url),
+        judge_url: server_url.clone(),
         projection_url: format!("{}/projection", server_url),
     };
 
