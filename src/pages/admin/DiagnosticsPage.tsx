@@ -3,6 +3,8 @@ import { PageWrapper } from '../../components/layout/PageWrapper';
 import { fetchApi } from '../../api/client';
 import { Activity, AlertTriangle, Trash2, Clock, CheckCircle } from 'lucide-react';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
+import { Button } from '../../components/ui/Button';
+import { useToast } from '../../context/ToastContext';
 
 interface SystemLog {
   id: string;
@@ -24,6 +26,7 @@ export const DiagnosticsPage: React.FC = () => {
   const [logs, setLogs] = useState<SystemLog[]>([]);
   const [judges, setJudges] = useState<JudgeStatus[]>([]);
   const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
   const [clearModalOpen, setClearModalOpen] = useState(false);
   const [cleanupModalOpen, setCleanupModalOpen] = useState(false);
   const [pin, setPin] = useState('');
@@ -79,7 +82,7 @@ export const DiagnosticsPage: React.FC = () => {
         method: 'POST',
         body: JSON.stringify({ pin })
       });
-      alert(`Cleanup successful. Deleted ${res.deletedCount || 0} orphaned file(s).`);
+      toast(`Cleanup successful. Deleted ${res.deletedCount || 0} orphaned file(s).`, 'success');
       setCleanupModalOpen(false);
     } catch (err: any) {
       setCleanupError(err.message || 'Failed to cleanup media');
@@ -102,19 +105,20 @@ export const DiagnosticsPage: React.FC = () => {
           <p className="text-neutral-500">Live connection status and error logs</p>
         </div>
         <div className="flex gap-3">
-          <button
+          <Button
+            variant="secondary"
             onClick={handleCleanupMediaClick}
-            className="flex items-center space-x-2 px-4 py-2 bg-white border border-neutral-200 hover:bg-neutral-50 text-neutral-600 font-medium rounded-lg transition-colors"
           >
-            <span>Clean Up Media</span>
-          </button>
-          <button
+            Clean Up Media
+          </Button>
+          <Button
+            variant="secondary"
             onClick={() => setClearModalOpen(true)}
-            className="flex items-center space-x-2 px-4 py-2 bg-white border border-neutral-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200 text-neutral-600 font-medium rounded-lg transition-colors"
+            className="hover:!bg-red-50 hover:!text-red-600 hover:!border-red-200"
           >
-            <Trash2 className="w-4 h-4" />
-            <span>Clear Logs</span>
-          </button>
+            <Trash2 className="w-4 h-4 mr-2" />
+            Clear Logs
+          </Button>
         </div>
       </div>
 

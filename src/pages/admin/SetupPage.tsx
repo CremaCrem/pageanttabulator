@@ -5,14 +5,18 @@ import { IEventConfig } from '../../types';
 import { useAppContext } from '../../context/AppContext';
 import { QRCodeSVG } from 'qrcode.react';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
+import { Button } from '../../components/ui/Button';
+import { Alert } from '../../components/ui/Alert';
+import { PageLoader } from '../../components/ui/PageLoader';
+import { useToast } from '../../context/ToastContext';
 import { Copy, MonitorSmartphone, QrCode } from 'lucide-react';
 
 export const SetupPage: React.FC = () => {
   const { state, dispatch } = useAppContext();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   const [networkInfo, setNetworkInfo] = useState<any>(null);
 
   const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean, type: 'save' | 'reset', pin: string }>({
@@ -81,7 +85,6 @@ export const SetupPage: React.FC = () => {
     e.preventDefault();
     setSaving(true);
     setError('');
-    setSuccess('');
     
     try {
       const config: IEventConfig = await fetchApi('/api/event', {
@@ -89,8 +92,7 @@ export const SetupPage: React.FC = () => {
         body: JSON.stringify(formData)
       });
       dispatch({ type: 'SET_EVENT_CONFIG', payload: config });
-      setSuccess('Event configuration saved successfully!');
-      setTimeout(() => setSuccess(''), 3000);
+      toast('Event configuration saved successfully!', 'success');
     } catch (err: any) {
       setError(err.message || 'Failed to save configuration');
     } finally {
@@ -114,16 +116,15 @@ export const SetupPage: React.FC = () => {
           method: 'POST',
           body: JSON.stringify({ pin: confirmModal.pin, winnersJson })
         });
-        setSuccess('Event saved to history and closed successfully!');
+        toast('Event saved to history and closed successfully!', 'success');
       } else {
         await fetchApi('/api/event/reset', {
           method: 'POST',
           body: JSON.stringify({ pin: confirmModal.pin })
         });
-        setSuccess('Event reset successfully!');
+        toast('Event reset successfully!', 'success');
       }
       setConfirmModal({ isOpen: false, type: 'save', pin: '' });
-      setTimeout(() => setSuccess(''), 3000);
       window.location.reload();
     } catch (err: any) {
       setActionError(err.message || 'Action failed');
@@ -147,20 +148,12 @@ export const SetupPage: React.FC = () => {
         <div className="lg:col-span-2 bg-white rounded-xl shadow-panel overflow-hidden flex flex-col">
           <div className="p-8 flex-grow">
           {loading ? (
-            <div className="text-neutral-500 animate-pulse">Loading configuration...</div>
+            <PageLoader label="Loading configuration..." />
           ) : (
             <form onSubmit={handleSubmit} className="space-y-6">
               
               {error && (
-                <div className="p-4 bg-red-50 text-red-700 rounded-lg text-sm border border-red-100">
-                  {error}
-                </div>
-              )}
-              
-              {success && (
-                <div className="p-4 bg-green-50 text-green-700 rounded-lg text-sm border border-green-100">
-                  {success}
-                </div>
+                <Alert variant="error">{error}</Alert>
               )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -268,13 +261,13 @@ export const SetupPage: React.FC = () => {
               </div>
 
               <div className="pt-6 border-t border-neutral-100 flex justify-end">
-                <button
+                <Button
                   type="submit"
-                  disabled={saving}
-                  className="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-lg shadow-sm transition-colors disabled:opacity-50"
+                  isLoading={saving}
+                  loadingText="Saving..."
                 >
-                  {saving ? 'Saving...' : (state.eventConfig ? 'Update Event Details' : 'Initialize Event')}
-                </button>
+                  {state.eventConfig ? 'Update Event Details' : 'Initialize Event'}
+                </Button>
               </div>
             </form>
           )}
@@ -374,18 +367,21 @@ export const SetupPage: React.FC = () => {
               Danger Zone
             </h3>
             <div className="space-y-4">
-              <button 
+              <Button 
+                variant="destructive"
+                fullWidth
                 onClick={() => setConfirmModal({ isOpen: true, type: 'save', pin: '' })}
-                className="w-full py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition-colors"
               >
                 Save & Close Event
-              </button>
-              <button 
+              </Button>
+              <Button 
+                variant="secondary"
+                fullWidth
+                className="!text-red-600 !border-red-200 hover:!bg-red-50"
                 onClick={() => setConfirmModal({ isOpen: true, type: 'reset', pin: '' })}
-                className="w-full py-3 bg-white text-red-600 border border-red-200 hover:bg-red-50 font-bold rounded-lg transition-colors"
               >
                 Emergency Reset
-              </button>
+              </Button>
             </div>
             <p className="text-xs text-red-500 mt-4 leading-relaxed">
               These actions modify the database. "Save & Close" archives the event. "Emergency Reset" wipes current scores permanently.

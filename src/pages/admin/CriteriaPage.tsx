@@ -30,7 +30,7 @@ export const CriteriaPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-heading-1 text-primary-900 font-display">Official Scoring Criteria</h1>
+          <h1 className="text-heading-1 text-primary-900">Official Scoring Criteria</h1>
           <p className="text-neutral-500 mt-1">
             Segment breakdowns, criterion weights, and mathematical formulation for Mr. & Ms. IDSC 2026.
           </p>
@@ -121,7 +121,7 @@ export const CriteriaPage: React.FC = () => {
                 <div className="flex items-start justify-between gap-4 mb-4">
                   <div>
                     <div className="flex items-center gap-2">
-                      <h3 className="text-lg font-bold text-neutral-900 font-display">
+                      <h3 className="text-lg font-bold text-neutral-900">
                         {segment.label}
                       </h3>
                       {isFinal && (

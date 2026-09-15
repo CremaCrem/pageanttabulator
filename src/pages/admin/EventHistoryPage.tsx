@@ -3,6 +3,10 @@ import { PageWrapper } from '../../components/layout/PageWrapper';
 import { fetchApi } from '../../api/client';
 import { Modal } from '../../components/ui/Modal';
 import { Archive, Download } from 'lucide-react';
+import { PageLoader } from '../../components/ui/PageLoader';
+import { Button } from '../../components/ui/Button';
+import { Alert } from '../../components/ui/Alert';
+import { EmptyState } from '../../components/ui/EmptyState';
 
 interface PastEvent {
   id: string;
@@ -46,7 +50,7 @@ export const EventHistoryPage: React.FC = () => {
   };
 
   if (loading) {
-    return <PageWrapper><div className="p-8 text-center text-neutral-500 font-medium">Loading History...</div></PageWrapper>;
+    return <PageWrapper><PageLoader label="Loading History..." /></PageWrapper>;
   }
 
   return (
@@ -61,7 +65,7 @@ export const EventHistoryPage: React.FC = () => {
         </div>
       </div>
       
-      {error && <div className="mb-4 p-4 text-red-700 bg-red-50 rounded-lg">{error}</div>}
+      {error && <Alert variant="error" className="mb-4">{error}</Alert>}
 
       <div className="bg-white rounded-xl shadow-panel overflow-hidden border border-neutral-100">
         <div className="overflow-x-auto">
@@ -78,8 +82,12 @@ export const EventHistoryPage: React.FC = () => {
             <tbody>
               {events.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="p-8 text-center text-neutral-400 font-medium">
-                    No past events found.
+                  <td colSpan={5} className="p-0 border-b-0">
+                    <EmptyState 
+                      title="No History Found" 
+                      description="No past events have been archived yet." 
+                      className="border-none rounded-none"
+                    />
                   </td>
                 </tr>
               ) : (
@@ -91,19 +99,21 @@ export const EventHistoryPage: React.FC = () => {
                     <td className="p-4 text-neutral-500 text-sm">{new Date(evt.createdAt).toLocaleString()}</td>
                     <td className="p-4 text-center">
                       <div className="flex justify-center space-x-2">
-                        <button 
+                        <Button 
+                          variant="secondary"
+                          size="sm"
                           onClick={() => setSelectedEvent(evt)}
-                          className="px-3 py-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-medium rounded-md text-sm transition-colors"
                         >
                           View Scores
-                        </button>
-                        <button 
+                        </Button>
+                        <Button 
+                          variant="ghost"
+                          size="sm"
                           onClick={() => handleExport(evt)}
-                          className="p-1.5 text-neutral-500 hover:text-primary-600 hover:bg-primary-50 rounded-md transition-colors"
                           title="Download Raw JSON"
                         >
                           <Download className="w-4 h-4" />
-                        </button>
+                        </Button>
                       </div>
                     </td>
                   </tr>

@@ -3,6 +3,9 @@ import { PageWrapper } from '../../components/layout/PageWrapper';
 import { fetchApi } from '../../api/client';
 import { ICandidate, ICandidateResult, ISegmentBreakdown } from '../../types';
 import { SEGMENTS } from '../../utils/constants';
+import { PageLoader } from '../../components/ui/PageLoader';
+import { Button } from '../../components/ui/Button';
+import { Alert } from '../../components/ui/Alert';
 
 export const ResultsPage: React.FC = () => {
   const [candidates, setCandidates] = useState<ICandidate[]>([]);
@@ -62,7 +65,7 @@ export const ResultsPage: React.FC = () => {
   const femaleData = useMemo(() => getCandidateData('female'), [candidates, results, breakdown]);
 
   if (loading) {
-    return <PageWrapper><div className="p-8 text-center text-neutral-500 font-medium">Loading Data...</div></PageWrapper>;
+    return <PageWrapper><PageLoader label="Loading Data..." /></PageWrapper>;
   }
 
   const renderTable = (title: string, data: any[]) => (
@@ -134,7 +137,7 @@ export const ResultsPage: React.FC = () => {
           <h1 className="text-heading-1 text-primary-900">Official Results (Borda Count)</h1>
           <p className="text-neutral-500">Verified rankings and composite scores based on judge rank sums.</p>
         </div>
-        <button 
+        <Button 
           onClick={async () => {
             setLoading(true);
             setError('');
@@ -157,22 +160,18 @@ export const ResultsPage: React.FC = () => {
               setLoading(false);
             }
           }}
-          className="px-6 py-2 bg-primary-700 hover:bg-primary-800 text-white font-bold rounded-lg shadow"
         >
           Recompute All Results
-        </button>
+        </Button>
       </div>
       
-      {error && <div className="mb-4 p-4 text-red-700 bg-red-50 rounded-lg">{error}</div>}
+      {error && <Alert variant="error" className="mb-4">{error}</Alert>}
 
       {/* Finals Tie Banner */}
       {candidates.some(c => c.isInTiebreak) && (
-        <div className="mb-8 p-6 bg-red-50 rounded-xl border border-red-200">
-          <h2 className="text-lg font-bold text-red-900 mb-2">🔴 Finals Tie Detected — Tie-Breaking Q&A</h2>
-          <p className="text-red-800">
-            Tied finalists have been auto-flagged. Go to the Dashboard and open the Tie-Breaking Q&A segment.
-          </p>
-        </div>
+        <Alert variant="error" title="Finals Tie Detected — Tie-Breaking Q&A" className="mb-8">
+          Tied finalists have been auto-flagged. Go to the Dashboard and open the Tie-Breaking Q&A segment.
+        </Alert>
       )}
 
       {/* Preliminary Tie Overrides */}
@@ -220,15 +219,14 @@ export const ResultsPage: React.FC = () => {
         };
 
         return (
-          <div key={`${group.title}-tie`} className="mb-8 p-6 bg-amber-50 rounded-xl border border-amber-200">
-            <h2 className="text-lg font-bold text-amber-900 mb-2">⚠️ {group.title} Preliminary Boundary Tie Detected</h2>
-            <p className="text-amber-800 mb-4">
+          <div key={`${group.title}-tie`} className="mb-8">
+            <Alert variant="warning" title={`${group.title} Preliminary Boundary Tie Detected`} className="mb-4">
               Candidates <strong>{tiedNumbers}</strong> have tied at the boundary, exceeding available Top 3 slots.
               The judges must decide offline who advances.
               <br />Once decided, use the override below:
-            </p>
+            </Alert>
 
-            <div className="flex flex-wrap items-center gap-4 bg-white p-4 rounded-lg border border-amber-100">
+            <div className="flex flex-wrap items-center gap-4 bg-white p-4 rounded-lg border border-neutral-200 shadow-sm">
               <input
                 type="password"
                 placeholder="Admin PIN"
@@ -242,14 +240,14 @@ export const ResultsPage: React.FC = () => {
                   .filter(r => r.candidate.id !== row.candidate.id)
                   .map(r => r.candidate.id);
                 return (
-                  <button
+                  <Button
                     key={row.candidate.id}
                     disabled={overrideLoading || !overridePin}
                     onClick={() => handleAdvance(row.candidate.id, retreatIds)}
-                    className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded transition-colors disabled:opacity-50"
+                    variant="warning"
                   >
                     Advance #{row.candidate.candidateNumber} ({row.candidate.fullName}) to Top 3
-                  </button>
+                  </Button>
                 );
               })}
             </div>

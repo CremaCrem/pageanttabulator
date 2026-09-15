@@ -5,6 +5,8 @@ import { IRoundState, SegmentId, RoundStatus, ICandidate } from '../../types';
 import { SEGMENTS } from '../../utils/constants';
 import { useAppContext } from '../../context/AppContext';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
+import { Button } from '../../components/ui/Button';
+import { Alert } from '../../components/ui/Alert';
 
 export const DashboardPage: React.FC = () => {
   const { state, dispatch } = useAppContext();
@@ -138,9 +140,7 @@ export const DashboardPage: React.FC = () => {
       </div>
 
       {error && (
-        <div className="mb-6 p-4 bg-red-50 text-red-700 rounded-lg text-sm border border-red-100">
-          {error}
-        </div>
+        <Alert variant="error" className="mb-6">{error}</Alert>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -170,25 +170,23 @@ export const DashboardPage: React.FC = () => {
 
               {/* Tiebreak explainer banner */}
               {segment.id === SegmentId.TieBreakingQA && tieBreakNeeded && status === RoundStatus.NotStarted && (
-                <div className={`mb-4 p-3 rounded-lg text-sm border ${
-                  (tieBreakNeeded.male || tieBreakNeeded.female)
-                    ? 'bg-red-50 border-red-200 text-red-800'
-                    : 'bg-neutral-50 border-neutral-200 text-neutral-600'
-                }`}>
+                <Alert 
+                  variant={(tieBreakNeeded.male || tieBreakNeeded.female) ? 'error' : 'info'}
+                  title={(tieBreakNeeded.male || tieBreakNeeded.female) ? 'Boundary Tie Detected' : 'No Tie-Break Needed'}
+                  className="mb-4"
+                >
                   {(tieBreakNeeded.male || tieBreakNeeded.female) ? (
                     <>
-                      <div className="font-bold mb-1">⚠️ Boundary Tie Detected</div>
                       <div>{tieBreakNeeded.reason}</div>
-                      <div className="mt-1 text-xs">You must tag the tied candidates in the Candidates page before opening this segment.</div>
+                      <div className="mt-1 text-xs opacity-80">You must tag the tied candidates in the Candidates page before opening this segment.</div>
                     </>
                   ) : (
                     <>
-                      <div className="font-bold mb-1">✓ No Tie-Break Needed</div>
-                      <div className="text-xs">{tieBreakNeeded.reason}</div>
-                      <div className="mt-1 text-xs font-semibold">A tie-break is only required when 3rd and 4th place have the same preliminary rank sum. The Final Q&amp;A 50/50 formula resolves any ties within the top 3.</div>
+                      <div>{tieBreakNeeded.reason}</div>
+                      <div className="mt-1 text-xs opacity-80">A tie-break is only required when 3rd and 4th place have the same preliminary rank sum. The Final Q&amp;A 50/50 formula resolves any ties within the top 3.</div>
                     </>
                   )}
-                </div>
+                </Alert>
               )}
 
               <div className="flex-1" />
@@ -199,18 +197,16 @@ export const DashboardPage: React.FC = () => {
                   const tiebreakBlocked = isTiebreak && tieBreakNeeded && !tieBreakNeeded.male && !tieBreakNeeded.female;
                   const isDisabled = actionLoading !== null || hasOpenSegment || !!tiebreakBlocked;
                   return (
-                    <button
+                    <Button
+                      fullWidth
                       onClick={() => handleOpenRoundClick(segment.id)}
                       disabled={isDisabled}
-                      className={`w-full py-2 font-semibold rounded transition-colors disabled:opacity-50 ${
-                        isDisabled
-                          ? 'bg-neutral-200 text-neutral-500 cursor-not-allowed'
-                          : 'bg-primary-600 hover:bg-primary-700 text-white'
-                      }`}
+                      isLoading={actionLoading === segment.id}
+                      loadingText="Opening..."
                       title={hasOpenSegment ? 'Another segment is currently open. Please lock it first.' : ''}
                     >
-                      {actionLoading === segment.id ? 'Opening...' : 'Open Segment for Judging'}
-                    </button>
+                      Open Segment for Judging
+                    </Button>
                   );
                 })()}
 
@@ -233,30 +229,34 @@ export const DashboardPage: React.FC = () => {
                         />
                         {pinError && <div className="text-xs text-red-600 font-semibold">{pinError}</div>}
                         <div className="flex space-x-2">
-                          <button 
-                            type="button"
+                          <Button 
+                            variant="destructive"
                             onClick={() => handleLockRound(segment.id)}
                             disabled={actionLoading === segment.id}
-                            className="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded transition-colors disabled:opacity-50"
+                            isLoading={actionLoading === segment.id}
+                            loadingText="Locking..."
+                            className="flex-1"
                           >
-                            {actionLoading === segment.id ? 'Locking...' : 'Confirm Lock'}
-                          </button>
-                          <button 
-                            type="button"
+                            Confirm Lock
+                          </Button>
+                          <Button 
+                            variant="secondary"
                             onClick={() => { setPinPrompt(null); setPin(''); setPinError(''); }}
-                            className="flex-1 py-2 bg-neutral-200 hover:bg-neutral-300 text-neutral-700 font-semibold rounded transition-colors"
+                            className="flex-1"
                           >
                             Cancel
-                          </button>
+                          </Button>
                         </div>
                       </div>
                     ) : (
-                      <button 
+                      <Button 
+                        variant="ghost"
+                        fullWidth
                         onClick={() => setPinPrompt(segment.id)}
-                        className="w-full py-2 bg-red-100 hover:bg-red-200 text-red-700 font-semibold rounded transition-colors"
+                        className="!bg-red-50 !text-red-700 hover:!bg-red-100"
                       >
                         Lock Segment (Requires PIN)
-                      </button>
+                      </Button>
                     )}
                   </div>
                 )}

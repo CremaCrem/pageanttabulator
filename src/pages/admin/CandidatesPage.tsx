@@ -3,6 +3,9 @@ import { PageWrapper } from '../../components/layout/PageWrapper';
 import { fetchApi } from '../../api/client';
 import { ICandidate, Gender } from '../../types';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
+import { Button } from '../../components/ui/Button';
+import { Alert } from '../../components/ui/Alert';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { ImageUpload } from '../../components/ui/ImageUpload';
 import { getApiBaseUrl } from '../../api/client';
 
@@ -103,9 +106,7 @@ export const CandidatesPage: React.FC = () => {
       </div>
 
       {error && (
-        <div className="mb-6 p-4 bg-red-50 text-red-700 rounded-lg text-sm border border-red-100">
-          {error}
-        </div>
+        <Alert variant="error" className="mb-6">{error}</Alert>
       )}
 
       {/* Add Candidate Form */}
@@ -140,9 +141,9 @@ export const CandidatesPage: React.FC = () => {
             </div>
           </div>
           <div className="flex justify-end">
-            <button type="submit" disabled={adding} className="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded shadow transition-colors disabled:opacity-50 h-[42px]">
-              {adding ? 'Adding...' : 'Add Candidate'}
-            </button>
+            <Button type="submit" isLoading={adding} loadingText="Adding..." className="h-[42px]">
+              Add Candidate
+            </Button>
           </div>
         </form>
       </div>
@@ -164,9 +165,17 @@ export const CandidatesPage: React.FC = () => {
             </thead>
             <tbody className="divide-y divide-neutral-100">
               {loading ? (
-                <tr><td colSpan={6} className="p-8 text-center text-neutral-400">Loading...</td></tr>
+                <tr><td colSpan={7} className="p-8 text-center text-neutral-400">Loading...</td></tr>
               ) : candidates.length === 0 ? (
-                <tr><td colSpan={6} className="p-8 text-center text-neutral-400">No candidates added yet.</td></tr>
+                <tr>
+                  <td colSpan={7} className="p-0 border-b-0">
+                    <EmptyState 
+                      title="No Candidates Found" 
+                      description="No candidates have been added to the roster yet. Add the first candidate above to begin." 
+                      className="border-none rounded-none"
+                    />
+                  </td>
+                </tr>
               ) : (
                 candidates.map((candidate) => (
                   <tr key={candidate.id} className="hover:bg-neutral-50 transition-colors">
@@ -201,12 +210,14 @@ export const CandidatesPage: React.FC = () => {
                     </td>
                     <td className="p-4 text-right space-x-2">
 
-                      <button 
+                      <Button 
+                        variant="ghost"
+                        size="sm"
                         onClick={() => handleDisqualifyClick(candidate.id, candidate.isEligible)}
-                        className={`text-sm font-medium ${candidate.isEligible ? 'text-red-600 hover:text-red-800' : 'text-green-600 hover:text-green-800'}`}
+                        className={candidate.isEligible ? '!text-red-600 hover:!bg-red-50' : '!text-green-600 hover:!bg-green-50'}
                       >
                         {candidate.isEligible ? 'Disqualify' : 'Reinstate'}
-                      </button>
+                      </Button>
                     </td>
                   </tr>
                 ))

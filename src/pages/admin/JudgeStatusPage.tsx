@@ -6,6 +6,9 @@ import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { useAppContext } from '../../context/AppContext';
 import { ImageUpload } from '../../components/ui/ImageUpload';
 import { getApiBaseUrl } from '../../api/client';
+import { Button } from '../../components/ui/Button';
+import { Alert } from '../../components/ui/Alert';
+import { Modal } from '../../components/ui/Modal';
 
 interface JudgeStatusResponse extends IJudge {
   totalScoresSubmitted: number;
@@ -111,18 +114,16 @@ export const JudgeStatusPage: React.FC = () => {
           <h1 className="text-heading-1 text-primary-900">Judge Status</h1>
           <p className="text-neutral-500">Live monitoring of judge connectivity and scoring progress</p>
         </div>
-        <button 
+        <Button 
+          variant="secondary"
           onClick={loadStatus}
-          className="px-4 py-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-semibold rounded-lg shadow-sm transition-colors text-sm"
         >
           Refresh Now
-        </button>
+        </Button>
       </div>
 
       {error && (
-        <div className="mb-6 p-4 bg-red-50 text-red-700 rounded-lg text-sm border border-red-100">
-          {error}
-        </div>
+        <Alert variant="error" className="mb-6">{error}</Alert>
       )}
 
       <div className="bg-white rounded-xl shadow-panel overflow-hidden border border-neutral-100">
@@ -176,19 +177,22 @@ export const JudgeStatusPage: React.FC = () => {
                       <span className="font-bold text-lg text-primary-900">{judge.totalScoresSubmitted}</span>
                     </td>
                     <td className="p-4 text-right space-x-4">
-                      <button 
+                      <Button 
+                        variant="ghost"
+                        size="sm"
                         onClick={() => handleEditClick(judge)}
-                        className="text-sm font-medium text-primary-600 hover:text-primary-800"
                       >
                         Edit Profile
-                      </button>
-                      <button 
+                      </Button>
+                      <Button 
+                        variant="ghost"
+                        size="sm"
                         onClick={() => handleResetSessionClick(judge.id)}
                         disabled={!judge.isActive}
-                        className="text-sm font-medium text-red-600 hover:text-red-800 disabled:opacity-30 disabled:hover:text-red-600"
+                        className="!text-red-600 hover:!bg-red-50"
                       >
                         Force Logout
-                      </button>
+                      </Button>
                     </td>
                   </tr>
                 );
@@ -208,58 +212,53 @@ export const JudgeStatusPage: React.FC = () => {
       />
 
       {/* Edit Judge Modal */}
-      {editJudge && (
-        <div className="fixed inset-0 bg-neutral-900/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="p-6 border-b border-neutral-100 flex justify-between items-center bg-neutral-50">
-              <h2 className="text-xl font-bold text-primary-900">Edit {editJudge.id} Profile</h2>
-              <button onClick={() => setEditJudge(null)} className="text-neutral-400 hover:text-neutral-600">✕</button>
-            </div>
-            
-            <form onSubmit={handleSaveProfile} className="p-6 overflow-y-auto flex-1 flex flex-col gap-6">
-              <div>
-                <label className="block text-sm font-semibold text-neutral-700 mb-2">Judge Photo</label>
-                <ImageUpload 
-                  value={editForm.photoPath} 
-                  onChange={(url) => setEditForm({...editForm, photoPath: url})} 
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-neutral-700 mb-1">Name</label>
-                <input 
-                  type="text" 
-                  value={editForm.name} 
-                  onChange={e => setEditForm({...editForm, name: e.target.value})} 
-                  className="w-full p-3 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-shadow" 
-                  placeholder="e.g. Dr. Jane Smith" 
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-neutral-700 mb-1">Password (Plain Text)</label>
-                <input 
-                  type="text" 
-                  value={editForm.password} 
-                  onChange={e => setEditForm({...editForm, password: e.target.value})} 
-                  className="w-full p-3 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-shadow" 
-                  placeholder="Leave empty for no password" 
-                />
-                <p className="text-xs text-neutral-500 mt-1">If set, the judge must enter this password to claim their slot.</p>
-              </div>
-
-              <div className="flex gap-3 justify-end mt-4">
-                <button type="button" onClick={() => setEditJudge(null)} className="px-5 py-2.5 text-neutral-600 font-medium hover:bg-neutral-100 rounded-lg transition-colors">
-                  Cancel
-                </button>
-                <button type="submit" disabled={saving} className="px-5 py-2.5 bg-primary-600 text-white font-medium hover:bg-primary-700 rounded-lg transition-colors shadow-sm disabled:opacity-50">
-                  {saving ? 'Saving...' : 'Save Profile'}
-                </button>
-              </div>
-            </form>
+      <Modal
+        isOpen={!!editJudge}
+        onClose={() => setEditJudge(null)}
+        title={editJudge ? `Edit ${editJudge.id} Profile` : ''}
+      >
+        <form onSubmit={handleSaveProfile} className="flex flex-col gap-6">
+          <div>
+            <label className="block text-sm font-semibold text-neutral-700 mb-2">Judge Photo</label>
+            <ImageUpload 
+              value={editForm.photoPath} 
+              onChange={(url) => setEditForm({...editForm, photoPath: url})} 
+            />
           </div>
-        </div>
-      )}
+
+          <div>
+            <label className="block text-sm font-semibold text-neutral-700 mb-1">Name</label>
+            <input 
+              type="text" 
+              value={editForm.name} 
+              onChange={e => setEditForm({...editForm, name: e.target.value})} 
+              className="w-full p-3 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-shadow" 
+              placeholder="e.g. Dr. Jane Smith" 
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-neutral-700 mb-1">Password (Plain Text)</label>
+            <input 
+              type="text" 
+              value={editForm.password} 
+              onChange={e => setEditForm({...editForm, password: e.target.value})} 
+              className="w-full p-3 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-shadow" 
+              placeholder="Leave empty for no password" 
+            />
+            <p className="text-xs text-neutral-500 mt-1">If set, the judge must enter this password to claim their slot.</p>
+          </div>
+
+          <div className="flex gap-3 justify-end mt-4">
+            <Button type="button" variant="secondary" onClick={() => setEditJudge(null)}>
+              Cancel
+            </Button>
+            <Button type="submit" isLoading={saving} loadingText="Saving...">
+              Save Profile
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </PageWrapper>
   );
 };
