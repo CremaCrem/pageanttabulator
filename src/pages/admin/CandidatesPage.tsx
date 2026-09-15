@@ -16,7 +16,7 @@ export const CandidatesPage: React.FC = () => {
   const [error, setError] = useState('');
   const [adding, setAdding] = useState(false);
   const [imageUploading, setImageUploading] = useState(false);
-  const numberInputRef = useRef<HTMLInputElement>(null);
+  const fullNameInputRef = useRef<HTMLInputElement>(null);
 
   const getNextCandidateNumber = (currentList: ICandidate[]): string => {
     let max = 0;
@@ -133,7 +133,7 @@ export const CandidatesPage: React.FC = () => {
       
       setNewCandidate(updatedCleanState);
       setBaselineCandidate(updatedCleanState);
-      numberInputRef.current?.focus();
+      fullNameInputRef.current?.focus();
     } catch (err: any) {
       setError(err.message || 'Failed to add candidate');
     } finally {
@@ -191,11 +191,11 @@ export const CandidatesPage: React.FC = () => {
             <div className="flex flex-wrap gap-4 items-end flex-1">
               <div className="flex-1 min-w-[120px]">
                 <label className="block text-xs font-semibold text-neutral-600 mb-1">Number</label>
-                <input ref={numberInputRef} type="text" required value={newCandidate.candidateNumber} onChange={e => setNewCandidate({...newCandidate, candidateNumber: e.target.value})} className="w-full p-2 border border-neutral-300 rounded focus:border-primary-500 outline-none" placeholder="e.g. 01" />
+                <input type="text" required value={newCandidate.candidateNumber} onChange={e => setNewCandidate({...newCandidate, candidateNumber: e.target.value})} className="w-full p-2 border border-neutral-300 rounded focus:border-primary-500 outline-none" placeholder="e.g. 01" />
               </div>
           <div className="flex-[3] min-w-[200px]">
             <label className="block text-xs font-semibold text-neutral-600 mb-1">Full Name</label>
-            <input type="text" required value={newCandidate.fullName} onChange={e => setNewCandidate({...newCandidate, fullName: e.target.value})} className="w-full p-2 border border-neutral-300 rounded focus:border-primary-500 outline-none" placeholder="Juan dela Cruz" />
+            <input ref={fullNameInputRef} type="text" required value={newCandidate.fullName} onChange={e => setNewCandidate({...newCandidate, fullName: e.target.value})} className="w-full p-2 border border-neutral-300 rounded focus:border-primary-500 outline-none" placeholder="Juan dela Cruz" />
           </div>
           <div className="flex-[2] min-w-[150px]">
             <label className="block text-xs font-semibold text-neutral-600 mb-1">Department/College</label>

@@ -252,6 +252,7 @@ export const JudgeStatusPage: React.FC = () => {
           <div>
             <label className="block text-sm font-semibold text-neutral-700 mb-1">Name</label>
             <input 
+              autoFocus
               type="text" 
               value={editForm.name} 
               onChange={e => setEditForm({...editForm, name: e.target.value})} 

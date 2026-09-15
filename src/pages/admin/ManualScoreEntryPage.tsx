@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { fetchApi } from '../../api/client';
 import { ICandidate, IJudge, IManualScoreEntryRequest } from '../../types';
 import { useToast } from '../../context/ToastContext';
@@ -157,6 +157,16 @@ export const ManualScoreEntryPage: React.FC = () => {
   const activeSegment = selectedSegmentId ? SEGMENTS[selectedSegmentId as keyof typeof SEGMENTS] : null;
   const selectedCandidate = candidates.find(c => c.id === selectedCandidateId);
 
+  const firstInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (selectedCandidateId && activeSegment) {
+      setTimeout(() => {
+        firstInputRef.current?.focus();
+      }, 0);
+    }
+  }, [selectedCandidateId, activeSegment]);
+
   const handleScoreChange = (criterionId: string, val: string) => {
     if (val === '') {
       setScores(prev => ({ ...prev, [criterionId]: '' }));
@@ -168,7 +178,8 @@ export const ManualScoreEntryPage: React.FC = () => {
     }
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!activeSegment || !selectedCandidateId || !selectedJudgeId) return;
 
     // Validate
@@ -211,7 +222,13 @@ export const ManualScoreEntryPage: React.FC = () => {
       
       success(`Score successfully entered for ${selectedCandidate?.fullName}`);
       setScores({});
-      setSelectedCandidateId('');
+      
+      const currentIndex = candidates.findIndex(c => c.id === selectedCandidateId);
+      if (currentIndex >= 0 && currentIndex < candidates.length - 1) {
+        setSelectedCandidateId(candidates[currentIndex + 1].id);
+      } else {
+        setSelectedCandidateId('');
+      }
     } catch (err: any) {
       setError(err.error || err.message || 'Failed to submit score');
     } finally {
@@ -305,7 +322,7 @@ export const ManualScoreEntryPage: React.FC = () => {
         )}
 
         {activeSegment && selectedCandidateId && (
-          <div className="mt-8 border-t border-neutral-100 pt-6">
+          <form onSubmit={handleSubmit} className="mt-8 border-t border-neutral-100 pt-6">
             <h3 className="text-lg font-semibold mb-4">Criteria</h3>
             
             {error && (
@@ -315,7 +332,7 @@ export const ManualScoreEntryPage: React.FC = () => {
             )}
 
             <div className="space-y-3 mb-6">
-              {activeSegment.criteria.map(crit => (
+              {activeSegment.criteria.map((crit: any, i: number) => (
                 <div key={crit.id} className="flex items-center justify-between p-4 bg-neutral-50 rounded-lg border border-neutral-200">
                   <div>
                     <div className="font-semibold">{crit.label}</div>
@@ -323,6 +340,7 @@ export const ManualScoreEntryPage: React.FC = () => {
                   </div>
                   <div className="flex items-center gap-2">
                     <input
+                      ref={i === 0 ? firstInputRef : null}
                       type="number"
                       min="1"
                       max="100"
@@ -338,13 +356,13 @@ export const ManualScoreEntryPage: React.FC = () => {
             </div>
 
             <button
-              onClick={handleSubmit}
+              type="submit"
               disabled={submitting || !selectedJudgeId}
               className="w-full py-3 bg-primary-600 text-white font-semibold rounded-lg hover:bg-primary-700 disabled:opacity-50"
             >
               {submitting ? 'Submitting...' : 'Submit Score'}
             </button>
-          </div>
+          </form>
         )}
       </div>
 
