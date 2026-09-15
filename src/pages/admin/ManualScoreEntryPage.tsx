@@ -3,6 +3,8 @@ import { fetchApi } from '../../api/client';
 import { ICandidate, IJudge, IManualScoreEntryRequest } from '../../types';
 import { useToast } from '../../context/ToastContext';
 import { SEGMENTS } from '../../utils/constants';
+import { useDirtyState } from '../../hooks/useDirtyState';
+import { ConfirmModal } from '../../components/ui/ConfirmModal';
 
 export const ManualScoreEntryPage: React.FC = () => {
   const { success } = useToast();
@@ -25,6 +27,14 @@ export const ManualScoreEntryPage: React.FC = () => {
   const [scores, setScores] = useState<Record<string, number | ''>>({});
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+
+  const [pendingChange, setPendingChange] = useState<{ type: 'segment' | 'candidate', id: string } | null>(null);
+
+  const isDirty = React.useMemo(() => {
+    return Object.values(scores).some(val => val !== undefined && val !== '');
+  }, [scores]);
+
+  useDirtyState(isDirty);
 
   // Unlock PIN
   const handleUnlock = async (e: React.FormEvent) => {
@@ -106,7 +116,43 @@ export const ManualScoreEntryPage: React.FC = () => {
   useEffect(() => {
     setScores({});
     setSelectedCandidateId('');
+    setError('');
   }, [selectedSegmentId]);
+
+  const handleSegmentChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const nextId = e.target.value;
+    if (isDirty) {
+      setPendingChange({ type: 'segment', id: nextId });
+    } else {
+      setSelectedSegmentId(nextId);
+    }
+  };
+
+  const handleCandidateChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const nextId = e.target.value;
+    if (isDirty) {
+      setPendingChange({ type: 'candidate', id: nextId });
+    } else {
+      setSelectedCandidateId(nextId);
+      setScores({});
+      setError('');
+    }
+  };
+
+  const confirmDiscard = () => {
+    if (pendingChange?.type === 'segment') {
+      setSelectedSegmentId(pendingChange.id);
+    } else if (pendingChange?.type === 'candidate') {
+      setSelectedCandidateId(pendingChange.id);
+      setScores({});
+      setError('');
+    }
+    setPendingChange(null);
+  };
+
+  const cancelDiscard = () => {
+    setPendingChange(null);
+  };
 
   const activeSegment = selectedSegmentId ? SEGMENTS[selectedSegmentId as keyof typeof SEGMENTS] : null;
   const selectedCandidate = candidates.find(c => c.id === selectedCandidateId);
@@ -223,7 +269,7 @@ export const ManualScoreEntryPage: React.FC = () => {
             <label className="block text-sm font-medium text-neutral-700 mb-1">Segment</label>
             <select
               value={selectedSegmentId}
-              onChange={e => setSelectedSegmentId(e.target.value)}
+              onChange={handleSegmentChange}
               className="w-full p-2 border border-neutral-300 rounded-lg outline-none focus:border-primary-500"
             >
               <option value="">-- Select Segment --</option>
@@ -239,11 +285,7 @@ export const ManualScoreEntryPage: React.FC = () => {
             <label className="block text-sm font-medium text-neutral-700 mb-1">Candidate</label>
             <select
               value={selectedCandidateId}
-              onChange={e => {
-                setSelectedCandidateId(e.target.value);
-                setScores({});
-                setError('');
-              }}
+              onChange={handleCandidateChange}
               className="w-full p-2 border border-neutral-300 rounded-lg outline-none focus:border-primary-500"
             >
               <option value="">-- Select Candidate --</option>
@@ -305,6 +347,17 @@ export const ManualScoreEntryPage: React.FC = () => {
           </div>
         )}
       </div>
+
+      <ConfirmModal
+        isOpen={pendingChange !== null}
+        title="Unsaved Scores"
+        message="You have unsaved scores. Changing the candidate/segment will discard them."
+        confirmText="Discard Scores"
+        cancelText="Stay"
+        onConfirm={confirmDiscard}
+        onCancel={cancelDiscard}
+        variant="destructive"
+      />
     </div>
   );
 };

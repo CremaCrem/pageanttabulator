@@ -29,6 +29,7 @@ import { PrintBlankScoreSheetsPage } from './pages/shared/PrintBlankScoreSheetsP
 import './App.css';
 
 import { ToastProvider } from './context/ToastContext';
+import { DirtyStateProvider } from './context/DirtyStateContext';
 
 function App() {
   // Detect if running inside the Tauri shell
@@ -36,7 +37,8 @@ function App() {
 
   return (
     <ToastProvider>
-      <BrowserRouter>
+      <DirtyStateProvider>
+        <BrowserRouter>
         {isAdminMode ? (
           // --- Admin Mode (Tauri Shell) ---
           <AdminShell>
@@ -81,6 +83,7 @@ function App() {
           </Routes>
         )}
       </BrowserRouter>
+      </DirtyStateProvider>
     </ToastProvider>
   );
 }

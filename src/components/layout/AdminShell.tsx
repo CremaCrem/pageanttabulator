@@ -1,14 +1,17 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Users, ClipboardList, UserCheck, FileText, Trophy, QrCode, X, Copy, Activity, Edit3 } from 'lucide-react';
 import { cn } from '../ui/Button';
 import { useAppContext } from '../../context/AppContext';
 import { fetchApi } from '../../api/client';
+import { useDirtyStateContext } from '../../context/DirtyStateContext';
 import { QRCodeSVG } from 'qrcode.react';
 
 export const AdminShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { state } = useAppContext();
+  const { handleNavigation } = useDirtyStateContext();
   const [networkInfo, setNetworkInfo] = React.useState<any>(null);
   const [showQrModal, setShowQrModal] = React.useState(false);
 
@@ -48,6 +51,12 @@ export const AdminShell: React.FC<{ children: React.ReactNode }> = ({ children }
               <Link
                 key={item.path}
                 to={item.path}
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (location.pathname !== item.path) {
+                    handleNavigation(item.path, () => navigate(item.path));
+                  }
+                }}
                 className={cn(
                   'flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-150',
                   isActive 

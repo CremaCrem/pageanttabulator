@@ -10,6 +10,7 @@ import { Alert } from '../../components/ui/Alert';
 import { PageLoader } from '../../components/ui/PageLoader';
 import { useToast } from '../../context/ToastContext';
 import { Copy, MonitorSmartphone, QrCode } from 'lucide-react';
+import { useDirtyState } from '../../hooks/useDirtyState';
 
 export const SetupPage: React.FC = () => {
   const { state, dispatch } = useAppContext();
@@ -43,6 +44,22 @@ export const SetupPage: React.FC = () => {
     coordinator: '',
     auditor: '',
   });
+
+  const isDirty = React.useMemo(() => {
+    if (!state.eventConfig) return false;
+    return (
+      formData.name !== state.eventConfig.name ||
+      formData.subtitle !== state.eventConfig.subtitle ||
+      formData.eventDate !== state.eventConfig.eventDate ||
+      formData.venue !== state.eventConfig.venue ||
+      formData.judgeCount !== state.eventConfig.judgeCount ||
+      formData.headTabulator !== (state.eventConfig.headTabulator || '') ||
+      formData.coordinator !== (state.eventConfig.coordinator || '') ||
+      formData.auditor !== (state.eventConfig.auditor || '')
+    );
+  }, [formData, state.eventConfig]);
+
+  useDirtyState(isDirty);
 
   useEffect(() => {
     const loadConfig = async () => {
