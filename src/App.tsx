@@ -22,7 +22,6 @@ import { ScoringPage } from './pages/judge/ScoringPage';
 import { ErrorBoundary } from './components/layout/ErrorBoundary';
 
 // Shared
-import { ProjectionPage } from './pages/shared/ProjectionPage';
 import { PrintReportPage } from './pages/shared/PrintReportPage';
 import { PrintBlankScoreSheetsPage } from './pages/shared/PrintBlankScoreSheetsPage';
 
@@ -53,7 +52,6 @@ function App() {
               <Route path="/history" element={<EventHistoryPage />} />
               <Route path="/reports" element={<ReportsPage />} />
               <Route path="/diagnostics" element={<DiagnosticsPage />} />
-            <Route path="/projection" element={<ProjectionPage />} />
               <Route path="/print-report" element={<PrintReportPage />} />
               <Route path="/print-blank-scoresheets" element={<PrintBlankScoreSheetsPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
@@ -62,7 +60,6 @@ function App() {
         ) : (
           // --- Judge Mode (Browser) ---
           <Routes>
-            <Route path="/projection" element={<ProjectionPage />} />
             <Route path="/" element={
               <ErrorBoundary>
                 <JudgeShell>

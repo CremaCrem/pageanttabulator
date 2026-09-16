@@ -31,7 +31,7 @@ Event tabulations are mission-critical. Errors or delays in calculations affect 
    - **Role:** Select their assigned judge slot and submit scores (1-100) for candidates per segment.
 
 3. **The Audience / Host (Viewers)**
-   - **Environment:** Web browser projected onto a large screen (`/projection` route). 
+
    - **Role:** View the live, read-only rankings and candidate progress.
 
 ---

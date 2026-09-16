@@ -9,7 +9,6 @@ pub struct NetworkInfoResponse {
     pub port: u16,
     pub server_url: String,
     pub judge_url: String,
-    pub projection_url: String,
 }
 
 pub async fn get_network_info() -> Json<NetworkInfoResponse> {
@@ -39,7 +38,6 @@ pub async fn get_network_info() -> Json<NetworkInfoResponse> {
         port,
         server_url: server_url.clone(),
         judge_url: server_url.clone(),
-        projection_url: format!("{}/projection", server_url),
     };
 
     Json(response)

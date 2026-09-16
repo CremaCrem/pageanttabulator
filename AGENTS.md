@@ -98,9 +98,9 @@ This is a **mission-critical system used at a live event with real students**. T
                          │
        ┌─────────────────┼──────────────────┐
        │                 │                  │
-  Admin Laptop       Judge PCs         Projector
-  Tauri App          Browser           Browser
-  (Server Hub)       /score            /projection
+  Admin Laptop       Judge PCs
+  Tauri App          Browser
+  (Server Hub)       /score
        │
   ┌────┴────┐
   │  axum   │  HTTP :3000   REST API  (/api/*)
@@ -166,7 +166,6 @@ src/
   pages/          Route-level page components
     admin/        Admin-only views (gated by window.__TAURI__ or role)
     judge/        Judge scoring views
-    shared/       Views accessible by both (e.g., /projection)
   types/          All TypeScript domain types (index.ts re-exports all)
   utils/          Frontend-only utilities (formatters, validators, constants)
                   NO scoring formulas here
@@ -221,7 +220,6 @@ Minor awards:      Best in Advocacy & Ramp use Ranking-Based (Borda Count) scori
 |---|---|---|
 | **Admin** | Tauri desktop (`window.__TAURI__ === true`) | Full control: setup, candidates, locking rounds, reports, PIN-protected actions |
 | **Judge** | Browser → `http://[admin-ip]:3000` → select judge slot | Score input for currently open segment only |
-| **Viewer** | Browser → `http://[admin-ip]:3000/projection` | Read-only live rankings |
 
 - No login system, no accounts, no per-judge passwords.
 - Admin PIN is a 4–6 digit number for irreversible actions only — not a login gate.

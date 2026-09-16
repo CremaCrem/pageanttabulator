@@ -476,14 +476,14 @@ theme: {
 
 ## 12. Responsive Breakpoints
 
-The app is designed for **desktop (laptop) use only**. However, the Projection view (audience display) should handle large screen aspect ratios.
+The app is designed primarily for **desktop (laptop) use** for the Admin panel, and tablet/mobile for the Judge Web View. There is no mobile admin view.
 
 | Breakpoint | Width | Use Case |
 |-----------|-------|----------|
 | `lg` | 1024px | Minimum supported width |
 | `xl` | 1280px | Default laptop target |
 | `2xl` | 1536px | Large monitors |
-| `4xl` (custom) | 1920px | Full HD TV projection |
+| `4xl` (custom) | 1920px | Extra large screens |
 
 ---
 

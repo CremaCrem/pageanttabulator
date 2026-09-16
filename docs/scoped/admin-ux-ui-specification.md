@@ -46,7 +46,7 @@ Playfair Display is a **ceremonial/display typeface**, not the default Admin hea
 Reserve it for:
 *   Event branding and ceremonial headings
 *   Winner/champion presentations
-*   Major pageant moments and selected presentation/projection content
+*   Major pageant moments and selected presentation content
 *   *(Do NOT globally apply Playfair Display to every `h1`, `h2`, or `h3`)*
 
 ---

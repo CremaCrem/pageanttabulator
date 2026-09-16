@@ -7,6 +7,7 @@ import { ICandidate, ISubmitScoreRequest, UserRole, IRoundState, RoundStatus, Ge
 import { useToast } from '../../context/ToastContext';
 import { SEGMENTS } from '../../utils/constants';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
+import { Modal } from '../../components/ui/Modal';
 
 export const ScoringPage: React.FC = () => {
   const { state, dispatch } = useAppContext();
@@ -17,12 +18,15 @@ export const ScoringPage: React.FC = () => {
   const [candidates, setCandidates] = useState<ICandidate[]>([]);
   const [top3Ids, setTop3Ids] = useState<Set<string>>(new Set());
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null);
-  const [activeGenderTab, setActiveGenderTab] = useState<Gender>(Gender.Male);
-  const [scores, setScores] = useState<Record<string, number | ''>>({});
+  
+  // Phase 3: drafts[candidateId][criterionId]
+  const [drafts, setDrafts] = useState<Record<string, Record<string, number | ''>>>({});
+  const [showCandidateModal, setShowCandidateModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [confirmSubmit, setConfirmSubmit] = useState(false);
   const [error, setError] = useState('');
   const [completedCandidates, setCompletedCandidates] = useState<Set<string>>(new Set());
+  const [submittedScores, setSubmittedScores] = useState<Record<string, Record<string, number>>>({});
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
@@ -88,7 +92,6 @@ export const ScoringPage: React.FC = () => {
     if (eligible.length > 0) {
       if (!selectedCandidateId || !eligible.find(c => c.id === selectedCandidateId)) {
         setSelectedCandidateId(eligible[0].id);
-        setActiveGenderTab(eligible[0].gender);
       }
     } else {
       setSelectedCandidateId(null);
@@ -114,22 +117,60 @@ export const ScoringPage: React.FC = () => {
 
   // Reset local form state and fetch existing scores when segment changes
   useEffect(() => {
-    setScores({});
+    setDrafts({});
     setError('');
     // optionally select first candidate again
     if (candidates.length > 0) {
       setSelectedCandidateId(candidates[0].id);
     }
 
-    // Fetch already submitted scores to populate checkmarks
+    // Fetch already submitted scores to populate checkmarks and read-only values
     const fetchSubmittedScores = async () => {
       if (!state.activeSegmentId || !state.session?.judgeId) return;
       try {
         const scores: any[] = await fetchApi(`/api/scores/judge/${state.session.judgeId}`);
         const segmentScores = scores.filter(s => s.segmentId === state.activeSegmentId);
+        
         const completed = new Set<string>();
-        segmentScores.forEach(s => completed.add(s.candidateId));
+        const fetchedScores: Record<string, Record<string, number>> = {};
+
+        segmentScores.forEach(s => {
+          completed.add(s.candidateId);
+          try {
+            const parsed = JSON.parse(s.criteriaJson);
+            if (!fetchedScores[s.candidateId]) {
+              fetchedScores[s.candidateId] = {};
+            }
+            parsed.forEach((entry: any) => {
+              fetchedScores[s.candidateId][`${s.segmentId}_${entry.criterionId}`] = entry.score;
+            });
+          } catch (e) {
+            console.error("Failed to parse criteriaJson", e);
+          }
+        });
+        
+        // Also check if there's a secondary segment and grab its scores too
+        if (state.activeSegmentId === 'school_uniform' || state.activeSegmentId === 'modern_barong') {
+            const secSegId = state.activeSegmentId === 'school_uniform' ? 'best_advocacy' : 'best_in_ramp';
+            const secScores = scores.filter(s => s.segmentId === secSegId);
+            secScores.forEach(s => {
+                completed.add(s.candidateId);
+                try {
+                  const parsed = JSON.parse(s.criteriaJson);
+                  if (!fetchedScores[s.candidateId]) {
+                    fetchedScores[s.candidateId] = {};
+                  }
+                  parsed.forEach((entry: any) => {
+                    fetchedScores[s.candidateId][`${s.segmentId}_${entry.criterionId}`] = entry.score;
+                  });
+                } catch (e) {
+                  console.error("Failed to parse secondary criteriaJson", e);
+                }
+            });
+        }
+
         setCompletedCandidates(completed);
+        setSubmittedScores(fetchedScores);
       } catch (err) {
         console.error("Failed to load existing scores", err);
       }
@@ -137,6 +178,21 @@ export const ScoringPage: React.FC = () => {
 
     fetchSubmittedScores();
   }, [state.activeSegmentId, state.session?.judgeId, candidates]);
+
+  // Phase 5: Prevent accidental closure if drafts exist
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      const hasDrafts = Object.values(drafts).some(candidateDraft => 
+        Object.values(candidateDraft).some(val => val !== '' && val !== undefined)
+      );
+      if (hasDrafts) {
+        e.preventDefault();
+        e.returnValue = ''; // Required for Chrome
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [drafts]);
 
   const activeSegment = state.activeSegmentId ? SEGMENTS[state.activeSegmentId] : null;
 
@@ -146,33 +202,47 @@ export const ScoringPage: React.FC = () => {
     return null;
   }, [state.activeSegmentId]);
 
+  // Derivation
+  const currentScores = useMemo(() => {
+    if (!selectedCandidateId) return {};
+    if (completedCandidates.has(selectedCandidateId)) {
+        return submittedScores[selectedCandidateId] || {};
+    }
+    return drafts[selectedCandidateId] || {};
+  }, [drafts, submittedScores, selectedCandidateId, completedCandidates]);
+
   // Calculate live preview
   const currentTotal = useMemo(() => {
     if (!activeSegment) return 0;
     return activeSegment.criteria.reduce((total, crit) => {
-      const val = scores[`${activeSegment.id}_${crit.id}`] || 0;
+      const val = currentScores[`${activeSegment.id}_${crit.id}`] || 0;
       return total + (Number(val) * crit.weight);
     }, 0);
-  }, [scores, activeSegment]);
+  }, [currentScores, activeSegment]);
 
   const secondaryTotal = useMemo(() => {
     if (!secondarySegment) return 0;
     return secondarySegment.criteria.reduce((total, crit) => {
-      const val = scores[`${secondarySegment.id}_${crit.id}`] || 0;
+      const val = currentScores[`${secondarySegment.id}_${crit.id}`] || 0;
       return total + (Number(val) * crit.weight);
     }, 0);
-  }, [scores, secondarySegment]);
+  }, [currentScores, secondarySegment]);
 
   const handleScoreChange = (segmentId: string, criterionId: string, val: string) => {
+    if (!selectedCandidateId) return;
     const key = `${segmentId}_${criterionId}`;
-    if (val === '') {
-      setScores(prev => ({ ...prev, [key]: '' }));
-      return;
-    }
-    const num = parseInt(val, 10);
-    if (!isNaN(num)) {
-      setScores(prev => ({ ...prev, [key]: num }));
-    }
+    
+    setDrafts(prev => {
+      const candidateDraft = prev[selectedCandidateId] || {};
+      if (val === '') {
+        return { ...prev, [selectedCandidateId]: { ...candidateDraft, [key]: '' } };
+      }
+      const num = parseInt(val, 10);
+      if (!isNaN(num)) {
+        return { ...prev, [selectedCandidateId]: { ...candidateDraft, [key]: num } };
+      }
+      return prev;
+    });
   };
 
   const handleSubmit = async () => {
@@ -187,7 +257,7 @@ export const ScoringPage: React.FC = () => {
     allSegments.forEach(seg => {
       seg.criteria.forEach(crit => {
         const key = `${seg.id}_${crit.id}`;
-        const val = scores[key];
+        const val = currentScores[key];
         if (val === undefined || val === '') {
           newErrors[key] = 'Score is required';
           if (!firstInvalidId) firstInvalidId = key;
@@ -223,7 +293,7 @@ export const ScoringPage: React.FC = () => {
 
       const primaryEntries = activeSegment.criteria.map(c => ({
         criterionId: c.id,
-        score: Number(scores[`${activeSegment.id}_${c.id}`])
+        score: Number(currentScores[`${activeSegment.id}_${c.id}`])
       }));
 
       const primaryPayload: ISubmitScoreRequest = {
@@ -243,7 +313,7 @@ export const ScoringPage: React.FC = () => {
       if (secondarySegment) {
         const secondaryEntries = secondarySegment.criteria.map(c => ({
           criterionId: c.id,
-          score: Number(scores[`${secondarySegment.id}_${c.id}`])
+          score: Number(currentScores[`${secondarySegment.id}_${c.id}`])
         }));
         
         const secondaryPayload: ISubmitScoreRequest = {
@@ -272,23 +342,45 @@ export const ScoringPage: React.FC = () => {
         return next;
       });
 
+      setSubmittedScores(prev => ({
+        ...prev,
+        [selectedCandidateId]: { ...(currentScores as Record<string, number>) }
+      }));
+
+      // Phase 5: Do NOT clear drafts on submit. It safely becomes redundant because currentScores will map to submittedScores.
+
       // Auto-advance to next candidate
       const currentIndex = candidates.findIndex(c => c.id === selectedCandidateId);
       if (currentIndex >= 0 && currentIndex < candidates.length - 1) {
         const nextCandidate = candidates[currentIndex + 1];
         setSelectedCandidateId(nextCandidate.id);
-        setActiveGenderTab(nextCandidate.gender);
-        setScores({}); // clear form for next candidate
-      } else {
-        // We reached the end
-        setScores({});
       }
 
     } catch (err: any) {
-      setError(err.message || 'Failed to submit score');
+      setError('Submission could not be completed. Your draft has been preserved. Check your connection and try again.');
     } finally {
       setSubmitting(false);
       setConfirmSubmit(false);
+    }
+  };
+
+  // Phase 3 Navigation Logic
+  const currentIndex = candidates.findIndex(c => c.id === selectedCandidateId);
+  const totalCandidates = candidates.length;
+  const isFirst = currentIndex <= 0;
+  const isLast = currentIndex >= totalCandidates - 1;
+
+  const handlePrev = () => {
+    if (!isFirst) {
+      const prev = candidates[currentIndex - 1];
+      setSelectedCandidateId(prev.id);
+    }
+  };
+
+  const handleNext = () => {
+    if (!isLast) {
+      const next = candidates[currentIndex + 1];
+      setSelectedCandidateId(next.id);
     }
   };
 
@@ -330,191 +422,130 @@ export const ScoringPage: React.FC = () => {
     );
   }
 
+  const activeRoundState = state.roundStates.find(r => r.segmentId === state.activeSegmentId);
+  const isSegmentLocked = activeRoundState?.status === RoundStatus.Locked;
+
   const selectedCandidate = candidates.find(c => c.id === selectedCandidateId);
   const isCompleted = completedCandidates.has(selectedCandidateId || '');
+  const isReadOnly = isCompleted || isSegmentLocked;
 
   return (
     <PageWrapper className="flex flex-col md:flex-row h-[calc(100vh-64px)] overflow-hidden bg-neutral-50 p-4 gap-6">
 
-      {/* Sidebar - Candidate List */}
-      <div className="w-full md:w-80 flex-shrink-0 bg-white rounded-xl shadow-panel flex flex-col overflow-hidden">
-        <div className="p-4 bg-primary-900 text-white shadow-sm z-10">
-          <h3 className="font-bold text-lg">Candidates</h3>
-          <p className="text-primary-100 text-sm mb-3">Select to score</p>
-          
-          {/* Gender Tabs */}
-          <div className="flex bg-primary-800 rounded-lg p-1 gap-1">
-            <button
-              onClick={() => setActiveGenderTab(Gender.Male)}
-              className={`flex-1 py-1.5 text-sm font-semibold rounded-md transition-colors ${
-                activeGenderTab === Gender.Male ? 'bg-white text-primary-900 shadow-sm' : 'text-primary-100 hover:text-white hover:bg-primary-700'
-              }`}
-            >
-              Male
-            </button>
-            <button
-              onClick={() => setActiveGenderTab(Gender.Female)}
-              className={`flex-1 py-1.5 text-sm font-semibold rounded-md transition-colors ${
-                activeGenderTab === Gender.Female ? 'bg-white text-primary-900 shadow-sm' : 'text-primary-100 hover:text-white hover:bg-primary-700'
-              }`}
-            >
-              Female
-            </button>
+
+      {/* Main Scoring Workspace */}
+      <div className="flex-1 flex flex-col lg:flex-row gap-6 overflow-hidden relative min-w-0">
+        {!selectedCandidate ? (
+          <div className="flex-1 bg-white rounded-xl shadow-panel flex items-center justify-center text-neutral-400 font-medium text-lg">
+            Select a candidate to begin scoring
           </div>
-        </div>
-        <div className="flex-1 overflow-y-auto p-2 space-y-1">
-          {candidates.filter(c => c.gender === activeGenderTab).map(candidate => {
-            const isDone = completedCandidates.has(candidate.id);
-            const isActive = candidate.id === selectedCandidateId;
-            return (
-              <button
-                key={candidate.id}
-                onClick={() => {
-                  setSelectedCandidateId(candidate.id);
-                  if (candidate.id !== selectedCandidateId) setScores({});
-                }}
-                className={`w-full text-left p-3 rounded-lg flex items-center justify-between transition-colors ${
-                  isActive 
-                    ? 'bg-primary-50 border border-primary-200' 
-                    : 'hover:bg-neutral-50 border border-transparent'
-                }`}
-              >
-                <div className="flex items-center space-x-3 truncate pr-2">
-                  {candidate.photoPath ? (
-                    <img src={`${getApiBaseUrl()}${candidate.photoPath}`} alt={candidate.fullName} className={`flex-shrink-0 w-10 h-10 rounded-full object-cover border-2 ${isActive ? 'border-primary-500' : 'border-neutral-200'}`} />
-                  ) : (
-                    <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm border-2 ${
-                      isActive ? 'bg-primary-600 text-white border-primary-500' : 'bg-neutral-200 text-neutral-700 border-neutral-200'
-                    }`}>
-                      {candidate.candidateNumber}
+        ) : (
+          <>
+            {/* Candidate Identity Panel */}
+            <div className="w-full lg:w-1/3 xl:w-1/4 flex-shrink-0 bg-white rounded-xl shadow-panel flex flex-col overflow-hidden border-t-4 border-primary-600">
+              <div className="p-6 text-center bg-neutral-900 text-white relative flex-shrink-0">
+                <div className="text-xs font-semibold text-gold-500 uppercase tracking-widest mb-1">Contestant</div>
+                <div className="text-6xl font-black text-white mb-2 leading-none">{selectedCandidate.candidateNumber}</div>
+                <h2 className="text-2xl font-bold leading-tight">{selectedCandidate.fullName}</h2>
+                <div className="text-sm text-neutral-400 mt-1">{selectedCandidate.department}</div>
+              </div>
+              <div className="flex-1 bg-neutral-100 flex items-center justify-center relative min-h-[250px] p-4 lg:p-6 overflow-hidden">
+                {selectedCandidate.photoPath ? (
+                  <img src={`${getApiBaseUrl()}${selectedCandidate.photoPath}`} alt={selectedCandidate.fullName} className="w-full h-full object-contain rounded-lg bg-white shadow-sm" />
+                ) : (
+                  <div className="text-neutral-400 flex flex-col items-center">
+                    <svg className="w-12 h-12 mb-2 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                    <span className="text-sm font-medium">No Photo Available</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Scoring Form Area */}
+            <div className="flex-1 bg-white rounded-xl shadow-panel flex flex-col overflow-hidden relative border border-neutral-100">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+                <div className="max-w-2xl mx-auto">
+                  {isSegmentLocked && (
+                    <div className="mb-5 p-4 bg-neutral-100 text-neutral-700 rounded-lg text-sm font-medium border border-neutral-200 flex items-center gap-2">
+                      <svg className="w-5 h-5 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                      Scoring for this segment is locked.
                     </div>
                   )}
-                  <div className="min-w-0">
-                    <div className={`font-semibold text-sm truncate ${isActive ? 'text-primary-900' : 'text-neutral-700'}`}>
-                      {candidate.fullName}
-                    </div>
-                    <div className="text-xs text-neutral-500 truncate">
-                      {candidate.department}
-                    </div>
-                  </div>
-                </div>
-                {isDone && (
-                  <svg className="flex-shrink-0 w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
-                  </svg>
-                )}
-              </button>
-            );
-          })}
-          {candidates.filter(c => c.gender === activeGenderTab).length === 0 && (
-            <div className="p-4 text-center text-sm text-neutral-400">
-              No candidates in this category.
-            </div>
-          )}
-        </div>
-      </div>
 
-      {/* Main Scoring Area */}
-      <div className="flex-1 bg-white rounded-xl shadow-panel flex flex-col overflow-hidden relative">
-        {/* Header */}
-        <div className="px-8 py-6 border-b border-neutral-100 flex justify-between items-center bg-white z-10 flex-shrink-0">
-          <div>
-            <div className="text-sm font-semibold text-primary-600 uppercase tracking-wider mb-1">
-              Currently Scoring
-            </div>
-            <h2 className="text-heading-2 text-primary-900">{activeSegment.label}</h2>
-          </div>
-          {selectedCandidate && (
-            <div className="text-right">
-              <div className="text-sm text-neutral-500">Candidate No. {selectedCandidate.candidateNumber}</div>
-              <div className="text-xl font-bold text-neutral-800">{selectedCandidate.fullName}</div>
-              <div className="text-sm font-medium text-primary-600">{selectedCandidate.department}</div>
-            </div>
-          )}
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 overflow-hidden flex">
-          {!selectedCandidate ? (
-            <div className="w-full text-center text-neutral-400 py-12 m-auto">Select a candidate to begin scoring</div>
-          ) : (
-            <>
-              {/* Scoring Form (Left Column) */}
-              <div className="flex-1 overflow-y-auto p-8 border-r border-neutral-100">
-                <div className="max-w-2xl mx-auto">
-                  {isCompleted ? (
-                    <div className="p-8 text-center bg-green-50 rounded-xl border border-green-100 mb-8">
-                      <svg className="w-16 h-16 text-green-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                      </svg>
-                      <h3 className="text-xl font-bold text-green-900 mb-2">Score Submitted Successfully!</h3>
-                      <p className="text-green-700">You have successfully scored {selectedCandidate.fullName} for this segment.</p>
+                  {isCompleted && !isSegmentLocked && (
+                    <div className="mb-5 p-4 bg-green-50 text-green-800 rounded-lg text-sm font-medium border border-green-200 flex items-center gap-2">
+                      <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                      Scores successfully submitted.
                     </div>
-                  ) : (
-                    <>
-                      {error && (
-                        <div className="mb-5 p-4 bg-red-50 text-red-700 rounded-lg text-sm font-medium border border-red-100">
-                          {error}
-                        </div>
-                      )}
+                  )}
+
+                  {!isCompleted && !isSegmentLocked && error && (
+                    <div className="mb-5 p-4 bg-red-50 text-red-800 rounded-lg text-sm font-medium border border-red-200 flex items-start gap-2">
+                      <svg className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                      <div>{error}</div>
+                    </div>
+                  )}
 
                       {secondarySegment ? (
-                        /* ── DUAL-SEGMENT: Two stacked panels, full-width rows ── */
-                        <div className="space-y-8 mb-6">
+                        /* ── DUAL-SEGMENT: Responsive columns ── */
+                        <div className="flex flex-col xl:flex-row gap-6 mb-6 items-stretch">
 
                           {/* Primary Segment Panel */}
-                          <div className="rounded-2xl border border-neutral-200 overflow-hidden">
+                          <div className="flex-1 rounded-2xl border border-neutral-200 overflow-hidden flex flex-col">
                             {/* Panel header */}
-                            <div className="flex items-center gap-3 px-5 py-4 bg-primary-900">
+                            <div className="flex items-center gap-3 px-5 py-4 bg-primary-900 shrink-0">
                               <div className="w-2 h-2 rounded-full bg-primary-300 flex-shrink-0" />
                               <span className="text-sm font-bold text-white uppercase tracking-widest">{activeSegment.label}</span>
                             </div>
 
                             {/* Criteria rows */}
-                            <div className="divide-y divide-neutral-100">
+                            <div className="divide-y divide-neutral-100 flex-1">
                               {activeSegment.criteria.map((crit, idx) => {
                                 const key = `${activeSegment.id}_${crit.id}`;
                                 const hasError = !!fieldErrors[key];
                                 return (
                                   <div
                                     key={key}
-                                    className={`flex items-center gap-4 px-5 py-3.5 transition-colors ${
+                                    className={`flex items-center gap-4 px-5 py-4 transition-colors ${
                                       hasError ? 'bg-red-50' : idx % 2 === 0 ? 'bg-white' : 'bg-neutral-50/60'
                                     }`}
                                   >
-                                    {/* Index dot */}
-                                    <div className="w-6 h-6 rounded-full bg-primary-100 text-primary-700 text-xs font-bold flex items-center justify-center flex-shrink-0">
-                                      {idx + 1}
-                                    </div>
-
-                                    {/* Label + weight */}
                                     <div className="flex-1 min-w-0">
-                                      <div className={`font-semibold text-sm leading-snug ${hasError ? 'text-red-800' : 'text-neutral-800'}`}>
+                                      <label htmlFor={`input-${key}`} className={`font-semibold text-sm leading-snug ${hasError ? 'text-red-800' : 'text-neutral-800'}`}>
                                         {crit.label}
-                                      </div>
+                                      </label>
                                       <div className="text-xs text-neutral-400 mt-0.5">Weight: {crit.weight * 100}%</div>
                                       {hasError && (
-                                        <div className="text-xs text-red-600 font-medium mt-0.5">{fieldErrors[key]}</div>
+                                        <div id={`error-${key}`} className="text-xs text-red-600 font-medium mt-1 flex items-center gap-1">
+                                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                                          {fieldErrors[key]}
+                                        </div>
                                       )}
                                     </div>
 
                                     {/* Score input */}
                                     <div className="flex items-center gap-2 flex-shrink-0">
                                       <input
+                                        id={`input-${key}`}
                                         ref={el => { inputRefs.current[key] = el; }}
                                         type="number"
                                         min="1"
                                         max="100"
-                                        value={scores[key] === undefined ? '' : scores[key]}
+                                        disabled={isReadOnly || submitting}
+                                        readOnly={isReadOnly}
+                                        aria-invalid={hasError}
+                                        aria-errormessage={hasError ? `error-${key}` : undefined}
+                                        value={currentScores[key] === undefined ? '' : currentScores[key]}
                                         onChange={(e) => handleScoreChange(activeSegment.id, crit.id, e.target.value)}
-                                        className={`w-20 text-center text-xl font-black p-2 border-2 rounded-xl outline-none transition-all ${
-                                          hasError
-                                            ? 'border-red-400 focus:border-red-600 focus:ring-2 focus:ring-red-100 text-red-800 bg-red-50'
-                                            : 'border-neutral-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-100 bg-white'
+                                        className={`w-[4.5rem] h-12 text-center text-xl font-black border-2 rounded-xl outline-none transition-all ${
+                                          isReadOnly
+                                            ? 'bg-neutral-100 border-neutral-200 text-neutral-500 cursor-not-allowed'
+                                            : hasError
+                                            ? 'border-red-400 focus:border-red-600 focus:ring-4 focus:ring-red-100 text-red-800 bg-red-50'
+                                            : 'border-neutral-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-100 bg-white'
                                         }`}
                                         placeholder="—"
                                       />
-                                      <span className="text-xs text-neutral-400 w-10">/100</span>
                                     </div>
                                   </div>
                                 );
@@ -522,66 +553,69 @@ export const ScoringPage: React.FC = () => {
                             </div>
 
                             {/* Primary total bar */}
-                            <div className="flex items-center justify-between px-5 py-4 bg-primary-900">
-                              <span className="text-primary-300 text-xs font-bold uppercase tracking-widest">Weighted Total</span>
-                              <span className="text-3xl font-black text-white display-font tracking-wide">{currentTotal.toFixed(2)}</span>
+                            <div className={`flex items-center justify-between px-5 py-4 border-t shrink-0 ${isReadOnly ? 'bg-neutral-200 border-neutral-300' : 'bg-neutral-100 border-neutral-200'}`}>
+                              <span className="text-neutral-500 text-xs font-bold uppercase tracking-widest">{isCompleted ? 'Submitted Total' : 'Draft Total'}</span>
+                              <span className="text-2xl font-black text-neutral-800 tracking-wide">{currentTotal.toFixed(2)}</span>
                             </div>
                           </div>
 
                           {/* Secondary Segment Panel */}
-                          <div className="rounded-2xl border border-amber-200 overflow-hidden">
+                          <div className="flex-1 rounded-2xl border border-amber-200 overflow-hidden flex flex-col">
                             {/* Panel header */}
-                            <div className="flex items-center gap-3 px-5 py-4 bg-gradient-to-r from-amber-600 to-yellow-500">
+                            <div className="flex items-center gap-3 px-5 py-4 bg-gradient-to-r from-amber-600 to-yellow-500 shrink-0">
                               <div className="w-2 h-2 rounded-full bg-yellow-200 flex-shrink-0" />
                               <span className="text-sm font-bold text-yellow-900 uppercase tracking-widest">{secondarySegment.label}</span>
-                              <span className="ml-auto text-xs font-semibold text-yellow-800 bg-yellow-200 px-2 py-0.5 rounded-full">Minor Award</span>
+                              <span className="ml-auto text-[10px] font-bold text-yellow-900 bg-yellow-200 px-2 py-0.5 rounded uppercase tracking-wider">Minor</span>
                             </div>
 
                             {/* Criteria rows */}
-                            <div className="divide-y divide-amber-100">
+                            <div className="divide-y divide-amber-100 flex-1">
                               {secondarySegment.criteria.map((crit, idx) => {
                                 const key = `${secondarySegment.id}_${crit.id}`;
                                 const hasError = !!fieldErrors[key];
                                 return (
                                   <div
                                     key={key}
-                                    className={`flex items-center gap-4 px-5 py-3.5 transition-colors ${
+                                    className={`flex items-center gap-4 px-5 py-4 transition-colors ${
                                       hasError ? 'bg-red-50' : idx % 2 === 0 ? 'bg-white' : 'bg-amber-50/40'
                                     }`}
                                   >
-                                    {/* Index dot */}
-                                    <div className="w-6 h-6 rounded-full bg-amber-100 text-amber-700 text-xs font-bold flex items-center justify-center flex-shrink-0">
-                                      {idx + 1}
-                                    </div>
-
-                                    {/* Label + weight */}
                                     <div className="flex-1 min-w-0">
-                                      <div className={`font-semibold text-sm leading-snug ${hasError ? 'text-red-800' : 'text-neutral-800'}`}>
+                                      <label htmlFor={`input-${key}`} className={`font-semibold text-sm leading-snug ${hasError ? 'text-red-800' : 'text-neutral-800'}`}>
                                         {crit.label}
-                                      </div>
+                                      </label>
                                       <div className="text-xs text-neutral-400 mt-0.5">Weight: {crit.weight * 100}%</div>
                                       {hasError && (
-                                        <div className="text-xs text-red-600 font-medium mt-0.5">{fieldErrors[key]}</div>
+                                        <div id={`error-${key}`} className="text-xs text-red-600 font-medium mt-1 flex items-center gap-1">
+                                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                                          {fieldErrors[key]}
+                                        </div>
                                       )}
                                     </div>
 
                                     {/* Score input */}
                                     <div className="flex items-center gap-2 flex-shrink-0">
                                       <input
+                                        id={`input-${key}`}
                                         ref={el => { inputRefs.current[key] = el; }}
                                         type="number"
                                         min="1"
                                         max="100"
-                                        value={scores[key] === undefined ? '' : scores[key]}
+                                        disabled={isReadOnly || submitting}
+                                        readOnly={isReadOnly}
+                                        aria-invalid={hasError}
+                                        aria-errormessage={hasError ? `error-${key}` : undefined}
+                                        value={currentScores[key] === undefined ? '' : currentScores[key]}
                                         onChange={(e) => handleScoreChange(secondarySegment.id, crit.id, e.target.value)}
-                                        className={`w-20 text-center text-xl font-black p-2 border-2 rounded-xl outline-none transition-all ${
-                                          hasError
-                                            ? 'border-red-400 focus:border-red-600 focus:ring-2 focus:ring-red-100 text-red-800 bg-red-50'
-                                            : 'border-amber-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-100 bg-white'
+                                        className={`w-[4.5rem] h-12 text-center text-xl font-black border-2 rounded-xl outline-none transition-all ${
+                                          isReadOnly
+                                            ? 'bg-neutral-100 border-neutral-200 text-neutral-500 cursor-not-allowed'
+                                            : hasError
+                                            ? 'border-red-400 focus:border-red-600 focus:ring-4 focus:ring-red-100 text-red-800 bg-red-50'
+                                            : 'border-amber-200 focus:border-amber-500 focus:ring-4 focus:ring-amber-100 bg-white'
                                         }`}
                                         placeholder="—"
                                       />
-                                      <span className="text-xs text-neutral-400 w-10">/100</span>
                                     </div>
                                   </div>
                                 );
@@ -589,129 +623,208 @@ export const ScoringPage: React.FC = () => {
                             </div>
 
                             {/* Secondary total bar */}
-                            <div className="flex items-center justify-between px-5 py-4 bg-gradient-to-r from-amber-600 to-yellow-500">
-                              <span className="text-yellow-900 text-xs font-bold uppercase tracking-widest">Weighted Total</span>
-                              <span className="text-3xl font-black text-yellow-900 display-font tracking-wide">{secondaryTotal.toFixed(2)}</span>
+                            <div className={`flex items-center justify-between px-5 py-4 border-t shrink-0 ${isReadOnly ? 'bg-amber-100 border-amber-300' : 'bg-amber-50 border-amber-200'}`}>
+                              <span className="text-amber-700 text-xs font-bold uppercase tracking-widest">{isCompleted ? 'Submitted Total' : 'Draft Total'}</span>
+                              <span className="text-2xl font-black text-amber-900 tracking-wide">{secondaryTotal.toFixed(2)}</span>
                             </div>
                           </div>
-
-                          {/* Shared Submit button */}
-                          <button
-                            onClick={handleSubmit}
-                            disabled={submitting}
-                            className="w-full py-4 bg-primary-700 hover:bg-primary-800 text-white font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg text-lg flex items-center justify-center gap-3 active:scale-[0.99]"
-                          >
-                            {submitting ? (
-                              <>
-                                <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg>
-                                Submitting…
-                              </>
-                            ) : (
-                              <>
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                Submit Both Scores
-                              </>
-                            )}
-                          </button>
                         </div>
 
                       ) : (
-                        /* ── SINGLE-SEGMENT: Original single-column layout ── */
-                        <>
-                          <div className="mb-6">
-                            <div className="flex justify-between items-end mb-4">
-                              <h3 className="text-lg font-semibold text-neutral-800">{activeSegment.label} Criteria</h3>
-                              <div className="text-sm text-neutral-400">Rate 1–100</div>
-                            </div>
-                            <div className="space-y-4">
-                              {activeSegment.criteria.map(crit => {
-                                const key = `${activeSegment.id}_${crit.id}`;
-                                return (
-                                  <div key={key} className={`flex items-center justify-between p-4 rounded-lg border ${fieldErrors[key] ? 'bg-red-50 border-red-200' : 'bg-neutral-50 border-neutral-100'}`}>
-                                    <div>
-                                      <div className="font-semibold text-neutral-800">{crit.label}</div>
-                                      <div className="text-sm text-neutral-500">Weight: {crit.weight * 100}%</div>
-                                      {fieldErrors[key] && (
-                                        <div className="text-xs text-red-600 mt-1 font-medium">{fieldErrors[key]}</div>
-                                      )}
-                                    </div>
-                                    <div className="flex items-center gap-3 flex-shrink-0">
-                                      <input
-                                        ref={el => { inputRefs.current[key] = el; }}
-                                        type="number"
-                                        min="1"
-                                        max="100"
-                                        value={scores[key] === undefined ? '' : scores[key]}
-                                        onChange={(e) => handleScoreChange(activeSegment.id, crit.id, e.target.value)}
-                                        className={`w-20 text-center text-lg font-bold p-3 border-2 rounded-lg outline-none transition-all ${fieldErrors[key]
-                                            ? 'border-red-400 focus:border-red-600 focus:ring-2 focus:ring-red-200 text-red-900'
-                                            : 'border-neutral-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-200'
-                                          }`}
-                                        placeholder="0"
-                                      />
-                                      <span className="text-neutral-400 font-medium w-12">/ 100</span>
-                                    </div>
+                        /* ── SINGLE-SEGMENT: Unified layout ── */
+                        <div className="mb-6 rounded-2xl border border-neutral-200 overflow-hidden flex flex-col">
+                          <div className="flex items-center gap-3 px-5 py-4 bg-primary-900 shrink-0">
+                            <div className="w-2 h-2 rounded-full bg-primary-300 flex-shrink-0" />
+                            <span className="text-sm font-bold text-white uppercase tracking-widest">{activeSegment.label}</span>
+                          </div>
+                          
+                          <div className="divide-y divide-neutral-100 flex-1">
+                            {activeSegment.criteria.map((crit, idx) => {
+                              const key = `${activeSegment.id}_${crit.id}`;
+                              const hasError = !!fieldErrors[key];
+                              return (
+                                <div
+                                  key={key}
+                                  className={`flex items-center gap-4 px-5 py-4 transition-colors ${
+                                    hasError ? 'bg-red-50' : idx % 2 === 0 ? 'bg-white' : 'bg-neutral-50/60'
+                                  }`}
+                                >
+                                  <div className="flex-1 min-w-0">
+                                    <label htmlFor={`input-${key}`} className={`font-semibold text-sm leading-snug ${hasError ? 'text-red-800' : 'text-neutral-800'}`}>
+                                      {crit.label}
+                                    </label>
+                                    <div className="text-xs text-neutral-400 mt-0.5">Weight: {crit.weight * 100}%</div>
+                                    {hasError && (
+                                      <div id={`error-${key}`} className="text-xs text-red-600 font-medium mt-1 flex items-center gap-1">
+                                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                                        {fieldErrors[key]}
+                                      </div>
+                                    )}
                                   </div>
-                                );
-                              })}
-                            </div>
-                          </div>
 
-                          {/* Footer total + submit */}
-                          <div className="mt-8 p-6 bg-primary-900 rounded-xl flex flex-col sm:flex-row items-center justify-between text-white shadow-lg gap-4">
-                            <div>
-                              <div className="text-primary-200 text-sm font-medium mb-1">Live Weighted Total</div>
-                              <div className="text-4xl font-black display-font tracking-wider">{currentTotal.toFixed(2)}</div>
-                            </div>
-                            <button
-                              onClick={handleSubmit}
-                              disabled={submitting}
-                              className="px-8 py-4 bg-gold-500 hover:bg-gold-400 text-primary-900 font-bold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-md text-lg w-full sm:w-auto"
-                            >
-                              {submitting ? 'Submitting...' : 'Submit Score'}
-                            </button>
+                                  {/* Score input */}
+                                  <div className="flex items-center gap-2 flex-shrink-0">
+                                    <input
+                                      id={`input-${key}`}
+                                      ref={el => { inputRefs.current[key] = el; }}
+                                      type="number"
+                                      min="1"
+                                      max="100"
+                                      disabled={isReadOnly || submitting}
+                                      readOnly={isReadOnly}
+                                      aria-invalid={hasError}
+                                      aria-errormessage={hasError ? `error-${key}` : undefined}
+                                      value={currentScores[key] === undefined ? '' : currentScores[key]}
+                                      onChange={(e) => handleScoreChange(activeSegment.id, crit.id, e.target.value)}
+                                      className={`w-[4.5rem] h-12 text-center text-xl font-black border-2 rounded-xl outline-none transition-all ${
+                                        isReadOnly
+                                          ? 'bg-neutral-100 border-neutral-200 text-neutral-500 cursor-not-allowed'
+                                          : hasError
+                                          ? 'border-red-400 focus:border-red-600 focus:ring-4 focus:ring-red-100 text-red-800 bg-red-50'
+                                          : 'border-neutral-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-100 bg-white'
+                                      }`}
+                                      placeholder="—"
+                                    />
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
-                        </>
+                          
+                          {/* Primary total bar */}
+                          <div className={`flex items-center justify-between px-5 py-4 border-t shrink-0 ${isReadOnly ? 'bg-neutral-200 border-neutral-300' : 'bg-neutral-100 border-neutral-200'}`}>
+                            <span className="text-neutral-500 text-xs font-bold uppercase tracking-widest">{isCompleted ? 'Submitted Total' : 'Draft Total'}</span>
+                            <span className="text-2xl font-black text-neutral-800 tracking-wide">{currentTotal.toFixed(2)}</span>
+                          </div>
+                        </div>
                       )}
-                    </>
+                </div>
+              </div>
+
+              {/* Action Area Structure */}
+              <div className="bg-white border-t border-neutral-200 p-4 sm:p-6 shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.05)] flex flex-col sm:flex-row items-center justify-between gap-4 z-10 shrink-0">
+                {/* Navigation */}
+                <div className="flex w-full sm:w-auto justify-between gap-2">
+                  <button 
+                    onClick={handlePrev}
+                    disabled={isFirst}
+                    className="px-5 py-2.5 bg-neutral-100 hover:bg-neutral-200 border border-neutral-200 rounded-lg text-neutral-700 font-medium text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                    <span className="hidden sm:inline">Prev</span>
+                  </button>
+
+                  {/* Jump To Candidate Button */}
+                  <button
+                    onClick={() => setShowCandidateModal(true)}
+                    className="px-4 py-2.5 bg-white border border-neutral-200 hover:border-primary-500 hover:text-primary-600 rounded-lg text-neutral-700 font-medium text-sm transition-colors flex items-center gap-2"
+                  >
+                    <span>{currentIndex + 1} of {totalCandidates}</span>
+                    <svg className="w-4 h-4 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                  </button>
+
+                  <button 
+                    onClick={handleNext}
+                    disabled={isLast}
+                    className="px-5 py-2.5 bg-neutral-100 hover:bg-neutral-200 border border-neutral-200 rounded-lg text-neutral-700 font-medium text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <span className="hidden sm:inline">Next</span>
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                  </button>
+                </div>
+                
+                {/* Submit Button */}
+                <div className="flex w-full sm:flex-1 justify-end">
+                  {!isReadOnly && (
+                    <button
+                      onClick={handleSubmit}
+                      disabled={submitting}
+                      className="w-full sm:w-auto px-8 py-3.5 bg-primary-700 hover:bg-primary-800 text-white font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md text-lg flex items-center justify-center gap-3 active:scale-[0.99]"
+                    >
+                      {submitting ? (
+                        <>
+                          <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Submitting...
+                        </>
+                      ) : (
+                        'Submit Score'
+                      )}
+                    </button>
                   )}
                 </div>
               </div>
-
-              {/* Photo View (Right Column) */}
-              <div className="hidden lg:flex w-[350px] xl:w-[450px] flex-shrink-0 bg-neutral-900 flex-col relative overflow-hidden">
-                {selectedCandidate.photoPath ? (
-                  <img 
-                    src={`${getApiBaseUrl()}${selectedCandidate.photoPath}`} 
-                    alt={selectedCandidate.fullName} 
-                    className="w-full h-full object-contain p-6"
-                  />
-                ) : (
-                  <div className="w-full h-full flex flex-col items-center justify-center text-neutral-600 p-6">
-                    <div className="w-32 h-32 rounded-full border-4 border-neutral-700 flex items-center justify-center font-bold text-4xl mb-4">
-                      {selectedCandidate.candidateNumber}
-                    </div>
-                    <span className="text-sm">No photo available</span>
-                  </div>
-                )}
-                
-                {/* Overlay candidate info at the bottom of the photo */}
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-6 pt-24 pointer-events-none">
-                  <div className="flex items-end gap-4">
-                    <div className="text-5xl font-black text-gold-500 leading-none">
-                      {selectedCandidate.candidateNumber}
-                    </div>
-                    <div>
-                      <div className="text-2xl font-bold text-white mb-1">{selectedCandidate.fullName}</div>
-                      <div className="text-sm font-medium text-neutral-300">{selectedCandidate.department}</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
+            </div>
+          </>
+        )}
       </div>
+
+      <Modal
+        isOpen={showCandidateModal}
+        onClose={() => setShowCandidateModal(false)}
+        title="Jump to Candidate"
+      >
+        <div className="space-y-8">
+          {[Gender.Male, Gender.Female].map((genderGroup) => (
+            <div key={genderGroup}>
+              <h3 className="font-bold text-neutral-800 mb-4 flex items-center gap-2 text-lg">
+                <div className={`w-3 h-3 rounded-full ${genderGroup === Gender.Male ? 'bg-blue-500' : 'bg-pink-500'}`}></div> 
+                {genderGroup === Gender.Male ? 'Male Candidates' : 'Female Candidates'}
+              </h3>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                {candidates.filter(c => c.gender === genderGroup).map(candidate => {
+                  const isDone = completedCandidates.has(candidate.id);
+                  const draftValues = drafts[candidate.id] || {};
+                  const hasDraft = Object.values(draftValues).some(v => v !== '' && v !== undefined);
+                  const isActive = candidate.id === selectedCandidateId;
+
+                  let statusColor = 'bg-neutral-100 text-neutral-600 border-neutral-200';
+                  let statusLabel = 'Not Started';
+                  let StatusIcon = () => <div className="w-2 h-2 rounded-full bg-neutral-300"></div>;
+
+                  if (isSegmentLocked) {
+                    statusColor = 'bg-neutral-200 text-neutral-800 border-neutral-300 opacity-75';
+                    statusLabel = 'Locked';
+                    StatusIcon = () => <svg className="w-3.5 h-3.5 text-neutral-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>;
+                  } else if (isDone) {
+                    statusColor = 'bg-green-50 text-green-700 border-green-200';
+                    statusLabel = 'Submitted';
+                    StatusIcon = () => <svg className="w-3.5 h-3.5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>;
+                  } else if (hasDraft) {
+                    statusColor = 'bg-amber-50 text-amber-700 border-amber-200';
+                    statusLabel = 'Draft';
+                    StatusIcon = () => <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></div>;
+                  }
+
+                  if (isActive) {
+                    statusColor = 'bg-primary-50 text-primary-800 border-primary-500 ring-2 ring-primary-200 shadow-sm';
+                  }
+
+                  return (
+                    <button
+                      key={candidate.id}
+                      onClick={() => {
+                        setSelectedCandidateId(candidate.id);
+                        setShowCandidateModal(false);
+                      }}
+                      className={`text-left p-4 rounded-xl border flex flex-col items-center justify-center transition-all hover:-translate-y-0.5 hover:shadow-md ${statusColor}`}
+                    >
+                      <div className="text-3xl font-black mb-1">{candidate.candidateNumber}</div>
+                      <div className="text-xs font-semibold text-center truncate w-full px-1 mb-3">{candidate.fullName}</div>
+                      <div className="flex items-center gap-1.5 bg-white/70 px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider w-full justify-center shadow-sm">
+                        <StatusIcon />
+                        <span className="truncate">{statusLabel}</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      </Modal>
 
       <ConfirmModal
         isOpen={confirmSubmit}

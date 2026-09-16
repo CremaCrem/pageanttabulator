@@ -12,16 +12,16 @@ PageantTabulator follows a **local hub-and-spoke architecture**. The admin's Tau
 ```
                     Venue WiFi (provided by client)
                               │
-           ┌──────────────────┼──────────────────────┐
-           │                  │                       │
-  ┌────────▼─────────┐  ┌─────▼──────┐   ┌──────────▼──┐
-  │   ADMIN LAPTOP   │  │  Judge PC  │   │  Projector  │
-  │  ┌─────────────┐ │  │  Browser   │   │  Browser    │
-  │  │  Tauri App  │ │  │            │   │             │
-  │  │  (desktop)  │ │  │ Connects   │   │  Connects   │
-  │  └──────┬──────┘ │  │ to :3000   │   │ to :3000    │
-  │         │        │  │ /judge     │   │ /projection │
-  │  ┌──────▼──────┐ │  └────────────┘   └─────────────┘
+           ┌──────────────────┴──────────────────────┐
+           │                                         │
+  ┌────────▼─────────┐                  ┌────────────▼──────────┐
+  │   ADMIN LAPTOP   │                  │       Judge PC        │
+  │  ┌─────────────┐ │                  │       Browser         │
+  │  │  Tauri App  │ │                  │                       │
+  │  │  (desktop)  │ │                  │       Connects        │
+  │  └──────┬──────┘ │                  │       to :3000        │
+  │         │        │                  │       /judge          │
+  │  ┌──────▼──────┐ │                  └───────────────────────┘
   │  │ HTTP Server │ │
   │  │ WS Server   │ │
   │  │  (axum)     │ │
@@ -70,11 +70,10 @@ const isAdminMode = Boolean(window.__TAURI__);
 |---------|------------|---------------|
 | Tauri shell (`window.__TAURI__` = true) | Admin / Tabulator | Full dashboard, candidate management, round controls, reports |
 | Browser (HTTP, judge route) | Judges (up to 10) | "Who are you?" selection → scoring interface |
-| Browser (HTTP, `/projection`) | Projector / audience | Read-only live ranking display, auto-rotating |
 
 This means there is **one** React build output that is:
 - Served by the Tauri shell for the admin
-- Served by the embedded axum HTTP server for judges and viewers
+- Served by the embedded axum HTTP server for judges
 
 ---
 
@@ -122,11 +121,9 @@ pageanttabulator/
 │   │   │   ├── CriteriaPage.tsx      # Read-only segment criteria reference
 │   │   │   ├── JudgeStatusPage.tsx   # Live judge submission progress
 │   │   │   └── ReportsPage.tsx       # Final results, winner reveal, PDF/CSV export
-│   │   ├── judge/
-│   │   │   ├── JudgeSelectPage.tsx   # "Who are you?" judge identity selection
-│   │   │   └── ScoringPage.tsx       # Candidate navigator + criteria scoring form
-│   │   └── shared/
-│   │       └── ProjectionPage.tsx    # Full-screen read-only live rankings
+│   │   └── judge/
+│   │       ├── JudgeSelectPage.tsx   # "Who are you?" judge identity selection
+│   │       └── ScoringPage.tsx       # Candidate navigator + criteria scoring form
 │   │
 │   ├── components/                   # Reusable UI building blocks
 │   │   ├── layout/
@@ -238,11 +235,6 @@ pageanttabulator/
 | `/` | `JudgeSelectPage` | "Who are you?" — judge identity selection |
 | `/score` | `ScoringPage` | Candidate navigator + scoring form (Also renders **ThankYouView** when all segments locked, and uses **ErrorBoundary** for crashes) |
 
-### Shared Routes (Both Tauri and Browser)
-
-| Route | Page | Description |
-|-------|------|-------------|
-| `/projection` | `ProjectionPage` | Full-screen live ranking for audience/projector TV |
 
 ---
 
@@ -351,8 +343,7 @@ Judge browsers: UI automatically updates to show new segment
 | Server port | `3000` (configurable) |
 | Network | Venue WiFi (admin laptop hotspot as fallback) |
 | Judge access URL | `http://[admin-laptop-IP]:3000` |
-| Projector URL | `http://[admin-laptop-IP]:3000/projection` |
-| Max concurrent clients | 12 (10 judges + projector + admin browser) — trivial load |
+| Max concurrent clients | 12 (10 judges + admin browser) — trivial load |
 
 The admin laptop's local IP is displayed prominently in the Tauri app so the admin can share it with judges easily.
 

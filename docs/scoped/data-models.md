@@ -34,7 +34,6 @@ export enum Gender {
 export enum UserRole {
   Admin  = 'admin',   // Tauri desktop app — full control
   Judge  = 'judge',   // Browser — scoring only
-  Viewer = 'viewer',  // Browser — read-only projection
 }
 
 export enum SegmentId {

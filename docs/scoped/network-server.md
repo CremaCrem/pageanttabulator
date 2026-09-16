@@ -133,7 +133,7 @@ To survive browser refreshes and accidental tab closures, judge sessions use a c
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET` | `/api/network-info` | Returns the host's active LAN IPv4 address, server port, and pre-formatted judge/projector URLs |
+| `GET` | `/api/network-info` | Returns the host's active LAN IPv4 address, server port, and pre-formatted judge URL |
 
 #### `GET /api/network-info` Response
 ```json
@@ -141,8 +141,7 @@ To survive browser refreshes and accidental tab closures, judge sessions use a c
   "localIp": "192.168.1.45",
   "port": 3000,
   "serverUrl": "http://192.168.1.45:3000",
-  "judgeUrl": "http://192.168.1.45:3000/judge",
-  "projectionUrl": "http://192.168.1.45:3000/projection"
+  "judgeUrl": "http://192.168.1.45:3000/judge"
 }
 }
 ```
@@ -164,7 +163,7 @@ This guarantees the system ignores inactive virtual bridges (like Docker, WSL, o
 
 ## 3. WebSocket Event Protocol
 
-The WebSocket server runs at `/ws`. All clients (admin, judges, projector) connect to this endpoint on load and maintain a persistent connection.
+The WebSocket server runs at `/ws`. All clients (admin and judges) connect to this endpoint on load and maintain a persistent connection.
 
 ### Connection
 
@@ -419,7 +418,6 @@ On push to main:
 - [ ] Test: connect one judge laptop to WiFi and open the judge URL
 - [ ] Test: verify score submission flow end-to-end with test data
 - [ ] Backup: SQLite `.db` file copied to USB drive as insurance
-- [ ] Projector URL confirmed and displayed correctly on TV
 
 ---
 

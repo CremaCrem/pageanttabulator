@@ -12,11 +12,11 @@ PageantTabulator is a purpose-built, offline-capable desktop application for run
 ```
            Venue WiFi
                 │
-  ┌─────────────┼──────────────┐
-  │             │              │
-Admin Laptop  Judge PCs    Projector
-Tauri App     Browser       Browser
-(Server Hub)  (Scoring)    (/projection)
+  ┌─────────────┴──────────────┐
+  │                            │
+Admin Laptop               Judge PCs
+Tauri App                  Browser
+(Server Hub)               (Scoring)
 ```
 
 ---
