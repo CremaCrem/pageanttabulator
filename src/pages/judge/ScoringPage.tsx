@@ -6,7 +6,6 @@ import { fetchApi, getApiBaseUrl } from '../../api/client';
 import { ICandidate, ISubmitScoreRequest, UserRole, IRoundState, RoundStatus, Gender } from '../../types';
 import { useToast } from '../../context/ToastContext';
 import { SEGMENTS } from '../../utils/constants';
-import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { Modal } from '../../components/ui/Modal';
 
 export const ScoringPage: React.FC = () => {
@@ -23,7 +22,6 @@ export const ScoringPage: React.FC = () => {
   const [drafts, setDrafts] = useState<Record<string, Record<string, number | ''>>>({});
   const [showCandidateModal, setShowCandidateModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [confirmSubmit, setConfirmSubmit] = useState(false);
   const [error, setError] = useState('');
   const [completedCandidates, setCompletedCandidates] = useState<Set<string>>(new Set());
   const [submittedScores, setSubmittedScores] = useState<Record<string, Record<string, number>>>({});
@@ -280,7 +278,7 @@ export const ScoringPage: React.FC = () => {
       return;
     }
 
-    setConfirmSubmit(true);
+    executeSubmit();
   };
 
   const executeSubmit = async () => {
@@ -360,7 +358,6 @@ export const ScoringPage: React.FC = () => {
       setError('Submission could not be completed. Your draft has been preserved. Check your connection and try again.');
     } finally {
       setSubmitting(false);
-      setConfirmSubmit(false);
     }
   };
 
@@ -708,28 +705,31 @@ export const ScoringPage: React.FC = () => {
                   <button 
                     onClick={handlePrev}
                     disabled={isFirst}
-                    className="px-5 py-2.5 bg-neutral-100 hover:bg-neutral-200 border border-neutral-200 rounded-lg text-neutral-700 font-medium text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    aria-label="Previous Candidate"
+                    className="px-5 py-2.5 bg-neutral-100 hover:bg-neutral-200 focus:ring-4 focus:ring-neutral-200 focus:outline-none border border-neutral-200 rounded-lg text-neutral-700 font-medium text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                     <span className="hidden sm:inline">Prev</span>
                   </button>
 
                   {/* Jump To Candidate Button */}
                   <button
                     onClick={() => setShowCandidateModal(true)}
-                    className="px-4 py-2.5 bg-white border border-neutral-200 hover:border-primary-500 hover:text-primary-600 rounded-lg text-neutral-700 font-medium text-sm transition-colors flex items-center gap-2"
+                    aria-label="Jump to Candidate"
+                    className="px-4 py-2.5 bg-white border border-neutral-200 hover:border-primary-500 hover:text-primary-600 focus:ring-4 focus:ring-primary-100 focus:outline-none rounded-lg text-neutral-700 font-medium text-sm transition-colors flex items-center gap-2"
                   >
                     <span>{currentIndex + 1} of {totalCandidates}</span>
-                    <svg className="w-4 h-4 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                    <svg className="w-4 h-4 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                   </button>
 
                   <button 
                     onClick={handleNext}
                     disabled={isLast}
-                    className="px-5 py-2.5 bg-neutral-100 hover:bg-neutral-200 border border-neutral-200 rounded-lg text-neutral-700 font-medium text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    aria-label="Next Candidate"
+                    className="px-5 py-2.5 bg-neutral-100 hover:bg-neutral-200 focus:ring-4 focus:ring-neutral-200 focus:outline-none border border-neutral-200 rounded-lg text-neutral-700 font-medium text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     <span className="hidden sm:inline">Next</span>
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                   </button>
                 </div>
                 
@@ -739,7 +739,8 @@ export const ScoringPage: React.FC = () => {
                     <button
                       onClick={handleSubmit}
                       disabled={submitting}
-                      className="w-full sm:w-auto px-8 py-3.5 bg-primary-700 hover:bg-primary-800 text-white font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md text-lg flex items-center justify-center gap-3 active:scale-[0.99]"
+                      aria-label="Submit Score"
+                      className="w-full sm:w-auto px-8 py-3.5 bg-primary-700 hover:bg-primary-800 text-white font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md text-lg flex items-center justify-center gap-3 active:scale-[0.99] focus:outline-none focus:ring-4 focus:ring-primary-300"
                     >
                       {submitting ? (
                         <>
@@ -809,7 +810,8 @@ export const ScoringPage: React.FC = () => {
                         setSelectedCandidateId(candidate.id);
                         setShowCandidateModal(false);
                       }}
-                      className={`text-left p-4 rounded-xl border flex flex-col items-center justify-center transition-all hover:-translate-y-0.5 hover:shadow-md ${statusColor}`}
+                      aria-label={`Select candidate ${candidate.candidateNumber}: ${candidate.fullName}. Status: ${statusLabel}`}
+                      className={`text-left p-4 rounded-xl border flex flex-col items-center justify-center transition-all hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-4 focus:ring-primary-300 ${statusColor}`}
                     >
                       <div className="text-3xl font-black mb-1">{candidate.candidateNumber}</div>
                       <div className="text-xs font-semibold text-center truncate w-full px-1 mb-3">{candidate.fullName}</div>
@@ -825,17 +827,6 @@ export const ScoringPage: React.FC = () => {
           ))}
         </div>
       </Modal>
-
-      <ConfirmModal
-        isOpen={confirmSubmit}
-        title="Submit Scores?"
-        message={`Are you sure you want to submit your score for ${selectedCandidate?.fullName}? This action cannot be undone.`}
-        confirmText="Yes, Submit Score"
-        onConfirm={executeSubmit}
-        onCancel={() => setConfirmSubmit(false)}
-        loading={submitting}
-        variant="normal"
-      />
     </PageWrapper>
   );
 };

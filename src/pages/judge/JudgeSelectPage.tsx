@@ -144,7 +144,7 @@ export const JudgeSelectPage: React.FC = () => {
                 <button 
                   key={jId}
                   onClick={() => onJudgeClick(jId)}
-                  className={`p-6 border-2 rounded-xl transition-all font-semibold flex flex-col items-center justify-center gap-3
+                  className={`p-6 border-2 rounded-xl transition-all font-semibold flex flex-col items-center justify-center gap-3 focus:outline-none focus:ring-4 focus:ring-primary-300
                     ${isClaimed 
                       ? 'border-yellow-300 bg-yellow-50 hover:bg-yellow-100 hover:border-yellow-400' 
                       : 'border-neutral-200 hover:border-primary-500 hover:bg-primary-50 shadow-sm bg-white'}
@@ -179,7 +179,9 @@ export const JudgeSelectPage: React.FC = () => {
               <p className="text-neutral-500 text-sm text-center mt-1">This judge slot requires a password.</p>
             </div>
             <div className="p-6">
+              <label htmlFor="password-input" className="sr-only">Password</label>
               <input 
+                id="password-input"
                 type="password" 
                 value={passwordInput} 
                 onChange={e => setPasswordInput(e.target.value)} 
