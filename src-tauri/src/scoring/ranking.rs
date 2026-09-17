@@ -204,55 +204,106 @@ pub fn select_top3(candidates: &mut [CandidateResult], overrides: &HashMap<Strin
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashMap;
 
     #[test]
-    fn test_rank_segment_scores() {
+    fn test_fixture_rc_1() {
         let raw_scores = vec![
-            JudgeRawScore { candidate_id: "c1".to_string(), raw_score: 95.0 },
-            JudgeRawScore { candidate_id: "c2".to_string(), raw_score: 90.0 },
-            JudgeRawScore { candidate_id: "c3".to_string(), raw_score: 95.0 }, // Tie with c1
-            JudgeRawScore { candidate_id: "c4".to_string(), raw_score: 80.0 },
+            JudgeRawScore { candidate_id: "A".to_string(), raw_score: 88.0 },
+            JudgeRawScore { candidate_id: "B".to_string(), raw_score: 95.0 },
+            JudgeRawScore { candidate_id: "C".to_string(), raw_score: 72.0 },
         ];
-
         let ranks = rank_segment_scores(raw_scores);
         
-        assert_eq!(ranks[0].candidate_id, "c1"); // or c3
-        assert_eq!(ranks[0].rank, 1);
+        let a = ranks.iter().find(|r| r.candidate_id == "A").unwrap();
+        let b = ranks.iter().find(|r| r.candidate_id == "B").unwrap();
+        let c = ranks.iter().find(|r| r.candidate_id == "C").unwrap();
         
-        assert_eq!(ranks[1].rank, 1); // Also rank 1 due to tie
-        
-        // Next is c2, rank should be 3
-        assert_eq!(ranks[2].candidate_id, "c2");
-        assert_eq!(ranks[2].rank, 3);
-        
-        // Next is c4, rank should be 4
-        assert_eq!(ranks[3].candidate_id, "c4");
-        assert_eq!(ranks[3].rank, 4);
+        assert_eq!(b.rank, 1);
+        assert_eq!(a.rank, 2);
+        assert_eq!(c.rank, 3);
     }
 
     #[test]
-    fn test_consolidate_segment_ranks_with_tiebreak() {
-        let judge1 = vec![
-            JudgeRank { candidate_id: "A".to_string(), rank: 1, raw_score: 95.0 },
-            JudgeRank { candidate_id: "B".to_string(), rank: 2, raw_score: 90.0 },
+    fn test_fixture_bc_1() {
+        let j1 = vec![
+            JudgeRank { candidate_id: "A".to_string(), rank: 1, raw_score: 90.0 },
+            JudgeRank { candidate_id: "B".to_string(), rank: 2, raw_score: 80.0 },
         ];
-        
-        let judge2 = vec![
-            JudgeRank { candidate_id: "B".to_string(), rank: 1, raw_score: 98.0 },
-            JudgeRank { candidate_id: "A".to_string(), rank: 2, raw_score: 91.0 },
+        let j2 = vec![
+            JudgeRank { candidate_id: "A".to_string(), rank: 2, raw_score: 85.0 },
+            JudgeRank { candidate_id: "B".to_string(), rank: 1, raw_score: 95.0 },
+        ];
+        let j3 = vec![
+            JudgeRank { candidate_id: "A".to_string(), rank: 2, raw_score: 88.0 },
+            JudgeRank { candidate_id: "B".to_string(), rank: 1, raw_score: 92.0 },
         ];
 
-        let results = consolidate_segment_ranks(vec![judge1, judge2]);
+        let results = consolidate_segment_ranks(vec![j1, j2, j3]);
         
-        // A: rank_sum = 3, raw_score_sum = 186.0
-        // B: rank_sum = 3, raw_score_sum = 188.0
+        let a = results.iter().find(|r| r.candidate_id == "A").unwrap();
+        let b = results.iter().find(|r| r.candidate_id == "B").unwrap();
         
-        assert_eq!(results.len(), 2);
-        // B should win due to higher raw_score_sum tiebreaker
+        assert_eq!(a.rank_sum, 5);
+        assert_eq!(b.rank_sum, 4);
         assert_eq!(results[0].candidate_id, "B");
         assert_eq!(results[0].final_rank, 1);
+    }
+
+    #[test]
+    fn test_fixture_tb_1() {
+        let j1 = vec![
+            JudgeRank { candidate_id: "A".to_string(), rank: 6, raw_score: 250.0 },
+        ];
+        let j2 = vec![
+            JudgeRank { candidate_id: "B".to_string(), rank: 6, raw_score: 265.0 },
+        ];
+
+        let results = consolidate_segment_ranks(vec![j1, j2]);
         
+        assert_eq!(results[0].candidate_id, "B");
+        assert_eq!(results[0].final_rank, 1);
         assert_eq!(results[1].candidate_id, "A");
         assert_eq!(results[1].final_rank, 2);
+    }
+
+    #[test]
+    fn test_fixture_bt_1() {
+        let mut candidates = vec![
+            CandidateResult { candidate_id: "C1".to_string(), segment_id: None, preliminary_score: Some(1.0), preliminary_rank: None, preliminary_status: "".to_string(), final_qa_score: None, final_score: None, rank: Some(1), computed_at: "".to_string() },
+            CandidateResult { candidate_id: "C2".to_string(), segment_id: None, preliminary_score: Some(2.0), preliminary_rank: None, preliminary_status: "".to_string(), final_qa_score: None, final_score: None, rank: Some(2), computed_at: "".to_string() },
+            CandidateResult { candidate_id: "C3".to_string(), segment_id: None, preliminary_score: Some(2.4), preliminary_rank: None, preliminary_status: "".to_string(), final_qa_score: None, final_score: None, rank: Some(3), computed_at: "".to_string() },
+            CandidateResult { candidate_id: "C4".to_string(), segment_id: None, preliminary_score: Some(2.4), preliminary_rank: None, preliminary_status: "".to_string(), final_qa_score: None, final_score: None, rank: Some(3), computed_at: "".to_string() },
+        ];
+        
+        let overrides = HashMap::new();
+        let needs_override = select_top3(&mut candidates, &overrides);
+        
+        assert_eq!(needs_override, true);
+        
+        let c3 = candidates.iter().find(|c| c.candidate_id == "C3").unwrap();
+        let c4 = candidates.iter().find(|c| c.candidate_id == "C4").unwrap();
+        
+        assert_eq!(c3.preliminary_status, "pending_override");
+        assert_eq!(c4.preliminary_status, "pending_override");
+    }
+
+    #[test]
+    fn test_fixture_ft_1() {
+        let mut candidates = vec![
+            CandidateResult { candidate_id: "F1".to_string(), segment_id: None, preliminary_score: Some(1.2), preliminary_rank: None, preliminary_status: "".to_string(), final_qa_score: None, final_score: Some(1.2), rank: None, computed_at: "".to_string() },
+            CandidateResult { candidate_id: "F2".to_string(), segment_id: None, preliminary_score: Some(1.8), preliminary_rank: None, preliminary_status: "".to_string(), final_qa_score: None, final_score: Some(1.4), rank: None, computed_at: "".to_string() },
+            CandidateResult { candidate_id: "F3".to_string(), segment_id: None, preliminary_score: Some(1.8), preliminary_rank: None, preliminary_status: "".to_string(), final_qa_score: None, final_score: Some(1.4), rank: None, computed_at: "".to_string() },
+        ];
+        
+        rank_candidates(&mut candidates);
+        
+        let f1 = candidates.iter().find(|c| c.candidate_id == "F1").unwrap();
+        let f2 = candidates.iter().find(|c| c.candidate_id == "F2").unwrap();
+        let f3 = candidates.iter().find(|c| c.candidate_id == "F3").unwrap();
+        
+        assert_eq!(f1.rank, Some(1));
+        assert_eq!(f2.rank, Some(2));
+        assert_eq!(f3.rank, Some(2));
     }
 }

@@ -90,3 +90,65 @@ pub fn get_segment_criteria_ids(segment_id: &str) -> Vec<&'static str> {
         _ => vec![],
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::server::score_routes::CriterionEntry;
+
+    #[test]
+    fn test_fixture_rs_1() {
+        let entries = vec![
+            CriterionEntry { criterion_id: "relevance_alignment".to_string(), score: 90 }, // weight 0.30
+            CriterionEntry { criterion_id: "content_substance".to_string(), score: 80 },   // weight 0.25
+            CriterionEntry { criterion_id: "clarity_organization".to_string(), score: 70 },// weight 0.25
+            CriterionEntry { criterion_id: "delivery_impact".to_string(), score: 100 },    // weight 0.20
+        ];
+        let result = compute_segment_score("best_advocacy", &entries);
+        assert_eq!(result, 84.5);
+    }
+
+    #[test]
+    fn test_fixture_rs_2() {
+        let entries = vec![
+            CriterionEntry { criterion_id: "relevance_alignment".to_string(), score: 100 },
+            CriterionEntry { criterion_id: "content_substance".to_string(), score: 100 },
+            CriterionEntry { criterion_id: "clarity_organization".to_string(), score: 100 },
+            CriterionEntry { criterion_id: "delivery_impact".to_string(), score: 100 },
+        ];
+        let result = compute_segment_score("best_advocacy", &entries);
+        assert_eq!(result, 100.0);
+    }
+
+    #[test]
+    fn test_fixture_rs_3() {
+        let entries = vec![
+            CriterionEntry { criterion_id: "relevance_alignment".to_string(), score: 1 },
+            CriterionEntry { criterion_id: "content_substance".to_string(), score: 1 },
+            CriterionEntry { criterion_id: "clarity_organization".to_string(), score: 1 },
+            CriterionEntry { criterion_id: "delivery_impact".to_string(), score: 1 },
+        ];
+        let result = compute_segment_score("best_advocacy", &entries);
+        assert_eq!(result, 1.0);
+    }
+
+    #[test]
+    fn test_fixture_pc_1() {
+        let ranks = vec![1.0, 2.0, 1.0, 3.0, 2.0];
+        let result = compute_preliminary_score(&ranks);
+        assert_eq!(result, 1.8);
+    }
+
+    #[test]
+    fn test_fixture_cs_1() {
+        let result = compute_final_score(1.8, 1.0);
+        assert_eq!(result, 1.4);
+    }
+
+    #[test]
+    fn test_fixture_ma_1() {
+        let scores = vec![88.0, 92.0, 79.5];
+        let result = compute_avg_segment_score(&scores);
+        assert_eq!(result, 86.5);
+    }
+}

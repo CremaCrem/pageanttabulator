@@ -33,7 +33,7 @@
 
 | Phase | Scope | Status |
 |---|---|---|
-| 1 | Rust unit tests — scoring math (`compute.rs`, `ranking.rs`) | ☐ Not started |
+| 1 | Rust unit tests — scoring math (`compute.rs`, `ranking.rs`) | ☑ Complete |
 | 2 | Rust integration tests — API layer (simulated judge submissions) | ☐ Not started |
 | 3 | Playwright UI smoke tests — event/candidate/judge setup flow | ☐ Not started |
 
@@ -162,5 +162,5 @@ Kept intentionally minimal — do not duplicate Phase 1/2 coverage here.
 
 ---
 
-*Owner: [your name]. Last updated: [date]. This document supersedes any test expectation
+*Owner: Jeremy Zion Jamer. Last updated: 2026-9-17. This document supersedes any test expectation
 implied by code comments or agent chat history.*
