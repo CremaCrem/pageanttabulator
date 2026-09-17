@@ -1,0 +1,36 @@
+name: Test Suite
+
+# Runs the Rust scoring-engine test suite so that docs/scoped/testing-strategy.md's
+# "cargo test passes locally and in CI" merge rule is actually enforced, not just claimed.
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+      - "test/**"
+
+jobs:
+  test:
+    name: cargo test
+    # macos-latest matches the platform this project is developed on. Tauri v2 is a
+    # dependency of the whole crate, and on Linux that additionally requires installing
+    # webkit2gtk/appindicator/etc. system packages before anything will compile. macOS
+    # (and Windows) runners need no extra setup, so this avoids that whole class of
+    # CI-only failures.
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Run scoring engine test suite
+        run: cargo test --manifest-path src-tauri/Cargo.toml --locked
