@@ -356,7 +356,7 @@ export const ManualScoreEntryPage: React.FC = () => {
               type="password"
               value={pinInput}
               onChange={(e) => setPinInput(e.target.value)}
-              className="flex-1 form-control text-center tracking-widest text-lg"
+              className="flex-1 min-w-0 form-control text-center tracking-widest text-lg"
               placeholder="PIN"
               autoFocus
             />
