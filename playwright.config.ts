@@ -9,7 +9,7 @@ const wipeTmp = `node -e "require('node:fs').rmSync('e2e/.tmp',{recursive:true,f
 export default defineConfig({
   testDir: './e2e',
   workers: 1,
-  reporter: 'list',
+  reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
   use: {
     ...devices['Desktop Chrome'],
     baseURL: 'http://localhost:3000',
