@@ -202,9 +202,14 @@ pageanttabulator/
 │   └── workflows/
 │       └── build.yml                 # GitHub Actions: builds Windows installer on push
 │
+├── e2e/                              # Playwright UI smoke tests (testing-strategy.md Phase 3)
+│   ├── smoke.spec.ts                 # Admin setup flow + judge score submission
+│   └── .tmp/                         # Throwaway test database (gitignored, wiped per run)
+│
 ├── public/
 ├── index.html
 ├── vite.config.ts
+├── playwright.config.ts              # Builds dist + boots pageant-server as the test server
 ├── tailwind.config.js
 ├── tsconfig.json
 └── package.json
@@ -401,6 +406,12 @@ npm run dev
 
 # Type check
 npx tsc --noEmit
+
+# Rust test suite (scoring unit tests + API integration tests)
+cargo test --manifest-path src-tauri/Cargo.toml
+
+# Playwright UI smoke tests (builds dist and boots its own server on :3000)
+npm run test:e2e
 
 # Build production Windows app (run on Windows or via GitHub Actions)
 npm run tauri build
