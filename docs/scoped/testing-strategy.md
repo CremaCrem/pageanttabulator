@@ -270,12 +270,12 @@ Endpoint: `POST /api/admin/correct-score`. Implemented in `src-tauri/tests/api_i
 
 | Fixture | Input | Expected | Verified by / date |
 |---|---|---|---|
-| CR-1 | correct an existing score from 90 to 70 | 200; row rewritten **in place** — same score id, still 1 row, `computedScore` 70.0, `previousScore` 90.0 | |
-| CR-2 | j1 scores A=90, B=80; then A corrected to 50 | breakdown flips: A drops from rank 1 to 2, B rises from 2 to 1 | |
-| CR-3 | any successful correction | a `warn` log entry recording previous score, new score, and the reason | |
-| CR-4 | correct a score that was never submitted | 404, `code: NO_EXISTING_SCORE`, nothing inserted | |
-| CR-5 | correction with an empty or whitespace-only reason | 400, `code: REASON_REQUIRED`, stored score untouched | |
-| CR-6 | correction with a wrong PIN, and with scores `0` / `101` | 401 `Invalid PIN`; 400 `Scores must be between 1 and 100`; stored score untouched | |
+| CR-1 | correct an existing score from 90 to 70 | 200; row rewritten **in place** — same score id, still 1 row, `computedScore` 70.0, `previousScore` 90.0 | Jeremy Zion Jamer 2026-09-18 |
+| CR-2 | j1 scores A=90, B=80; then A corrected to 50 | breakdown flips: A drops from rank 1 to 2, B rises from 2 to 1 | Jeremy Zion Jamer 2026-09-18 |
+| CR-3 | any successful correction | a `warn` log entry recording previous score, new score, and the reason | Jeremy Zion Jamer 2026-09-18 |
+| CR-4 | correct a score that was never submitted | 404, `code: NO_EXISTING_SCORE`, nothing inserted | Jeremy Zion Jamer 2026-09-18 |
+| CR-5 | correction with an empty or whitespace-only reason | 400, `code: REASON_REQUIRED`, stored score untouched | Jeremy Zion Jamer 2026-09-18 |
+| CR-6 | correction with a wrong PIN, and with scores `0` / `101` | 401 `Invalid PIN`; 400 `Scores must be between 1 and 100`; stored score untouched | Jeremy Zion Jamer 2026-09-18 |
 
 CR-2 is the load-bearing one: it proves a correction reaches **official results**, not just
 the stored row.
@@ -302,5 +302,5 @@ Kept intentionally minimal — do not duplicate Phase 1/2 coverage here.
 
 ---
 
-*Owner: Jeremy Zion Jamer. Last updated: 2026-9-17. This document supersedes any test expectation
+*Owner: Jeremy Zion Jamer. Last updated: 2026-09-18. This document supersedes any test expectation
 implied by code comments or agent chat history.*
