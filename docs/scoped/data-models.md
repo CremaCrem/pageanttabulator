@@ -163,7 +163,26 @@ export interface ISegmentScore {
   computedScore:  number;            // Server-computed weighted total
   submittedAt:    string;            // ISO timestamp
 }
+
+/**
+ * Admin correction of a judge's already-submitted score, on the judge's behalf.
+ * Judges can never edit their own score — see docs/scoped/scoring-logic.md §2.1.
+ * Sent to POST /api/admin/correct-score. `reason` is mandatory and is written to
+ * the system log alongside the previous and new score.
+ */
+export interface IScoreCorrectionRequest {
+  pin:             string;
+  judgeId:         string;
+  candidateId:     string;
+  segmentId:       string;
+  criteriaEntries: ICriterionEntry[];
+  reason:          string;           // Required, non-blank
+}
 ```
+
+> **Note:** the server serialises a stored score with `criteriaJson` (a JSON *string*),
+> not `criteriaEntries`. Clients reading `/api/scores/judge/:judgeId` must `JSON.parse`
+> it — see `ManualScoreEntryPage` and `ScoringPage`.
 
 ### Results
 ```typescript

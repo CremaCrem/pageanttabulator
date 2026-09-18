@@ -159,6 +159,27 @@ This guarantees the system ignores inactive virtual bridges (like Docker, WSL, o
 |--------|------|-------------|
 | `POST` | `/api/admin/verify-pin` | Verify admin PIN for sensitive actions |
 
+### Admin Score Entry & Correction
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/admin/manual-score-entry` | Enter a judge's backup paper score. **Refuses** if a score already exists for that judge/candidate/segment |
+| `POST` | `/api/admin/correct-score` | Correct a judge's already-submitted score on their behalf. **Requires** an existing score and a written `reason` |
+
+`POST /api/admin/correct-score` — body: `{ pin, judgeId, candidateId, segmentId, criteriaEntries[], reason }`
+
+| Status | Meaning |
+|--------|---------|
+| `200` | Corrected. Returns `{ status, scoreId, previousScore, computedScore, correctedAt }` |
+| `400` | `REASON_REQUIRED` (blank reason), incomplete criteria, or a score outside 1-100 |
+| `401` | `Invalid PIN` |
+| `404` | `NO_EXISTING_SCORE` — nothing to correct; use manual entry instead |
+
+The existing row is rewritten **in place**, keeping its `scoreId`, so downstream Borda math
+still sees exactly one score per judge/candidate/segment. Every correction writes a
+`warn`-level system log entry with the previous score, the new score, and the reason.
+Judges can never edit their own scores — see `docs/scoped/scoring-logic.md` §2.1.
+
 ---
 
 ## 3. WebSocket Event Protocol
@@ -195,6 +216,7 @@ The server broadcasts these events to ALL connected clients unless noted:
 | `FINAL_RESULTS_READY` | `{ winners }` | Final scores computed, winners determined |
 | `SYSTEM_MESSAGE` | `{ level, message }` | Admin broadcast message to all judge screens |
 | `EVENT_RESET`    | `{}` | Admin wiped the current event — clients must clear state |
+| `SCORE_CORRECTED` | `{ judgeId, candidateId, segmentId }` | Admin corrected a submitted score on a judge's behalf |
 
 ### Client → Server Events
 

@@ -708,46 +708,61 @@ pub struct ManualScoreEntryPayload {
     pub criteria_entries: Vec<crate::server::score_routes::CriterionEntry>,
 }
 
+/// Shared gate for the two admin score-writing paths: PIN, segment validity, criteria
+/// completeness, and 1-100 range. Returns the error response to send, or None to proceed.
+fn validate_admin_score_write(
+    conn: &rusqlite::Connection,
+    pin: &str,
+    segment_id: &str,
+    entries: &[crate::server::score_routes::CriterionEntry],
+) -> Option<(axum::http::StatusCode, Json<Value>)> {
+    // a. Validate PIN
+    match db::event::get(conn) {
+        Ok(Some(config)) => {
+            if config.admin_pin != pin {
+                return Some((axum::http::StatusCode::UNAUTHORIZED, Json(json!({"error": "Invalid PIN"}))));
+            }
+        }
+        _ => {
+            return Some((axum::http::StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": "Config error"}))));
+        }
+    }
+
+    // b. Validate criteria completeness
+    let expected_criteria = crate::scoring::compute::get_segment_criteria_ids(segment_id);
+    if expected_criteria.is_empty() {
+        return Some((axum::http::StatusCode::BAD_REQUEST, Json(json!({"error": "Invalid segment"}))));
+    }
+
+    if entries.len() != expected_criteria.len() {
+        return Some((axum::http::StatusCode::BAD_REQUEST, Json(json!({"error": "All criteria are required for this segment"}))));
+    }
+
+    let submitted: std::collections::HashSet<&str> =
+        entries.iter().map(|e| e.criterion_id.as_str()).collect();
+    let expected_set: std::collections::HashSet<&str> = expected_criteria.into_iter().collect();
+    if submitted != expected_set {
+        return Some((axum::http::StatusCode::BAD_REQUEST, Json(json!({"error": "All criteria are required for this segment"}))));
+    }
+
+    // c. Validate score ranges
+    for entry in entries {
+        if entry.score < 1 || entry.score > 100 {
+            return Some((axum::http::StatusCode::BAD_REQUEST, Json(json!({"error": "Scores must be between 1 and 100"}))));
+        }
+    }
+
+    None
+}
+
 pub async fn manual_score_entry(
     State(state): State<AppState>,
     Json(payload): Json<ManualScoreEntryPayload>,
 ) -> (axum::http::StatusCode, Json<Value>) {
     let conn = state.db.lock().unwrap();
-    
-    // a. Validate PIN
-    if let Ok(Some(config)) = db::event::get(&conn) {
-        if config.admin_pin != payload.pin {
-            return (axum::http::StatusCode::UNAUTHORIZED, Json(json!({"error": "Invalid PIN"})));
-        }
-    } else {
-        return (axum::http::StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": "Config error"})));
-    }
 
-    // b. Validate criteria completeness
-    let expected_criteria = crate::scoring::compute::get_segment_criteria_ids(&payload.segment_id);
-    if expected_criteria.is_empty() {
-        return (axum::http::StatusCode::BAD_REQUEST, Json(json!({"error": "Invalid segment"})));
-    }
-    
-    if payload.criteria_entries.len() != expected_criteria.len() {
-        return (axum::http::StatusCode::BAD_REQUEST, Json(json!({"error": "All criteria are required for this segment"})));
-    }
-    
-    let mut submitted_criteria = std::collections::HashSet::new();
-    for entry in &payload.criteria_entries {
-        submitted_criteria.insert(entry.criterion_id.as_str());
-    }
-    
-    let expected_set: std::collections::HashSet<&str> = expected_criteria.into_iter().collect();
-    if submitted_criteria != expected_set {
-         return (axum::http::StatusCode::BAD_REQUEST, Json(json!({"error": "All criteria are required for this segment"})));
-    }
-
-    // c. Validate score ranges
-    for entry in &payload.criteria_entries {
-        if entry.score < 1 || entry.score > 100 {
-            return (axum::http::StatusCode::BAD_REQUEST, Json(json!({"error": "Scores must be between 1 and 100"})));
-        }
+    if let Some(err) = validate_admin_score_write(&conn, &payload.pin, &payload.segment_id, &payload.criteria_entries) {
+        return err;
     }
 
     // d. Duplicate check
@@ -807,4 +822,107 @@ pub async fn manual_score_entry(
             "submittedAt": now
         }))
     )
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CorrectScorePayload {
+    pub pin: String,
+    pub judge_id: String,
+    pub candidate_id: String,
+    pub segment_id: String,
+    pub criteria_entries: Vec<crate::server::score_routes::CriterionEntry>,
+    pub reason: String,
+}
+
+/// Admin score correction, on a judge's behalf.
+///
+/// Judges can never edit their own submitted score; the approved chain is judge requests →
+/// Admin consults coordinator + auditor → Admin corrects here. See
+/// `docs/scoped/scoring-logic.md` §2.1. Rewrites the existing row in place so downstream
+/// Borda math still sees exactly one score per judge/candidate/segment.
+pub async fn correct_score(
+    State(state): State<AppState>,
+    Json(payload): Json<CorrectScorePayload>,
+) -> (axum::http::StatusCode, Json<Value>) {
+    let conn = state.db.lock().unwrap();
+
+    if let Some(err) = validate_admin_score_write(&conn, &payload.pin, &payload.segment_id, &payload.criteria_entries) {
+        return err;
+    }
+
+    // A reason is mandatory — this is the audit trail for an override of a locked score.
+    if payload.reason.trim().is_empty() {
+        return (
+            axum::http::StatusCode::BAD_REQUEST,
+            Json(json!({"error": "A reason is required to correct a submitted score", "code": "REASON_REQUIRED"})),
+        );
+    }
+
+    // Unlike manual entry, a correction REQUIRES an existing score to overwrite.
+    let existing = match db::scores::get_one(&conn, &payload.judge_id, &payload.candidate_id, &payload.segment_id) {
+        Ok(Some(s)) => s,
+        Ok(None) => {
+            return (
+                axum::http::StatusCode::NOT_FOUND,
+                Json(json!({"error": "No submitted score exists for this judge, candidate and segment. Use Manual Score Entry instead.", "code": "NO_EXISTING_SCORE"})),
+            );
+        }
+        Err(e) => {
+            eprintln!("correct_score lookup failed: {}", e);
+            return (axum::http::StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": "Failed to read existing score"})));
+        }
+    };
+
+    let new_computed = crate::scoring::compute::compute_segment_score(&payload.segment_id, &payload.criteria_entries);
+    let criteria_json = serde_json::to_string(&payload.criteria_entries).unwrap_or_else(|_| "[]".to_string());
+    let now = chrono::Utc::now().to_rfc3339();
+
+    match db::scores::update_criteria(&conn, &existing.id, &criteria_json, new_computed, &now) {
+        Ok(0) => (
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": "Score row vanished before it could be corrected"})),
+        ),
+        Ok(_) => {
+            let _ = crate::db::logs::insert(
+                &conn,
+                &crate::db::logs::SystemLog {
+                    id: uuid::Uuid::new_v4().to_string(),
+                    level: "warn".to_string(),
+                    source: "admin".to_string(),
+                    message: format!(
+                        "Admin CORRECTED score for judge {} / candidate {} in segment {}",
+                        payload.judge_id, payload.candidate_id, payload.segment_id
+                    ),
+                    details: Some(format!(
+                        "Previous: {} ({}) | New: {} ({}) | Reason: {}",
+                        existing.computed_score, existing.criteria_json, new_computed, criteria_json, payload.reason.trim()
+                    )),
+                    created_at: now.clone(),
+                },
+            );
+
+            let _ = state.ws_sender.send(json!({
+                "type": "SCORE_CORRECTED",
+                "judgeId": payload.judge_id,
+                "candidateId": payload.candidate_id,
+                "segmentId": payload.segment_id
+            }));
+
+            (
+                axum::http::StatusCode::OK,
+                Json(json!({
+                    "status": "success",
+                    "scoreId": existing.id,
+                    "previousScore": existing.computed_score,
+                    "computedScore": new_computed,
+                    "correctedAt": now
+                })),
+            )
+        }
+        Err(e) => {
+            eprintln!("correct_score update failed: {}", e);
+            (axum::http::StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": "Failed to correct score"})))
+        }
+    }
 }

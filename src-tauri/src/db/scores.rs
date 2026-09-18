@@ -94,3 +94,46 @@ pub fn get_all(conn: &Connection) -> Result<Vec<Score>> {
     }
     Ok(scores)
 }
+
+pub fn get_one(
+    conn: &Connection,
+    judge_id: &str,
+    candidate_id: &str,
+    segment_id: &str,
+) -> Result<Option<Score>> {
+    let mut stmt = conn.prepare(
+        "SELECT * FROM scores WHERE judge_id = ?1 AND candidate_id = ?2 AND segment_id = ?3",
+    )?;
+    let mut iter = stmt.query_map(params![judge_id, candidate_id, segment_id], |row| {
+        Ok(Score {
+            id: row.get("id")?,
+            judge_id: row.get("judge_id")?,
+            judge_name: row.get("judge_name")?,
+            candidate_id: row.get("candidate_id")?,
+            segment_id: row.get("segment_id")?,
+            criteria_json: row.get("criteria_json")?,
+            computed_score: row.get("computed_score")?,
+            submitted_at: row.get("submitted_at")?,
+        })
+    })?;
+    match iter.next() {
+        Some(s) => Ok(Some(s?)),
+        None => Ok(None),
+    }
+}
+
+/// Admin-only score correction. Rewrites an existing row in place, keeping its id so
+/// downstream math sees one score per judge/candidate/segment, exactly as before.
+/// Never call this from a judge-facing path — see `docs/scoped/scoring-logic.md` §2.1.
+pub fn update_criteria(
+    conn: &Connection,
+    score_id: &str,
+    criteria_json: &str,
+    computed_score: f64,
+    corrected_at: &str,
+) -> Result<usize> {
+    conn.execute(
+        "UPDATE scores SET criteria_json = ?1, computed_score = ?2, submitted_at = ?3 WHERE id = ?4",
+        params![criteria_json, computed_score, corrected_at, score_id],
+    )
+}
