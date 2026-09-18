@@ -50,12 +50,17 @@ judge realises they made a mistake, the correction follows this chain:
 4. **The correction is written to the system log** so the change is auditable after the
    event.
 
-> ⚠️ **Implementation status as of 2026-09-18: step 3 is policy, not yet capability.**
-> Manual Score Entry *refuses* to write when a score already exists for that judge +
-> candidate + segment, and the data layer exposes no update or delete for scores. An Admin
-> therefore has no supported in-app way to correct a submitted score today. Closing this
-> gap requires a PIN-protected admin edit path plus an audit-log entry. Until it ships,
-> there is no recovery path for a mis-entered score short of direct database intervention.
+**Implemented as of 2026-09-18.** The Admin performs step 3 on the *Manual Score Entry*
+page: selecting a judge + segment + candidate that already has a submitted score switches
+the form into correction mode, prefilled with what the judge originally entered. A written
+reason is mandatory. Behind it, `POST /api/admin/correct-score` validates the admin PIN and
+the 1-100 range, requires that a score already exists, rewrites that row **in place**
+(preserving its id, so downstream Borda math still sees exactly one score per
+judge/candidate/segment), and writes a `warn`-level log entry recording the previous score,
+the new score, and the reason.
+
+Manual Score Entry itself still *refuses* to overwrite — correcting an existing score is a
+deliberately separate, reason-logged action, not a silent re-entry.
 
 ---
 

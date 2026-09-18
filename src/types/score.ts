@@ -15,3 +15,16 @@ export interface ISegmentScore {
   computedScore:  number;
   submittedAt:    string;
 }
+
+/**
+ * Admin correction of a judge's already-submitted score, on the judge's behalf.
+ * See docs/scoped/scoring-logic.md §2.1 — judges can never edit their own score.
+ */
+export interface IScoreCorrectionRequest {
+  pin:             string;
+  judgeId:         string;
+  candidateId:     string;
+  segmentId:       string;
+  criteriaEntries: ICriterionEntry[];
+  reason:          string;
+}

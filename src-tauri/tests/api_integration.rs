@@ -317,3 +317,156 @@ async fn api_7_manual_entry_unknown_segment() {
     let scores = get(&app, "/api/scores/all").await;
     assert!(scores.as_array().unwrap().is_empty());
 }
+
+// ---------------------------------------------------------------------------
+// Admin score correction (`POST /api/admin/correct-score`)
+//
+// Policy: scoring-logic.md §2.1 — judges can never edit their own score; an Admin
+// corrects it on their behalf after coordinator + auditor approval.
+// ---------------------------------------------------------------------------
+
+async fn correct(
+    app: &Router,
+    judge: &str,
+    candidate: &str,
+    criteria: Value,
+    pin: &str,
+    reason: &str,
+) -> (StatusCode, Value) {
+    post(
+        app,
+        "/api/admin/correct-score",
+        json!({
+            "pin": pin,
+            "judgeId": judge,
+            "candidateId": candidate,
+            "segmentId": SEGMENT,
+            "criteriaEntries": criteria,
+            "reason": reason,
+        }),
+    )
+    .await
+}
+
+/// CR-1 — happy path: the corrected score replaces the original, in place.
+#[tokio::test]
+async fn cr_1_admin_corrects_submitted_score() {
+    let app = test_app();
+    seed_event(&app).await;
+    seed_candidates(&app).await;
+
+    let (_, submitted) = submit(&app, "j1", "A", 90).await;
+    let original_id = submitted["scoreId"].as_str().unwrap().to_string();
+
+    let (status, body) = correct(&app, "j1", "A", flat_criteria(70), PIN, "Judge misread the form").await;
+    assert_eq!(status, StatusCode::OK, "correction failed: {}", body);
+    assert_eq!(body["previousScore"], json!(90.0));
+    assert_eq!(body["computedScore"], json!(70.0));
+
+    let rows = get(&app, "/api/scores/all").await;
+    let rows = rows.as_array().unwrap();
+    assert_eq!(rows.len(), 1, "correction must rewrite in place, not add a row");
+    assert_eq!(rows[0]["computedScore"], json!(70.0));
+    assert_eq!(rows[0]["id"], json!(original_id), "score id must be preserved");
+}
+
+/// CR-2 — the correction actually changes official results, not just the stored row.
+#[tokio::test]
+async fn cr_2_correction_changes_official_ranking() {
+    let app = test_app();
+    seed_event(&app).await;
+    seed_candidates(&app).await;
+
+    submit(&app, "j1", "A", 90).await;
+    submit(&app, "j1", "B", 80).await;
+
+    let before = get(&app, "/api/results/breakdown").await;
+    assert_eq!(breakdown_for(&before, "A"), (1, 1), "A should start ranked 1st");
+    assert_eq!(breakdown_for(&before, "B"), (2, 2));
+
+    let (status, _) = correct(&app, "j1", "A", flat_criteria(50), PIN, "Transcription error").await;
+    assert_eq!(status, StatusCode::OK);
+
+    let after = get(&app, "/api/results/breakdown").await;
+    assert_eq!(breakdown_for(&after, "A"), (2, 2), "A must drop to 2nd after correction");
+    assert_eq!(breakdown_for(&after, "B"), (1, 1), "B must rise to 1st");
+}
+
+/// CR-3 — a correction is written to the audit log, with old and new values.
+#[tokio::test]
+async fn cr_3_correction_is_audit_logged() {
+    let app = test_app();
+    seed_event(&app).await;
+    seed_candidates(&app).await;
+    submit(&app, "j1", "A", 90).await;
+
+    correct(&app, "j1", "A", flat_criteria(70), PIN, "Coordinator approved fix").await;
+
+    let logs = get(&app, "/api/logs").await;
+    let entry = logs
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|l| l["message"].as_str().unwrap_or_default().contains("CORRECTED"))
+        .expect("a correction must leave an audit log entry");
+
+    let details = entry["details"].as_str().unwrap_or_default();
+    assert!(details.contains("Previous: 90"), "log must record the old score: {}", details);
+    assert!(details.contains("New: 70"), "log must record the new score: {}", details);
+    assert!(details.contains("Coordinator approved fix"), "log must record the reason: {}", details);
+}
+
+/// CR-4 — correcting a score that was never submitted is refused.
+#[tokio::test]
+async fn cr_4_correction_requires_existing_score() {
+    let app = test_app();
+    seed_event(&app).await;
+    seed_candidates(&app).await;
+
+    let (status, body) = correct(&app, "j1", "A", flat_criteria(70), PIN, "No score yet").await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert_eq!(body["code"], "NO_EXISTING_SCORE");
+
+    let rows = get(&app, "/api/scores/all").await;
+    assert!(rows.as_array().unwrap().is_empty(), "a failed correction must not insert");
+}
+
+/// CR-5 — a reason is mandatory; blank/whitespace is refused and the score is untouched.
+#[tokio::test]
+async fn cr_5_correction_requires_a_reason() {
+    let app = test_app();
+    seed_event(&app).await;
+    seed_candidates(&app).await;
+    submit(&app, "j1", "A", 90).await;
+
+    for blank in ["", "   "] {
+        let (status, body) = correct(&app, "j1", "A", flat_criteria(70), PIN, blank).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "blank reason must be refused");
+        assert_eq!(body["code"], "REASON_REQUIRED");
+    }
+
+    let rows = get(&app, "/api/scores/all").await;
+    assert_eq!(rows.as_array().unwrap()[0]["computedScore"], json!(90.0), "score must be untouched");
+}
+
+/// CR-6 — the correction endpoint is PIN-gated and range-validated, same as manual entry.
+#[tokio::test]
+async fn cr_6_correction_rejects_bad_pin_and_bad_scores() {
+    let app = test_app();
+    seed_event(&app).await;
+    seed_candidates(&app).await;
+    submit(&app, "j1", "A", 90).await;
+
+    let (status, body) = correct(&app, "j1", "A", flat_criteria(70), "9999", "Reason").await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+    assert_eq!(body["error"], "Invalid PIN");
+
+    for bad in [0, 101] {
+        let (status, body) = correct(&app, "j1", "A", flat_criteria(bad), PIN, "Reason").await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "score {} must be refused", bad);
+        assert_eq!(body["error"], "Scores must be between 1 and 100");
+    }
+
+    let rows = get(&app, "/api/scores/all").await;
+    assert_eq!(rows.as_array().unwrap()[0]["computedScore"], json!(90.0), "score must be untouched");
+}
