@@ -1,7 +1,8 @@
 name: Test Suite
 
-# Runs the Rust scoring-engine test suite so that docs/scoped/testing-strategy.md's
-# "cargo test passes locally and in CI" merge rule is actually enforced, not just claimed.
+# Runs the Rust scoring-engine test suite and the Playwright UI smoke suite so that
+# docs/scoped/testing-strategy.md's "cargo test passes locally and in CI" merge rule
+# (and Phase 3's browser flow) are actually enforced, not just claimed.
 on:
   pull_request:
     branches:
@@ -34,3 +35,43 @@ jobs:
 
       - name: Run scoring engine test suite
         run: cargo test --manifest-path src-tauri/Cargo.toml --locked
+
+  e2e:
+    name: playwright ui smoke
+    # Same platform constraint as the cargo test job above: playwright.config.ts's
+    # webServer boots the pageant-server bin, which links the same Tauri-dependent lib crate.
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run UI smoke tests
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

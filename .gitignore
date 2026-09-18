@@ -32,6 +32,9 @@ pageant_data.db*
 
 # Dev/Test Data
 .dev-data/
+e2e/.tmp/
+test-results/
+playwright-report/
 
 # Temporary/scratch files
 /uploads
