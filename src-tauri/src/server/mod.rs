@@ -22,7 +22,7 @@ use tower_http::cors::CorsLayer;
 use tower_http::services::{ServeDir, ServeFile};
 use tower_http::set_header::SetResponseHeaderLayer;
 
-pub async fn start_server(app_state: AppState) {
+pub fn build_router(app_state: AppState) -> Router {
     let frontend_dir = "../dist"; // Path to Vite build output
 
     let app_dir = std::path::Path::new(app_state.db.lock().unwrap().path().unwrap()).parent().unwrap().to_path_buf();
@@ -122,6 +122,12 @@ pub async fn start_server(app_state: AppState) {
                 .fallback(ServeFile::new(format!("{}/index.html", frontend_dir))),
         )
         .layer(CorsLayer::permissive());
+
+    app
+}
+
+pub async fn start_server(app_state: AppState) {
+    let app = build_router(app_state);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
     println!("Server listening on {}", addr);
