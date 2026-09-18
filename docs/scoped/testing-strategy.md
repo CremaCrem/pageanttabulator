@@ -34,7 +34,7 @@
 | Phase | Scope | Status |
 |---|---|---|
 | 1 | Rust unit tests — scoring math (`compute.rs`, `ranking.rs`) | ☑ Complete |
-| 2 | Rust integration tests — API layer (simulated judge submissions) | ☐ Not started |
+| 2 | Rust integration tests — API layer (simulated judge submissions) | ☑ Complete |
 | 3 | Playwright UI smoke tests — event/candidate/judge setup flow | ☐ Not started |
 
 Update the checkboxes as phases complete. Do not start Phase 2 work until Phase 1 is
@@ -159,18 +159,18 @@ Setup facts relevant to fixture design, confirmed against the implementation:
 - `POST /api/admin/manual-score-entry` requires an `event_config` row to exist, because it
   validates the submitted PIN against `event_config.admin_pin`.
 
-### 5.2 Fixture Inputs — Awaiting Human-Authored Expected Values
+### 5.2 Fixture Table
 
-> **⚠ NO PHASE 2 TEST CODE MAY BE WRITTEN UNTIL THE `Expected` COLUMNS BELOW ARE FILLED IN
-> BY A HUMAN**, per §1 of this document. Inputs below were drafted by an agent; expected
-> outputs must not be.
+Implemented in `src-tauri/tests/api_integration.rs`.
 
-Shared setup for API-1 and API-3 — segment `best_advocacy`, whose criterion weights
+Shared setup for API-1, API-3 and API-8 — segment `best_advocacy`, whose criterion weights
 (`relevance_alignment` 0.30, `content_substance` 0.25, `clarity_organization` 0.25,
-`delivery_impact` 0.20) are already locked by fixture RS-1. All four criteria receive the
-same score per candidate, so each judge's RawScore equals that score.
+`delivery_impact` 0.20) are already locked by fixture RS-1.
 
 Candidates: `A` and `B`, both `gender = male`, both eligible.
+
+For API-1 and API-3 all four criteria receive the same score per candidate, so each judge's
+RawScore equals that score:
 
 | Judge | Candidate A (all 4 criteria) | Candidate B (all 4 criteria) |
 |---|---|---|
@@ -180,97 +180,97 @@ Candidates: `A` and `B`, both `gender = male`, both eligible.
 
 #### API-1 — N judges submit one segment over HTTP
 
-Three `POST /api/scores` calls per judge-candidate pair (6 total), then read
-`GET /api/results/breakdown` for `segmentId = "best_advocacy"`.
+Six `POST /api/scores` calls, then `GET /api/results/breakdown`.
 
-| Fixture | Input | Expected rankSum (A, B) | Expected segment winner | Verified by / date |
+| Fixture | Input | Expected rankSum (A, B) | Expected finalRank (A, B) | Verified by / date |
 |---|---|---|---|---|
-| API-1 | the 6 submissions in the table above | _(to fill)_ | _(to fill)_ | |
+| API-1 | the 6 submissions above | A=5, B=4 | A=2, B=1 (winner B) | _(inherited from BC-1)_ |
 
-> Cross-reference: this fixture is the over-HTTP restatement of Phase 1's **BC-1**
-> (J1: A=1,B=2 · J2: A=2,B=1 · J3: A=2,B=1 → A=5, B=4, winner B). The human filling the
-> `Expected` cells should confirm the raw scores above do in fact produce BC-1's per-judge
-> ranks before reusing BC-1's rank sums.
+> Expected values are **inherited from Phase 1 fixture BC-1** (J1: A=1,B=2 · J2: A=2,B=1 ·
+> J3: A=2,B=1 → A=5, B=4, winner B), not newly authored. The raw scores above reproduce
+> BC-1's per-judge ranks.
 
 #### API-2 — Judge resubmits a score for the same candidate + segment
 
-See the **flagged discrepancy in §5.3 below** — this fixture cannot be authored until the
-intended behavior is decided, because the current implementation contradicts the scenario
-table above.
+Behavior decided by the document owner — see §5.3.
 
-| Fixture | Input | Expected HTTP status | Expected row count in `scores` | Expected stored score | Verified by / date |
+| Fixture | Input | Expected HTTP status | Expected `scores` row count | Expected stored score | Verified by / date |
 |---|---|---|---|---|---|
-| API-2 | j1 submits A = all 90, then j1 submits A = all 50 for the same segment | _(blocked — see §5.3)_ | _(blocked)_ | _(blocked)_ | |
+| API-2 | j1 submits A = all 90, then j1 submits A = all 50 | 200 with an `error` body ("already submitted") | 1 | 90.0 — the **first** score survives | Jeremy Zion Jamer 2026-09-18 |
 
 #### API-3 — Manual Score Entry mixes with judge submissions
 
 Identical inputs to API-1, except judges `j2` and `j3` are entered through
-`POST /api/admin/manual-score-entry` with a valid admin PIN, while `j1` submits through
-`POST /api/scores`. Proves `scoring-logic.md` §2's claim that manually entered rows are
-"strictly indistinguishable ... downstream".
+`POST /api/admin/manual-score-entry` with a valid admin PIN, while `j1` uses
+`POST /api/scores`. Proves `scoring-logic.md` §2's "strictly indistinguishable" claim.
 
-| Fixture | Input | Expected rankSum (A, B) | Expected segment winner | Verified by / date |
+| Fixture | Input | Expected rankSum (A, B) | Expected finalRank (A, B) | Verified by / date |
 |---|---|---|---|---|
-| API-3 | j1 via `/api/scores`; j2, j3 via `/api/admin/manual-score-entry` | _(to fill)_ | _(to fill)_ | |
+| API-3 | j1 via `/api/scores`; j2, j3 via manual entry | A=5, B=4 | A=2, B=1 (winner B) | _(must equal API-1)_ |
 
-> The expected result should be **identical to API-1**. If it is not, either the claim in
-> `scoring-logic.md` §2 or the implementation is wrong.
-
-#### API-4 … API-7 — Manual Score Entry input validation (proposed additions)
-
-These four are **beyond** the three scenarios originally listed in this section. They cover
-validation branches that `manual_score_entry` already implements. Include them only if the
-document owner agrees they belong in Phase 2.
+#### API-4 … API-7 — Manual Score Entry input validation
 
 | Fixture | Input | Expected HTTP status | Expected error message | Verified by / date |
 |---|---|---|---|---|
-| API-4 | manual entry with a wrong admin PIN | _(to fill)_ | _(to fill)_ | |
-| API-5 | manual entry with only 3 of the segment's 4 criteria | _(to fill)_ | _(to fill)_ | |
-| API-6 | manual entry with a criterion score of `0`, and separately `101` | _(to fill)_ | _(to fill)_ | |
-| API-7 | manual entry for a `segmentId` that does not exist | _(to fill)_ | _(to fill)_ | |
+| API-4 | manual entry with a wrong admin PIN | 401 | `Invalid PIN` | Jeremy Zion Jamer 2026-09-18 |
+| API-5 | manual entry with only 3 of the segment's 4 criteria | 400 | `All criteria are required for this segment` | Jeremy Zion Jamer 2026-09-18 |
+| API-6 | manual entry with a criterion score of `0`, and separately `101` | 400 | `Scores must be between 1 and 100` | Jeremy Zion Jamer 2026-09-18 |
+| API-7 | manual entry for a `segmentId` that does not exist | 400 | `Invalid segment` | Jeremy Zion Jamer 2026-09-18 |
 
-### 5.3 ⚠ FLAGGED FOR HUMAN REVIEW — Scenario 2 contradicts the implementation
+Each of these also asserts that **no row is written** to `scores` when validation fails.
 
-Per §1 ("If a fixture appears wrong, stop and flag it for human review instead of
-'fixing' it"), this is flagged rather than silently corrected.
+#### API-8 — Criterion weights are applied over HTTP
 
-The scenario table in this section claims:
+| Fixture | Input | Expected `computedScore` | Verified by / date |
+|---|---|---|---|
+| API-8 | `POST /api/scores` with RS-1's scores [90, 80, 70, 100] in criterion order | 84.5 | _(inherited from RS-1)_ |
 
-> | A judge resubmits/edits a score before segment close | No duplicate rows; **latest score wins** |
+> **Why this fixture exists.** API-1 and API-3 score every criterion identically, so RawScore
+> scales uniformly and their rank sums are **blind to a mis-weighted criterion** — this was
+> confirmed by mutation testing (changing `relevance_alignment` from 0.30 to 0.90 left
+> API-1 passing). API-8 submits Phase 1 fixture RS-1's unequal scores over HTTP and asserts
+> RS-1's locked output, which does fail under that mutation (138.5 ≠ 84.5).
 
-"Latest score wins" is not what the system does, and there is no code path by which it
-could. Four independent points of contradiction:
+### 5.3 Score Correction Policy — Resolved
 
-1. `server/score_routes.rs:33-39` rejects a resubmission outright, returning
-   `{"error": "Score already submitted for this candidate in this segment. Editing
-   requires admin unlock."}` — the original row is kept, the new score is discarded.
-2. `server/admin_routes.rs:753-762` (`manual_score_entry`, duplicate check) rejects the
-   same case with HTTP 400.
-3. `db/schema.rs:94` places `UNIQUE(judge_id, candidate_id, segment_id)` on `scores`, and
-   `db/scores.rs` exposes only `insert` and readers — there is no `update` and no `delete`.
-   Even with the route checks removed, a second insert would fail at the DB level.
-4. `AGENTS.md` §3: "Submitted scores are **locked** — no edit without admin PIN + audit
-   log."
+The earlier draft of this section flagged that the Scenario 2 wording ("latest score wins")
+contradicted the implementation. **Resolved by the document owner on 2026-09-18: the
+implementation is correct.** The scenario table above is retained for history; the binding
+rule is the one below.
 
-So "no duplicate rows" is satisfied, but "latest score wins" is false — **earliest score
-wins, and the resubmission is refused**.
+**First score wins, and it is locked to the judge.** A judge cannot edit or overwrite their
+own submission. Enforced in four places:
 
-A second, related gap: the error message in point 1 tells the judge that "editing requires
-admin unlock," but **no admin unlock endpoint exists** anywhere in `server/`. The message
-promises a recovery path the system does not implement. `AGENTS.md` §3's "no edit without
-admin PIN + audit log" likewise describes a capability that is not built.
+1. `server/score_routes.rs:33-39` — rejects the resubmission, keeps the original row.
+2. `server/admin_routes.rs:753-762` — same rejection for Manual Score Entry.
+3. `db/schema.rs:94` — `UNIQUE(judge_id, candidate_id, segment_id)`, and `db/scores.rs`
+   exposes only `insert` plus readers.
+4. `AGENTS.md` §3 — submitted scores are locked.
 
-**Decision required from the document owner before API-2 can be authored:**
+Locked by fixture **API-2**.
 
-- **(a)** The implementation is correct and this document is wrong — amend Scenario 2 to
-  "resubmission is rejected; the original score is preserved," and separately decide
-  whether the misleading "admin unlock" wording in `score_routes.rs` should be corrected.
-- **(b)** The document is correct and the implementation is wrong — "latest score wins" is
-  the intended official behavior, making this a **production bug** that Phase 2 should
-  expose, requiring an unlock/overwrite path plus an audit-log entry.
+#### Approved correction workflow (Admin override)
 
-Option (b) changes scoring behavior and would require explicit approval under
-`AGENTS.md` §12.
+There is deliberately **no judge-facing unlock**. Corrections follow this chain:
+
+1. The judge notices the mistake and **requests a correction from the Admin** (tabulator).
+   The judge takes no further action.
+2. The Admin **consults the pageant coordinator and the auditor** and asks whether the
+   correction is permitted.
+3. If approved, the **Admin edits that judge's score directly in the admin client**, on the
+   judge's behalf.
+4. The correction is recorded in the system log.
+
+> ⚠ **Implementation gap — step 3 does not exist yet.** Manual Score Entry
+> (`server/admin_routes.rs:753-762`) *refuses* to write when a score already exists for
+> that judge + candidate + segment, and `db/scores.rs` has no `update` and no `delete`. As
+> of 2026-09-18 an Admin therefore has **no supported way to correct a submitted score** —
+> the workflow above is policy, not yet capability. Closing this gap needs a PIN-protected
+> admin edit path plus an audit-log entry, and is out of scope for Phase 2 (tests only).
+>
+> ⚠ **Related:** the judge-facing error text in `server/score_routes.rs:37` says *"Editing
+> requires admin unlock."* No unlock feature exists, and per this policy none will. The
+> wording should be changed to direct the judge to request an Admin correction.
 
 ## 6. Phase 3 — UI Smoke Test Plan (Playwright, browser mode only)
 

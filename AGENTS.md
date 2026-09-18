@@ -79,7 +79,8 @@ This is a **mission-critical system used at a live event with real students**. T
 | Finals Ties (50/50 result) trigger the **Tie-Breaking Q&A** | System auto-flags tied finalists; admin opens segment |
 | `is_in_tiebreak` is set ONLY by `compute_results` "final" | Never set manually from any UI |
 | Minor Awards (Advocacy/Ramp) use **Ranking-Based** scoring | Uses the Borda count ranking system |
-| Submitted scores are **locked** — no edit without admin PIN + audit log | Data integrity |
+| Submitted scores are **locked to the judge** — first score wins, judges can never edit or overwrite their own submission | Data integrity |
+| Corrections go through the **Admin override chain only** — judge requests → Admin consults coordinator + auditor → Admin edits on the judge's behalf (PIN + audit log). **No judge-facing unlock, ever.** See `docs/scoped/scoring-logic.md` §2.1 | Accountability; a judge must never be able to revise a score after seeing others |
 | Admin PIN required for all irreversible actions (locks, overrides, manual score entry) | Prevent accidental destruction / fraudulent entry |
 | Special awards scoring is **concurrent** with main segments on the UI | Merged forms for judge efficiency |
 | All Rust DTO structs communicating with frontend use `#[serde(rename_all = "camelCase")]` | Prevent 422 deserialization crashes |

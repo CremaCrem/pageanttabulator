@@ -28,6 +28,35 @@ Minor awards use an isolated **Simple Average** engine.
 - A score of `0` is **not valid** — minimum valid score is `1`.
 - **Manual Score Entry Note:** If the Admin uses the PIN-protected Manual Score Entry feature to input a judge's backup paper scores, the resulting database rows are strictly indistinguishable from scores submitted directly via the judge's browser. Therefore, all Borda Count math automatically handles manual entries with zero additional logic required downstream.
 
+### 2.1 Score Locking & the Correction Workflow
+
+**A submitted score is final and locked to the judge. The first score wins.** A judge can
+never edit, overwrite, or withdraw their own submission — not before the segment closes,
+not after. This is enforced at the route layer, at the Manual Score Entry layer, and by a
+`UNIQUE(judge_id, candidate_id, segment_id)` constraint on the `scores` table.
+
+The reason is accountability, not convenience: a judge who could revise a score after the
+fact could adjust it in response to what other judges or the audience did.
+
+**There is deliberately no judge-facing unlock feature, and none will be built.** When a
+judge realises they made a mistake, the correction follows this chain:
+
+1. **The judge requests a correction from the Admin (tabulator).** The judge takes no
+   further action on their own device.
+2. **The Admin consults the pageant coordinator and the auditor** and asks whether the
+   correction is permitted.
+3. **If approved, the Admin edits that judge's score directly in the admin client**, on the
+   judge's behalf, protected by the admin PIN.
+4. **The correction is written to the system log** so the change is auditable after the
+   event.
+
+> ⚠️ **Implementation status as of 2026-09-18: step 3 is policy, not yet capability.**
+> Manual Score Entry *refuses* to write when a score already exists for that judge +
+> candidate + segment, and the data layer exposes no update or delete for scores. An Admin
+> therefore has no supported in-app way to correct a submitted score today. Closing this
+> gap requires a PIN-protected admin edit path plus an audit-log entry. Until it ships,
+> there is no recovery path for a mis-entered score short of direct database intervention.
+
 ---
 
 ## 3. Main Pageant: Borda Count Logic (Ranking-Based)
