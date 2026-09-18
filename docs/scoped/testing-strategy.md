@@ -35,7 +35,7 @@
 |---|---|---|
 | 1 | Rust unit tests — scoring math (`compute.rs`, `ranking.rs`) | ☑ Complete |
 | 2 | Rust integration tests — API layer (simulated judge submissions) | ☑ Complete |
-| 3 | Playwright UI smoke tests — event/candidate/judge setup flow | ☐ Not started |
+| 3 | Playwright UI smoke tests — event/candidate/judge setup flow | ☑ Complete |
 
 Update the checkboxes as phases complete. Do not start Phase 2 work until Phase 1 is
 merged to `main` and green in CI.
@@ -280,6 +280,51 @@ Kept intentionally minimal — do not duplicate Phase 1/2 coverage here.
 |---|---|
 | Create event → add 1 candidate → add 1 judge | Basic setup flow doesn't crash |
 | Judge submits one real score through the on-screen form | Form-to-server wiring works |
+
+### 6.1 Test Harness Requirements
+
+Implemented in `e2e/smoke.spec.ts`, configured by `playwright.config.ts` — Chromium only,
+one worker, tests run in order because they deliberately share one server and one database.
+
+- **Server under test.** The config builds the frontend and then runs the standalone
+  `pageant-server` binary, which serves `dist/` and `/api/*` from one origin on `:3000` —
+  the same single-origin setup judges get at the venue, not a Vite dev server.
+- **Throwaway database.** The dev/test server binary honours a `PAGEANT_DB_PATH`
+  environment variable, so the suite runs against `e2e/.tmp/smoke.db` and never touches the
+  shared `.dev-data` database. That directory is wiped as part of the server command — not
+  in `globalSetup` and not in the config body, because Playwright starts `webServer` before
+  `globalSetup` and re-imports the config in every worker, so a wipe in either place
+  deletes the database out from under the running server.
+- **Admin mode in a browser.** `src/App.tsx` renders the admin shell only when
+  `window.isTauri` is set, so the admin half of the suite sets that flag via
+  `page.addInitScript`. No production code branches on the tests' behalf.
+- **No new expected values.** These tests assert UI state and row existence only. Every
+  scoring number stays locked to the Phase 1 and Phase 2 fixtures above, so Section 1's
+  golden rule is untouched by this phase.
+
+### 6.2 Fixture Table
+
+| Fixture | Input | Expected | Verified by / date |
+|---|---|---|---|
+| UI-1 | Admin fills Event Setup with judge count 1 and submits, then adds candidate `01` on the Candidates page | Submit button flips from "Initialize Event" to "Update Event Details"; the candidate appears in the roster table | _(UI state only — no scoring value asserted)_ |
+| UI-2 | `production_number` is opened via `POST /api/rounds/open` as a precondition; the judge claims slot J1, fills all four criteria and clicks Submit Score | Exactly one judge slot is offered (the configured count of 1); the page shows "Scores successfully submitted."; `GET /api/scores/judge/J1` returns exactly one row, for `production_number` | _(UI state only — no scoring value asserted)_ |
+
+UI-1 and UI-2 run in order: UI-2 scores the candidate UI-1 created, and the judge row that
+satisfies "add 1 judge" is created when UI-2 claims slot J1. There is no admin-side
+judge-creation form by design — judge rows come into existence when a slot is claimed, and
+the admin only configures how many slots exist and names them afterwards.
+
+> **Mutation-tested.** Pointing the Candidates page's `POST` at a nonexistent endpoint
+> fails UI-1 and only UI-1; doing the same to the scoring form's `POST` fails UI-2 and only
+> UI-2. Neither test is vacuous.
+
+### 6.3 Deliberately Not Covered
+
+- **Not wired into CI.** `main` branch protection still gates on `cargo test` only. Running
+  Playwright on a runner needs a browser download, which was left out of this phase; the
+  suite is a local pre-merge check (`npm run test:e2e`) until someone decides otherwise.
+- **No assertion on the live score preview.** The on-screen "Draft Total" is cosmetic per
+  `AGENTS.md` §5.1, and the authoritative math is already locked by Phase 1 and Phase 2.
 
 ---
 
