@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { fetchApi } from '../../api/client';
-import { ICandidate, IJudge, IManualScoreEntryRequest } from '../../types';
+import { ICandidate, IJudge, IManualScoreEntryRequest, IScoreCorrectionRequest } from '../../types';
 import { useToast } from '../../context/ToastContext';
 import { SEGMENTS } from '../../utils/constants';
 import { useDirtyState } from '../../hooks/useDirtyState';
@@ -31,11 +31,26 @@ export const ManualScoreEntryPage: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
+  // Correction mode: set when this judge already has a submitted score for this
+  // candidate + segment. Judges can never edit their own score, so the Admin does it
+  // on their behalf — see docs/scoped/scoring-logic.md §2.1.
+  const [existingScoreId, setExistingScoreId] = useState<string | null>(null);
+  const [originalScore, setOriginalScore] = useState<number | null>(null);
+  const [reason, setReason] = useState('');
+  const [checkingExisting, setCheckingExisting] = useState(false);
+
   const [pendingChange, setPendingChange] = useState<{ type: 'segment' | 'candidate', id: string } | null>(null);
 
+  // Snapshot of what was prefilled in correction mode, so untouched prefilled values
+  // don't count as unsaved work and nag on every candidate switch.
+  const [prefilled, setPrefilled] = useState<Record<string, number | ''> | null>(null);
+
   const isDirty = React.useMemo(() => {
+    if (prefilled) {
+      return JSON.stringify(scores) !== JSON.stringify(prefilled);
+    }
     return Object.values(scores).some(val => val !== undefined && val !== '');
-  }, [scores]);
+  }, [scores, prefilled]);
 
   useDirtyState(isDirty);
 
@@ -120,7 +135,65 @@ export const ManualScoreEntryPage: React.FC = () => {
     setScores({});
     setSelectedCandidateId('');
     setError('');
+    setExistingScoreId(null);
+    setOriginalScore(null);
+    setPrefilled(null);
+    setReason('');
   }, [selectedSegmentId]);
+
+  // Detect an already-submitted score for this judge + candidate + segment. If one
+  // exists, switch the form into correction mode and prefill what the judge entered.
+  useEffect(() => {
+    if (!isUnlocked || !selectedJudgeId || !selectedSegmentId || !selectedCandidateId) {
+      setExistingScoreId(null);
+      setOriginalScore(null);
+      setPrefilled(null);
+      return;
+    }
+    let cancelled = false;
+    const checkExisting = async () => {
+      setCheckingExisting(true);
+      try {
+        const judgeScores: Array<{
+          id: string;
+          candidateId: string;
+          segmentId: string;
+          criteriaJson: string;
+          computedScore: number;
+        }> = await fetchApi(`/api/scores/judge/${selectedJudgeId}`);
+
+        const match = judgeScores.find(
+          s => s.candidateId === selectedCandidateId && s.segmentId === selectedSegmentId
+        );
+
+        if (cancelled) return;
+
+        if (match) {
+          setExistingScoreId(match.id);
+          setOriginalScore(match.computedScore);
+          try {
+            const parsed: Array<{ criterionId: string; score: number }> = JSON.parse(match.criteriaJson);
+            const prefilledScores: Record<string, number | ''> = {};
+            parsed.forEach(e => { prefilledScores[e.criterionId] = e.score; });
+            setScores(prefilledScores);
+            setPrefilled(prefilledScores);
+          } catch {
+            setError('This score exists but its criteria could not be read. Correct it manually.');
+          }
+        } else {
+          setExistingScoreId(null);
+          setOriginalScore(null);
+          setPrefilled(null);
+        }
+      } catch {
+        if (!cancelled) setError('Could not check for an existing score.');
+      } finally {
+        if (!cancelled) setCheckingExisting(false);
+      }
+    };
+    checkExisting();
+    return () => { cancelled = true; };
+  }, [isUnlocked, selectedJudgeId, selectedSegmentId, selectedCandidateId]);
 
   const handleSegmentChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const nextId = e.target.value;
@@ -210,21 +283,49 @@ export const ManualScoreEntryPage: React.FC = () => {
         score: Number(scores[c.id])
       }));
 
-      const payload: IManualScoreEntryRequest = {
-        pin: verifiedPin,
-        judgeId: selectedJudgeId,
-        candidateId: selectedCandidateId,
-        segmentId: activeSegment.id,
-        criteriaEntries
-      };
+      if (existingScoreId) {
+        // Correcting a locked score on the judge's behalf — a reason is mandatory
+        // because it becomes the audit-log record of the override.
+        if (!reason.trim()) {
+          setError('A reason is required to correct a submitted score.');
+          setSubmitting(false);
+          return;
+        }
+        const correction: IScoreCorrectionRequest = {
+          pin: verifiedPin,
+          judgeId: selectedJudgeId,
+          candidateId: selectedCandidateId,
+          segmentId: activeSegment.id,
+          criteriaEntries,
+          reason: reason.trim()
+        };
+        await fetchApi('/api/admin/correct-score', {
+          method: 'POST',
+          body: JSON.stringify(correction)
+        });
+        success(`Score corrected for ${selectedCandidate?.fullName}`);
+      } else {
+        const payload: IManualScoreEntryRequest = {
+          pin: verifiedPin,
+          judgeId: selectedJudgeId,
+          candidateId: selectedCandidateId,
+          segmentId: activeSegment.id,
+          criteriaEntries
+        };
 
-      await fetchApi('/api/admin/manual-score-entry', {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      });
-      
-      success(`Score successfully entered for ${selectedCandidate?.fullName}`);
+        await fetchApi('/api/admin/manual-score-entry', {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+
+        success(`Score successfully entered for ${selectedCandidate?.fullName}`);
+      }
+
       setScores({});
+      setReason('');
+      setExistingScoreId(null);
+      setOriginalScore(null);
+      setPrefilled(null);
       
       const currentIndex = candidates.findIndex(c => c.id === selectedCandidateId);
       if (currentIndex >= 0 && currentIndex < candidates.length - 1) {
@@ -386,14 +487,41 @@ export const ManualScoreEntryPage: React.FC = () => {
               ))}
             </div>
 
+            {existingScoreId && (
+              <div className="mb-6 space-y-3">
+                <Alert variant="warning">
+                  <div className="font-semibold">Correcting a submitted score</div>
+                  <div className="text-sm mt-1">
+                    This judge already submitted
+                    {originalScore !== null && <strong> {originalScore.toFixed(2)}</strong>} for this
+                    candidate. Only proceed once the pageant coordinator and auditor have approved
+                    the correction. The change is written to the audit log.
+                  </div>
+                </Alert>
+                <div>
+                  <label htmlFor="correction-reason" className="block text-sm font-medium text-neutral-700 mb-1">
+                    Reason for correction <span className="text-red-600">*</span>
+                  </label>
+                  <textarea
+                    id="correction-reason"
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                    rows={2}
+                    className="w-full form-control"
+                    placeholder="e.g. Judge transposed two scores; approved by coordinator and auditor"
+                  />
+                </div>
+              </div>
+            )}
+
             <Button
               type="submit"
-              disabled={submitting || !selectedJudgeId}
+              disabled={submitting || !selectedJudgeId || checkingExisting || (!!existingScoreId && !reason.trim())}
               isLoading={submitting}
-              loadingText="Submitting..."
+              loadingText={existingScoreId ? 'Correcting...' : 'Submitting...'}
               className="w-full py-4 text-lg mt-2"
             >
-              Submit Score
+              {existingScoreId ? 'Correct Score' : 'Submit Score'}
             </Button>
           </form>
         </div>

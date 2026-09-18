@@ -34,7 +34,7 @@ pub async fn submit_score(
     if let Ok(scores) = db::scores::get_by_judge(&conn, &payload.judge_id) {
         if scores.iter().any(|s| s.segment_id == payload.segment_id && s.candidate_id == payload.candidate_id) {
             return Json(json!({
-                "error": "Score already submitted for this candidate in this segment. Editing requires admin unlock."
+                "error": "You have already submitted a score for this candidate in this segment. If you made a mistake, please contact the Admin."
             }));
         }
     }

@@ -261,16 +261,24 @@ There is deliberately **no judge-facing unlock**. Corrections follow this chain:
    judge's behalf.
 4. The correction is recorded in the system log.
 
-> ⚠ **Implementation gap — step 3 does not exist yet.** Manual Score Entry
-> (`server/admin_routes.rs:753-762`) *refuses* to write when a score already exists for
-> that judge + candidate + segment, and `db/scores.rs` has no `update` and no `delete`. As
-> of 2026-09-18 an Admin therefore has **no supported way to correct a submitted score** —
-> the workflow above is policy, not yet capability. Closing this gap needs a PIN-protected
-> admin edit path plus an audit-log entry, and is out of scope for Phase 2 (tests only).
->
-> ⚠ **Related:** the judge-facing error text in `server/score_routes.rs:37` says *"Editing
-> requires admin unlock."* No unlock feature exists, and per this policy none will. The
-> wording should be changed to direct the judge to request an Admin correction.
+Step 3 is implemented by `POST /api/admin/correct-score` (see `scoring-logic.md` §2.1),
+surfaced on the Manual Score Entry page. Locked by fixtures **CR-1 … CR-6** in §5.4.
+
+### 5.4 Admin Score Correction Fixtures
+
+Endpoint: `POST /api/admin/correct-score`. Implemented in `src-tauri/tests/api_integration.rs`.
+
+| Fixture | Input | Expected | Verified by / date |
+|---|---|---|---|
+| CR-1 | correct an existing score from 90 to 70 | 200; row rewritten **in place** — same score id, still 1 row, `computedScore` 70.0, `previousScore` 90.0 | Jeremy Zion Jamer 2026-09-18 |
+| CR-2 | j1 scores A=90, B=80; then A corrected to 50 | breakdown flips: A drops from rank 1 to 2, B rises from 2 to 1 | Jeremy Zion Jamer 2026-09-18 |
+| CR-3 | any successful correction | a `warn` log entry recording previous score, new score, and the reason | Jeremy Zion Jamer 2026-09-18 |
+| CR-4 | correct a score that was never submitted | 404, `code: NO_EXISTING_SCORE`, nothing inserted | Jeremy Zion Jamer 2026-09-18 |
+| CR-5 | correction with an empty or whitespace-only reason | 400, `code: REASON_REQUIRED`, stored score untouched | Jeremy Zion Jamer 2026-09-18 |
+| CR-6 | correction with a wrong PIN, and with scores `0` / `101` | 401 `Invalid PIN`; 400 `Scores must be between 1 and 100`; stored score untouched | Jeremy Zion Jamer 2026-09-18 |
+
+CR-2 is the load-bearing one: it proves a correction reaches **official results**, not just
+the stored row.
 
 ## 6. Phase 3 — UI Smoke Test Plan (Playwright, browser mode only)
 
@@ -294,5 +302,5 @@ Kept intentionally minimal — do not duplicate Phase 1/2 coverage here.
 
 ---
 
-*Owner: Jeremy Zion Jamer. Last updated: 2026-9-17. This document supersedes any test expectation
+*Owner: Jeremy Zion Jamer. Last updated: 2026-09-18. This document supersedes any test expectation
 implied by code comments or agent chat history.*
