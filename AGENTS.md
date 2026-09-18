@@ -315,6 +315,7 @@ Read these when working in the relevant area:
 - **Conventional Commits:** Follow conventional commit style (e.g., `feat: ...`, `fix: ...`, `refactor: ...`, `docs: ...`, `chore: ...`). Example: `fix: resolve session token bug`.
 - **No Multi-line Bodies:** Do not include multi-line message bodies or detailed lists in commit messages unless explicitly requested.
 - **Direct Application:** Do not ask for confirmation on the commit style each time — apply it automatically.
+- **Standing PR authorization:** For a task the user has actually asked for (a fix, feature, or doc change), an agent may create a branch, commit, push it, and open the pull request with `gh pr create` — all without a separate confirmation prompt for the push or the PR itself. This does not extend to merging, force-pushing, deleting branches, or pushing directly to `main` — those still require explicit confirmation each time.
 
 ---
 
